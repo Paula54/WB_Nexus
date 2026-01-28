@@ -1,11 +1,13 @@
 import { NavLink, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
-  Users,
+  Globe,
   Share2,
+  Search,
   MessageCircle,
   Settings,
   Zap,
+  Sparkles,
 } from "lucide-react";
 import {
   Sidebar,
@@ -19,14 +21,18 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
+import { PageType } from "@/types/nexus";
 
 const menuItems = [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard },
-  { title: "CRM", url: "/crm", icon: Users },
-  { title: "Social Media", url: "/social-media", icon: Share2 },
-  { title: "WhatsApp Inbox", url: "/whatsapp", icon: MessageCircle },
-  { title: "Definições", url: "/settings", icon: Settings },
+  { title: "Dashboard", url: "/", icon: LayoutDashboard, type: PageType.DASHBOARD },
+  { title: "Site Builder", url: "/builder", icon: Globe, type: PageType.BUILDER },
+  { title: "Estratégia AI", url: "/strategy", icon: Sparkles, type: PageType.STRATEGY },
+  { title: "Social Media", url: "/social-media", icon: Share2, type: PageType.SOCIAL },
+  { title: "SEO", url: "/seo", icon: Search, type: PageType.SEO },
+  { title: "WhatsApp Inbox", url: "/whatsapp", icon: MessageCircle, type: PageType.WHATSAPP },
 ];
+
+const settingsItem = { title: "Definições", url: "/settings", icon: Settings };
 
 export function AppSidebar() {
   const { state } = useSidebar();
@@ -56,7 +62,7 @@ export function AppSidebar() {
 
         <SidebarGroup className="mt-4">
           <SidebarGroupLabel className={cn(collapsed && "sr-only")}>
-            Navegação
+            Plataforma
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
@@ -85,6 +91,33 @@ export function AppSidebar() {
                   </SidebarMenuItem>
                 );
               })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup className="mt-auto mb-4">
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={location.pathname === settingsItem.url}
+                  tooltip={settingsItem.title}
+                >
+                  <NavLink
+                    to={settingsItem.url}
+                    className={cn(
+                      "flex items-center gap-3 px-3 py-2 rounded-lg transition-all",
+                      location.pathname === settingsItem.url
+                        ? "bg-sidebar-accent text-sidebar-primary font-medium"
+                        : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
+                    )}
+                  >
+                    <settingsItem.icon className="w-5 h-5 shrink-0" />
+                    {!collapsed && <span>{settingsItem.title}</span>}
+                  </NavLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

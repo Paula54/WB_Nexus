@@ -16,6 +16,9 @@ import CRM from "@/pages/CRM";
 import SocialMedia from "@/pages/SocialMedia";
 import WhatsAppInbox from "@/pages/WhatsAppInbox";
 import Settings from "@/pages/Settings";
+import SiteBuilder from "@/pages/SiteBuilder";
+import Strategy from "@/pages/Strategy";
+import SEO from "@/pages/SEO";
 
 // Legal Pages
 import Privacidade from "@/pages/legal/Privacidade";
@@ -62,8 +65,11 @@ function AppRoutes() {
         }
       >
         <Route index element={<Dashboard />} />
+        <Route path="builder" element={<SiteBuilder />} />
+        <Route path="strategy" element={<Strategy />} />
         <Route path="crm" element={<CRM />} />
         <Route path="social-media" element={<SocialMedia />} />
+        <Route path="seo" element={<SEO />} />
         <Route path="whatsapp" element={<WhatsAppInbox />} />
         <Route path="settings" element={<Settings />} />
       </Route>
