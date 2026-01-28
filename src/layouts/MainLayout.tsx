@@ -4,7 +4,7 @@ import { AppSidebar } from "@/components/AppSidebar";
 import { useAuth } from "@/contexts/AuthContext";
 import { LogOut, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
+import { NexusConcierge } from "@/components/NexusConcierge";
 export default function MainLayout() {
   const { signOut, user } = useAuth();
 
@@ -42,6 +42,7 @@ export default function MainLayout() {
             <Outlet />
           </div>
         </main>
+        <NexusConcierge />
       </div>
     </SidebarProvider>
   );

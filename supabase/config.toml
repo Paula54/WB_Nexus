@@ -1,1 +1,4 @@
 project_id = "ubzvsjyfebuqtiwzpcly"
+
+[functions.nexus-concierge]
+verify_jwt = false
