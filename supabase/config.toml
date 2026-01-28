@@ -2,3 +2,6 @@ project_id = "ubzvsjyfebuqtiwzpcly"
 
 [functions.nexus-concierge]
 verify_jwt = false
+
+[functions.generate-strategy]
+verify_jwt = false
