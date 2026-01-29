@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -14,25 +15,74 @@ A tua personalidade:
 - Comunicas em Português de Portugal
 - Tens um tom sofisticado mas acessível
 
-As tuas capacidades:
+As tuas capacidades EXECUTIVAS:
+- Criar novos leads no CRM
+- Adicionar notas a leads existentes
+- Definir lembretes de acompanhamento
 - Aconselhar sobre estratégias de marketing e vendas
-- Ajudar a gerir leads e priorizar contactos
-- Sugerir conteúdo para redes sociais
-- Explicar funcionalidades da plataforma Nexus AI
-- Fornecer insights sobre o mercado imobiliário
 
 Regras:
-- Mantém respostas concisas mas informativas (máximo 200 palavras)
+- Mantém respostas concisas mas informativas (máximo 150 palavras)
 - Usa formatação markdown quando apropriado
 - Sê proativo em sugerir próximos passos
-- Nunca inventes dados - se não souberes algo, admite
+- Quando o utilizador pedir para criar um lead, adicionar nota ou lembrete, USA AS FERRAMENTAS disponíveis
+- Confirma sempre as ações executadas
 
-Módulos da plataforma que conheces:
-- Dashboard: Visão geral das operações
-- CRM: Gestão de leads com classificação AI
-- Social Media: Agendamento e publicação de posts
-- WhatsApp Inbox: Comunicação com leads via WhatsApp
-- Definições: Configurações da conta`;
+Exemplos de comandos que deves executar:
+- "Cria um lead chamado João Silva com email joao@email.com"
+- "Adiciona uma nota ao lead X: Interessado em T3"
+- "Define lembrete para amanhã às 10h para ligar ao cliente Y"`;
+
+const tools = [
+  {
+    type: "function",
+    function: {
+      name: "create_lead",
+      description: "Cria um novo lead/contacto no CRM",
+      parameters: {
+        type: "object",
+        properties: {
+          name: { type: "string", description: "Nome completo do lead" },
+          email: { type: "string", description: "Email do lead (opcional)" },
+          phone: { type: "string", description: "Telefone do lead (opcional)" },
+          notes: { type: "string", description: "Notas iniciais sobre o lead (opcional)" },
+        },
+        required: ["name"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "add_note_to_lead",
+      description: "Adiciona uma nota a um lead existente",
+      parameters: {
+        type: "object",
+        properties: {
+          lead_name: { type: "string", description: "Nome do lead para identificação" },
+          note: { type: "string", description: "Conteúdo da nota a adicionar" },
+        },
+        required: ["lead_name", "note"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "set_reminder",
+      description: "Define um lembrete de acompanhamento para um lead",
+      parameters: {
+        type: "object",
+        properties: {
+          lead_name: { type: "string", description: "Nome do lead" },
+          reminder_date: { type: "string", description: "Data e hora do lembrete em formato ISO (YYYY-MM-DDTHH:mm)" },
+          note: { type: "string", description: "Nota sobre o que fazer no lembrete" },
+        },
+        required: ["lead_name", "reminder_date"],
+      },
+    },
+  },
+];
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -40,13 +90,88 @@ serve(async (req) => {
   }
 
   try {
-    const { messages } = await req.json();
+    const { messages, execute_tool, tool_name, tool_args, user_id } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
+    // Handle tool execution
+    if (execute_tool && tool_name && user_id) {
+      const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
+      let result = { success: false, message: "" };
+
+      if (tool_name === "create_lead") {
+        const { name, email, phone, notes } = tool_args;
+        const { error } = await supabase.from("leads").insert({
+          name,
+          email: email || null,
+          phone: phone || null,
+          notes: notes || null,
+          user_id,
+          status: "novo",
+        });
+        result = error
+          ? { success: false, message: `Erro ao criar lead: ${error.message}` }
+          : { success: true, message: `Lead "${name}" criado com sucesso!` };
+      } else if (tool_name === "add_note_to_lead") {
+        const { lead_name, note } = tool_args;
+        const { data: leads } = await supabase
+          .from("leads")
+          .select("id, notes")
+          .eq("user_id", user_id)
+          .ilike("name", `%${lead_name}%`)
+          .limit(1);
+
+        if (leads && leads.length > 0) {
+          const existingNotes = leads[0].notes || "";
+          const newNotes = existingNotes ? `${existingNotes}\n\n[${new Date().toLocaleDateString("pt-PT")}] ${note}` : `[${new Date().toLocaleDateString("pt-PT")}] ${note}`;
+          const { error } = await supabase
+            .from("leads")
+            .update({ notes: newNotes })
+            .eq("id", leads[0].id);
+          result = error
+            ? { success: false, message: `Erro ao adicionar nota: ${error.message}` }
+            : { success: true, message: `Nota adicionada ao lead "${lead_name}"` };
+        } else {
+          result = { success: false, message: `Lead "${lead_name}" não encontrado` };
+        }
+      } else if (tool_name === "set_reminder") {
+        const { lead_name, reminder_date, note } = tool_args;
+        const { data: leads } = await supabase
+          .from("leads")
+          .select("id, notes")
+          .eq("user_id", user_id)
+          .ilike("name", `%${lead_name}%`)
+          .limit(1);
+
+        if (leads && leads.length > 0) {
+          const existingNotes = leads[0].notes || "";
+          const reminderNote = note ? `\n\n[LEMBRETE ${reminder_date}] ${note}` : "";
+          const { error } = await supabase
+            .from("leads")
+            .update({
+              reminder_date,
+              notes: existingNotes + reminderNote,
+            })
+            .eq("id", leads[0].id);
+          result = error
+            ? { success: false, message: `Erro ao definir lembrete: ${error.message}` }
+            : { success: true, message: `Lembrete definido para "${lead_name}" em ${new Date(reminder_date).toLocaleString("pt-PT")}` };
+        } else {
+          result = { success: false, message: `Lead "${lead_name}" não encontrado` };
+        }
+      }
+
+      return new Response(JSON.stringify(result), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Regular chat with tool calling
     const response = await fetch(
       "https://ai.gateway.lovable.dev/v1/chat/completions",
       {
@@ -61,6 +186,7 @@ serve(async (req) => {
             { role: "system", content: SYSTEM_PROMPT },
             ...messages,
           ],
+          tools,
           stream: true,
         }),
       }
