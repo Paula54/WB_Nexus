@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.generate-strategy]
 verify_jwt = false
+
+[functions.publish-social-post]
+verify_jwt = false
