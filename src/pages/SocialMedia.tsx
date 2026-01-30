@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
-import { Share2, Instagram, Linkedin, Facebook, Clock, CheckCircle, XCircle, Send } from "lucide-react";
+import { Share2, Instagram, Linkedin, Facebook, Clock, CheckCircle, XCircle, Send, AlertTriangle, ChevronDown, ChevronUp } from "lucide-react";
 import { format } from "date-fns";
 import { pt } from "date-fns/locale";
 
@@ -17,6 +17,7 @@ interface SocialPost {
   scheduled_at: string | null;
   published_at: string | null;
   created_at: string;
+  error_log: string | null;
 }
 
 export default function SocialMedia() {
@@ -24,6 +25,34 @@ export default function SocialMedia() {
   const [posts, setPosts] = useState<SocialPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [publishing, setPublishing] = useState<string | null>(null);
+  const [expandedErrors, setExpandedErrors] = useState<Set<string>>(new Set());
+
+  const toggleErrorExpand = (postId: string) => {
+    setExpandedErrors(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(postId)) {
+        newSet.delete(postId);
+      } else {
+        newSet.add(postId);
+      }
+      return newSet;
+    });
+  };
+
+  const parseErrorMessage = (errorLog: string | null): string => {
+    if (!errorLog) return "Erro desconhecido";
+    try {
+      const parsed = JSON.parse(errorLog);
+      if (parsed.errors && Array.isArray(parsed.errors) && parsed.errors.length > 0) {
+        return parsed.errors[0].message || "Erro na publicação";
+      }
+      if (parsed.message) return parsed.message;
+      if (parsed.error) return parsed.error;
+      return "Erro na publicação";
+    } catch {
+      return errorLog.length > 100 ? errorLog.substring(0, 100) + "..." : errorLog;
+    }
+  };
 
   useEffect(() => {
     fetchPosts();
@@ -34,7 +63,7 @@ export default function SocialMedia() {
 
     const { data, error } = await supabase
       .from("social_posts")
-      .select("*")
+      .select("id, caption, platform, status, image_url, scheduled_at, published_at, created_at, error_log")
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -50,17 +79,22 @@ export default function SocialMedia() {
 
     try {
       // Call edge function to publish
-      const { error } = await supabase.functions.invoke("publish-social-post", {
+      const { data, error } = await supabase.functions.invoke("publish-social-post", {
         body: { postId },
       });
 
       if (error) throw error;
 
-      // Update local state
-      await supabase
-        .from("social_posts")
-        .update({ status: "published", published_at: new Date().toISOString() })
-        .eq("id", postId);
+      // Check if response indicates failure
+      if (data?.error) {
+        toast({
+          variant: "destructive",
+          title: "Falha na publicação",
+          description: data.details?.errors?.[0]?.message || "Não foi possível publicar o post.",
+        });
+        fetchPosts();
+        return;
+      }
 
       toast({
         title: "Post publicado!",
@@ -73,8 +107,9 @@ export default function SocialMedia() {
       toast({
         variant: "destructive",
         title: "Erro",
-        description: "Não foi possível publicar o post.",
+        description: "Não foi possível publicar o post. Verifique a conexão.",
       });
+      fetchPosts();
     } finally {
       setPublishing(null);
     }
@@ -173,6 +208,34 @@ export default function SocialMedia() {
                   {getStatusBadge(post.status)}
                 </div>
                 <p className="text-sm line-clamp-3 mb-4">{post.caption}</p>
+                
+                {/* Error feedback for failed posts */}
+                {post.status === "failed" && post.error_log && (
+                  <div className="mb-4 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+                    <button 
+                      onClick={() => toggleErrorExpand(post.id)}
+                      className="flex items-center justify-between w-full text-left"
+                    >
+                      <div className="flex items-center gap-2 text-destructive">
+                        <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+                        <span className="text-xs font-medium">Erro na publicação</span>
+                      </div>
+                      {expandedErrors.has(post.id) ? (
+                        <ChevronUp className="h-4 w-4 text-destructive" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4 text-destructive" />
+                      )}
+                    </button>
+                    {expandedErrors.has(post.id) && (
+                      <div className="mt-2 pt-2 border-t border-destructive/20">
+                        <p className="text-xs text-destructive/90 break-words">
+                          {parseErrorMessage(post.error_log)}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+                
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-muted-foreground">
                     {format(new Date(post.created_at), "d MMM, HH:mm", { locale: pt })}
@@ -188,7 +251,7 @@ export default function SocialMedia() {
                       ) : (
                         <>
                           <Send className="h-3 w-3 mr-1" />
-                          Publicar
+                          {post.status === "failed" ? "Tentar novamente" : "Publicar"}
                         </>
                       )}
                     </Button>
