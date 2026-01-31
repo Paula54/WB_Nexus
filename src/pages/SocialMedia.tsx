@@ -54,6 +54,31 @@ export default function SocialMedia() {
     }
   };
 
+  const renderTextWithLinks = (text: string) => {
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const parts = text.split(urlRegex);
+    
+    return parts.map((part, index) => {
+      if (urlRegex.test(part)) {
+        // Reset regex lastIndex for next test
+        urlRegex.lastIndex = 0;
+        return (
+          <a
+            key={index}
+            href={part}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary underline hover:text-primary/80 break-all"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {part}
+          </a>
+        );
+      }
+      return <span key={index}>{part}</span>;
+    });
+  };
+
   useEffect(() => {
     fetchPosts();
   }, [user]);
@@ -229,7 +254,7 @@ export default function SocialMedia() {
                     {expandedErrors.has(post.id) && (
                       <div className="mt-2 pt-2 border-t border-destructive/20">
                         <p className="text-xs text-destructive/90 break-words">
-                          {parseErrorMessage(post.error_log)}
+                          {renderTextWithLinks(parseErrorMessage(post.error_log))}
                         </p>
                       </div>
                     )}
