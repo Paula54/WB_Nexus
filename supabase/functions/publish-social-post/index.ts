@@ -99,7 +99,10 @@ serve(async (req) => {
     const ayrshareData = await ayrshareResponse.json();
     console.log("Ayrshare response:", JSON.stringify(ayrshareData));
 
-    if (!ayrshareResponse.ok) {
+    // Check for errors: either HTTP error OR Ayrshare's status field indicates error
+    const hasError = !ayrshareResponse.ok || ayrshareData.status === "error";
+
+    if (hasError) {
       // Update post with error status
       await supabase
         .from("social_posts")
@@ -110,12 +113,13 @@ serve(async (req) => {
         })
         .eq("id", postId);
 
+      // Return 200 with error payload so frontend can handle it gracefully
       return new Response(
         JSON.stringify({ 
-          error: "Failed to publish to Ayrshare", 
+          error: "Failed to publish", 
           details: ayrshareData 
         }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
