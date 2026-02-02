@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.publish-social-post]
 verify_jwt = false
+
+[functions.send-whatsapp-reply]
+verify_jwt = false
