@@ -69,16 +69,45 @@ const tools = [
   {
     type: "function",
     function: {
-      name: "set_reminder",
-      description: "Define um lembrete de acompanhamento para um lead",
+      name: "add_note",
+      description: "Guarda uma nota rápida geral (não associada a um lead específico)",
       parameters: {
         type: "object",
         properties: {
-          lead_name: { type: "string", description: "Nome do lead" },
-          reminder_date: { type: "string", description: "Data e hora do lembrete em formato ISO (YYYY-MM-DDTHH:mm)" },
-          note: { type: "string", description: "Nota sobre o que fazer no lembrete" },
+          content: { type: "string", description: "Conteúdo da nota" },
         },
-        required: ["lead_name", "reminder_date"],
+        required: ["content"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "set_reminder",
+      description: "Define um lembrete de acompanhamento para um lead ou tarefa geral",
+      parameters: {
+        type: "object",
+        properties: {
+          lead_name: { type: "string", description: "Nome do lead (opcional - se não fornecido, cria lembrete geral)" },
+          task: { type: "string", description: "Descrição da tarefa ou lembrete" },
+          due_date: { type: "string", description: "Data e hora do lembrete em formato ISO (YYYY-MM-DDTHH:mm) ou linguagem natural" },
+        },
+        required: ["task", "due_date"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "save_site_progress",
+      description: "Guarda o progresso atual do SiteBuilder no projeto do utilizador",
+      parameters: {
+        type: "object",
+        properties: {
+          project_name: { type: "string", description: "Nome do projeto" },
+          sections: { type: "string", description: "JSON com as secções do site a guardar" },
+        },
+        required: ["project_name", "sections"],
       },
     },
   },
@@ -139,30 +168,118 @@ serve(async (req) => {
         } else {
           result = { success: false, message: `Lead "${lead_name}" não encontrado` };
         }
+      } else if (tool_name === "add_note") {
+        // General note not tied to a lead
+        const { content } = tool_args;
+        const { error } = await supabase.from("notes_reminders").insert({
+          user_id,
+          type: "note",
+          content,
+        });
+        result = error
+          ? { success: false, message: `Erro ao guardar nota: ${error.message}` }
+          : { success: true, message: `Nota guardada: "${content.substring(0, 50)}${content.length > 50 ? '...' : ''}"` };
       } else if (tool_name === "set_reminder") {
-        const { lead_name, reminder_date, note } = tool_args;
-        const { data: leads } = await supabase
-          .from("leads")
-          .select("id, notes")
-          .eq("user_id", user_id)
-          .ilike("name", `%${lead_name}%`)
-          .limit(1);
+        const { lead_name, task, due_date } = tool_args;
+        
+        // Parse due_date - try to handle natural language dates
+        let parsedDate = due_date;
+        const now = new Date();
+        const lowerDate = due_date.toLowerCase();
+        
+        if (lowerDate.includes("amanhã") || lowerDate.includes("amanha")) {
+          const tomorrow = new Date(now);
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          const timeMatch = lowerDate.match(/(\d{1,2})[h:.]?(\d{2})?/);
+          if (timeMatch) {
+            tomorrow.setHours(parseInt(timeMatch[1]), parseInt(timeMatch[2] || "0"), 0);
+          } else {
+            tomorrow.setHours(9, 0, 0);
+          }
+          parsedDate = tomorrow.toISOString();
+        } else if (lowerDate.includes("hoje")) {
+          const today = new Date(now);
+          const timeMatch = lowerDate.match(/(\d{1,2})[h:.]?(\d{2})?/);
+          if (timeMatch) {
+            today.setHours(parseInt(timeMatch[1]), parseInt(timeMatch[2] || "0"), 0);
+          }
+          parsedDate = today.toISOString();
+        }
 
-        if (leads && leads.length > 0) {
-          const existingNotes = leads[0].notes || "";
-          const reminderNote = note ? `\n\n[LEMBRETE ${reminder_date}] ${note}` : "";
-          const { error } = await supabase
+        if (lead_name) {
+          // Reminder tied to a lead
+          const { data: leads } = await supabase
             .from("leads")
-            .update({
-              reminder_date,
-              notes: existingNotes + reminderNote,
-            })
-            .eq("id", leads[0].id);
-          result = error
-            ? { success: false, message: `Erro ao definir lembrete: ${error.message}` }
-            : { success: true, message: `Lembrete definido para "${lead_name}" em ${new Date(reminder_date).toLocaleString("pt-PT")}` };
+            .select("id, notes")
+            .eq("user_id", user_id)
+            .ilike("name", `%${lead_name}%`)
+            .limit(1);
+
+          if (leads && leads.length > 0) {
+            const existingNotes = leads[0].notes || "";
+            const reminderNote = `\n\n[LEMBRETE ${new Date(parsedDate).toLocaleString("pt-PT")}] ${task}`;
+            const { error } = await supabase
+              .from("leads")
+              .update({
+                reminder_date: parsedDate,
+                notes: existingNotes + reminderNote,
+              })
+              .eq("id", leads[0].id);
+            result = error
+              ? { success: false, message: `Erro ao definir lembrete: ${error.message}` }
+              : { success: true, message: `Lembrete definido para "${lead_name}" em ${new Date(parsedDate).toLocaleString("pt-PT")}` };
+          } else {
+            result = { success: false, message: `Lead "${lead_name}" não encontrado` };
+          }
         } else {
-          result = { success: false, message: `Lead "${lead_name}" não encontrado` };
+          // General reminder not tied to a lead
+          const { error } = await supabase.from("notes_reminders").insert({
+            user_id,
+            type: "reminder",
+            content: task,
+            due_date: parsedDate,
+          });
+          result = error
+            ? { success: false, message: `Erro ao criar lembrete: ${error.message}` }
+            : { success: true, message: `Lembrete criado para ${new Date(parsedDate).toLocaleString("pt-PT")}: "${task}"` };
+        }
+      } else if (tool_name === "save_site_progress") {
+        const { project_name, sections } = tool_args;
+        
+        // Check if project exists
+        const { data: existingProject } = await supabase
+          .from("projects")
+          .select("id")
+          .eq("user_id", user_id)
+          .eq("name", project_name)
+          .limit(1)
+          .maybeSingle();
+
+        let sectionsData;
+        try {
+          sectionsData = typeof sections === "string" ? JSON.parse(sections) : sections;
+        } catch {
+          sectionsData = { raw: sections };
+        }
+
+        if (existingProject) {
+          const { error } = await supabase
+            .from("projects")
+            .update({ content: sectionsData, updated_at: new Date().toISOString() })
+            .eq("id", existingProject.id);
+          result = error
+            ? { success: false, message: `Erro ao atualizar projeto: ${error.message}` }
+            : { success: true, message: `Projeto "${project_name}" atualizado com sucesso!` };
+        } else {
+          const { error } = await supabase.from("projects").insert({
+            user_id,
+            name: project_name,
+            project_type: "website",
+            content: sectionsData,
+          });
+          result = error
+            ? { success: false, message: `Erro ao criar projeto: ${error.message}` }
+            : { success: true, message: `Projeto "${project_name}" criado e guardado!` };
         }
       }
 

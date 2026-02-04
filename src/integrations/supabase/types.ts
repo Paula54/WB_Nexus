@@ -239,6 +239,39 @@ export type Database = {
         }
         Relationships: []
       }
+      notes_reminders: {
+        Row: {
+          content: string
+          created_at: string
+          due_date: string | null
+          id: string
+          is_completed: boolean
+          type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          is_completed?: boolean
+          type?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          is_completed?: boolean
+          type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           ai_custom_instructions: string | null
