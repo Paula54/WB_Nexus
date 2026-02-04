@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import ReactMarkdown from "react-markdown";
+import { toast } from "sonner";
 
 interface Message {
   role: "user" | "assistant" | "tool_result";
@@ -18,6 +19,21 @@ interface Message {
     success: boolean;
     message: string;
   };
+}
+
+interface ToolCall {
+  id: string;
+  type: "function";
+  function: {
+    name: string;
+    arguments: string;
+  };
+}
+
+// Tool execution result interface
+interface ToolExecutionResult {
+  success: boolean;
+  message: string;
 }
 
 interface ToolCall {
@@ -90,7 +106,7 @@ export function NexusConcierge() {
     }
   };
 
-  const executeTool = async (toolName: string, toolArgs: Record<string, unknown>): Promise<{ success: boolean; message: string }> => {
+  const executeTool = async (toolName: string, toolArgs: Record<string, unknown>): Promise<ToolExecutionResult> => {
     if (!user) return { success: false, message: "Utilizador não autenticado" };
 
     try {
@@ -115,11 +131,42 @@ export function NexusConcierge() {
         throw new Error("Falha na execução da ferramenta");
       }
 
-      return await response.json();
+      const result: ToolExecutionResult = await response.json();
+      
+      // Show toast notification for feedback
+      if (result.success) {
+        toast.success(getToolSuccessTitle(toolName), {
+          description: result.message,
+          duration: 4000,
+        });
+      } else {
+        toast.error("Ação não concluída", {
+          description: result.message,
+          duration: 4000,
+        });
+      }
+      
+      return result;
     } catch (error) {
       console.error("Tool execution error:", error);
+      toast.error("Erro de execução", {
+        description: "Não foi possível executar a ação. Tente novamente.",
+        duration: 4000,
+      });
       return { success: false, message: "Erro ao executar ação" };
     }
+  };
+
+  // Get friendly title for toast based on tool name
+  const getToolSuccessTitle = (toolName: string): string => {
+    const titles: Record<string, string> = {
+      create_lead: "Lead criado! 🎉",
+      add_note_to_lead: "Nota adicionada! 📝",
+      add_note: "Nota guardada! 📝",
+      set_reminder: "Lembrete definido! ⏰",
+      save_site_progress: "Progresso guardado! 💾",
+    };
+    return titles[toolName] || "Ação concluída! ✅";
   };
 
   const sendMessage = async () => {
