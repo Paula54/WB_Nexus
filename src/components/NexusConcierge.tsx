@@ -415,12 +415,13 @@ export function NexusConcierge() {
                   Olá! Sou o seu Concierge Nexus.
                 </p>
                 <p className="text-muted-foreground text-sm mt-1">
-                  Posso criar leads, adicionar notas e definir lembretes.
+                  Posso criar leads, guardar notas, definir lembretes e guardar o seu site.
                 </p>
                 <div className="mt-4 text-xs text-muted-foreground/70 space-y-1">
                   <p>💡 "Cria um lead chamado João Silva"</p>
-                  <p>💡 "Adiciona nota ao João: Interessado em T3"</p>
-                  <p>💡 "Lembrete amanhã às 10h para ligar"</p>
+                  <p>💡 "Anota que preciso rever orçamentos"</p>
+                  <p>💡 "Lembrete amanhã às 10h para ligar ao cliente"</p>
+                  <p>💡 "Guarda o progresso do site Imobiliária Luxo"</p>
                 </div>
               </div>
             )}
