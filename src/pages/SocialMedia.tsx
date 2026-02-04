@@ -3,6 +3,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -21,12 +24,14 @@ import {
   Sparkles,
   Plus,
   Trash2,
-  Calendar,
-  Image as ImageIcon
+  Calendar as CalendarIcon,
+  Image as ImageIcon,
+  CalendarDays
 } from "lucide-react";
-import { format } from "date-fns";
+import { format, isBefore, isToday, isTomorrow, startOfDay, addDays } from "date-fns";
 import { pt } from "date-fns/locale";
 import type { MarketingStrategyResult } from "@/types/nexus";
+import { cn } from "@/lib/utils";
 
 interface SocialPost {
   id: string;
@@ -59,6 +64,8 @@ export default function SocialMedia() {
   const [importing, setImporting] = useState(false);
   const [editingPost, setEditingPost] = useState<string | null>(null);
   const [editCaption, setEditCaption] = useState("");
+  const [scheduleDates, setScheduleDates] = useState<Record<string, Date | undefined>>({});
+  const [scheduleTimes, setScheduleTimes] = useState<Record<string, string>>({});
 
   const toggleErrorExpand = (postId: string) => {
     setExpandedErrors(prev => {
@@ -134,6 +141,18 @@ export default function SocialMedia() {
       console.error("Error fetching posts:", error);
     } else {
       setPosts(data || []);
+      // Initialize schedule dates from existing posts
+      const dates: Record<string, Date | undefined> = {};
+      const times: Record<string, string> = {};
+      (data || []).forEach(post => {
+        if (post.scheduled_at) {
+          const date = new Date(post.scheduled_at);
+          dates[post.id] = date;
+          times[post.id] = format(date, "HH:mm");
+        }
+      });
+      setScheduleDates(dates);
+      setScheduleTimes(times);
     }
   }
 
@@ -165,9 +184,7 @@ export default function SocialMedia() {
     const socialMediaPlan = latestStrategy.content.social_media;
     
     try {
-      // Create posts for each day in the plan
       const postsToCreate = socialMediaPlan.flatMap((day) => {
-        // Create posts for multiple platforms
         const platforms = ["instagram", "facebook", "linkedin"];
         return platforms.map(platform => ({
           user_id: user.id,
@@ -179,7 +196,6 @@ export default function SocialMedia() {
         }));
       });
 
-      // Limit to first 9 posts (3 days x 3 platforms)
       const limitedPosts = postsToCreate.slice(0, 9);
 
       const { error } = await supabase
@@ -252,7 +268,33 @@ export default function SocialMedia() {
     }
   }
 
-  async function publishPost(postId: string) {
+  function getScheduledDateTime(postId: string): Date | null {
+    const date = scheduleDates[postId];
+    const time = scheduleTimes[postId] || "10:00";
+    if (!date) return null;
+    
+    const [hours, minutes] = time.split(":").map(Number);
+    const combined = new Date(date);
+    combined.setHours(hours, minutes, 0, 0);
+    return combined;
+  }
+
+  async function publishOrSchedulePost(postId: string) {
+    const scheduledDateTime = getScheduledDateTime(postId);
+    
+    // If there's a scheduled date, save it to the database first
+    if (scheduledDateTime) {
+      const { error: updateError } = await supabase
+        .from("social_posts")
+        .update({ scheduled_at: scheduledDateTime.toISOString() })
+        .eq("id", postId);
+      
+      if (updateError) {
+        toast.error("Erro ao guardar agendamento");
+        return;
+      }
+    }
+
     setPublishing(postId);
 
     try {
@@ -270,9 +312,15 @@ export default function SocialMedia() {
         return;
       }
 
-      toast.success("Post publicado! 🎉", {
-        description: "O post foi publicado com sucesso nas redes sociais."
-      });
+      if (scheduledDateTime) {
+        toast.success("⏰ Post agendado!", {
+          description: `Publicação agendada para ${format(scheduledDateTime, "d 'de' MMMM 'às' HH:mm", { locale: pt })}`
+        });
+      } else {
+        toast.success("Post publicado! 🎉", {
+          description: "O post foi publicado com sucesso nas redes sociais."
+        });
+      }
 
       fetchPosts();
     } catch (error) {
@@ -323,7 +371,7 @@ export default function SocialMedia() {
       case "scheduled":
         return (
           <span className="flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-blue-500/20 text-blue-400">
-            <Calendar className="h-3 w-3" /> Agendado
+            <CalendarIcon className="h-3 w-3" /> Agendado
           </span>
         );
       case "published":
@@ -346,14 +394,233 @@ export default function SocialMedia() {
   const stats = {
     total: posts.length,
     drafts: posts.filter(p => p.status === "draft").length,
+    scheduled: posts.filter(p => p.status === "scheduled").length,
     published: posts.filter(p => p.status === "published").length,
     failed: posts.filter(p => p.status === "failed").length,
   };
 
   const filteredPosts = (status?: string) => {
     if (!status || status === "all") return posts;
+    if (status === "draft") return posts.filter(p => p.status === "draft");
     return posts.filter(p => p.status === status);
   };
+
+  const scheduledPosts = posts
+    .filter(p => p.status === "scheduled" && p.scheduled_at)
+    .sort((a, b) => new Date(a.scheduled_at!).getTime() - new Date(b.scheduled_at!).getTime());
+
+  const getDateLabel = (dateStr: string) => {
+    const date = new Date(dateStr);
+    if (isToday(date)) return "Hoje";
+    if (isTomorrow(date)) return "Amanhã";
+    return format(date, "EEEE, d 'de' MMMM", { locale: pt });
+  };
+
+  const groupedScheduledPosts = scheduledPosts.reduce((acc, post) => {
+    const dateKey = startOfDay(new Date(post.scheduled_at!)).toISOString();
+    if (!acc[dateKey]) {
+      acc[dateKey] = [];
+    }
+    acc[dateKey].push(post);
+    return acc;
+  }, {} as Record<string, SocialPost[]>);
+
+  const renderPostCard = (post: SocialPost, showScheduler: boolean = true) => (
+    <Card key={post.id} className="glass hover:border-primary/50 transition-colors overflow-hidden group">
+      {/* Platform Badge */}
+      <div className={`h-1 ${getPlatformColor(post.platform)}`} />
+      
+      {/* Image Area */}
+      {post.image_url ? (
+        <div className="aspect-video bg-muted relative">
+          <img
+            src={post.image_url}
+            alt="Post preview"
+            className="w-full h-full object-cover"
+          />
+        </div>
+      ) : (
+        <div className="aspect-video bg-muted/50 flex items-center justify-center">
+          <ImageIcon className="h-8 w-8 text-muted-foreground/50" />
+        </div>
+      )}
+      
+      <CardContent className="p-4">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            {getPlatformIcon(post.platform)}
+            <span className="text-sm capitalize">{post.platform}</span>
+          </div>
+          {getStatusBadge(post.status)}
+        </div>
+        
+        {/* Caption - Editable */}
+        {editingPost === post.id ? (
+          <div className="mb-4">
+            <Textarea
+              value={editCaption}
+              onChange={(e) => setEditCaption(e.target.value)}
+              className="min-h-[80px] text-sm"
+            />
+            <div className="flex gap-2 mt-2">
+              <Button size="sm" onClick={() => updatePost(post.id, editCaption)}>
+                Guardar
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setEditingPost(null)}>
+                Cancelar
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <p 
+            className="text-sm line-clamp-3 mb-4 cursor-pointer hover:text-primary transition-colors"
+            onClick={() => {
+              setEditingPost(post.id);
+              setEditCaption(post.caption);
+            }}
+          >
+            {post.caption}
+          </p>
+        )}
+        
+        {/* Hashtags */}
+        {post.hashtags && post.hashtags.length > 0 && (
+          <div className="flex flex-wrap gap-1 mb-3">
+            {post.hashtags.slice(0, 3).map((tag, idx) => (
+              <span key={idx} className="text-xs text-primary">
+                #{tag}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* Date/Time Scheduler */}
+        {showScheduler && post.status !== "published" && post.status !== "scheduled" && (
+          <div className="mb-4 p-3 rounded-lg bg-muted/50 border border-border/50">
+            <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
+              <CalendarIcon className="h-3 w-3" />
+              Agendar publicação
+            </p>
+            <div className="flex gap-2">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={cn(
+                      "flex-1 justify-start text-left font-normal",
+                      !scheduleDates[post.id] && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-3 w-3" />
+                    {scheduleDates[post.id] 
+                      ? format(scheduleDates[post.id], "d MMM", { locale: pt })
+                      : "Data"
+                    }
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={scheduleDates[post.id]}
+                    onSelect={(date) => setScheduleDates(prev => ({ ...prev, [post.id]: date }))}
+                    disabled={(date) => isBefore(date, startOfDay(new Date()))}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+              <Input
+                type="time"
+                value={scheduleTimes[post.id] || "10:00"}
+                onChange={(e) => setScheduleTimes(prev => ({ ...prev, [post.id]: e.target.value }))}
+                className="w-24"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Scheduled info for scheduled posts */}
+        {post.scheduled_at && post.status === "scheduled" && (
+          <div className="mb-4 p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+            <p className="text-xs text-blue-400 flex items-center gap-1">
+              <CalendarIcon className="h-3 w-3" />
+              Agendado para {format(new Date(post.scheduled_at), "d 'de' MMMM 'às' HH:mm", { locale: pt })}
+            </p>
+          </div>
+        )}
+        
+        {/* Error feedback */}
+        {post.status === "failed" && post.error_log && (
+          <div className="mb-4 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+            <button 
+              onClick={() => toggleErrorExpand(post.id)}
+              className="flex items-center justify-between w-full text-left"
+            >
+              <div className="flex items-center gap-2 text-destructive">
+                <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+                <span className="text-xs font-medium">Erro na publicação</span>
+              </div>
+              {expandedErrors.has(post.id) ? (
+                <ChevronUp className="h-4 w-4 text-destructive" />
+              ) : (
+                <ChevronDown className="h-4 w-4 text-destructive" />
+              )}
+            </button>
+            {expandedErrors.has(post.id) && (
+              <div className="mt-2 pt-2 border-t border-destructive/20">
+                <p className="text-xs text-destructive/90 break-words">
+                  {renderTextWithLinks(parseErrorMessage(post.error_log))}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+        
+        {/* Footer */}
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-muted-foreground">
+            {format(new Date(post.created_at), "d MMM, HH:mm", { locale: pt })}
+          </span>
+          <div className="flex items-center gap-1">
+            {/* Delete button */}
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-8 w-8 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+              onClick={() => deletePost(post.id)}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+            
+            {/* Publish/Schedule button */}
+            {post.status !== "published" && post.status !== "scheduled" && (
+              <Button
+                size="sm"
+                onClick={() => publishOrSchedulePost(post.id)}
+                disabled={publishing === post.id}
+                variant={scheduleDates[post.id] ? "secondary" : "default"}
+              >
+                {publishing === post.id ? (
+                  "A processar..."
+                ) : scheduleDates[post.id] ? (
+                  <>
+                    <CalendarIcon className="h-3 w-3 mr-1" />
+                    Agendar
+                  </>
+                ) : (
+                  <>
+                    <Send className="h-3 w-3 mr-1" />
+                    {post.status === "failed" ? "Tentar" : "Publicar"}
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
 
   return (
     <div className="space-y-6">
@@ -380,7 +647,7 @@ export default function SocialMedia() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
         <Card className="glass">
           <CardContent className="p-4 flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
@@ -401,6 +668,18 @@ export default function SocialMedia() {
             <div>
               <p className="text-2xl font-bold">{stats.drafts}</p>
               <p className="text-xs text-muted-foreground">Rascunhos</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="glass">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
+              <CalendarIcon className="w-5 h-5 text-blue-500" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold">{stats.scheduled}</p>
+              <p className="text-xs text-muted-foreground">Agendados</p>
             </div>
           </CardContent>
         </Card>
@@ -491,14 +770,19 @@ export default function SocialMedia() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
+        <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
           <TabsTrigger value="posts">Todos</TabsTrigger>
           <TabsTrigger value="drafts">Rascunhos</TabsTrigger>
+          <TabsTrigger value="scheduled">Agendados</TabsTrigger>
           <TabsTrigger value="published">Publicados</TabsTrigger>
-          <TabsTrigger value="failed">Falhados</TabsTrigger>
+          <TabsTrigger value="calendar">
+            <CalendarDays className="h-4 w-4 mr-1" />
+            Calendário
+          </TabsTrigger>
         </TabsList>
 
-        {["posts", "drafts", "published", "failed"].map(tab => (
+        {/* Regular post tabs */}
+        {["posts", "drafts", "scheduled", "published"].map(tab => (
           <TabsContent key={tab} value={tab} className="mt-6">
             {loading ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -515,152 +799,85 @@ export default function SocialMedia() {
                   <p className="text-muted-foreground">
                     {tab === "posts" 
                       ? "Ainda não tens posts. Cria um ou importa da estratégia!"
-                      : `Nenhum post ${tab === "drafts" ? "em rascunho" : tab === "published" ? "publicado" : "falhado"}.`
+                      : tab === "scheduled"
+                      ? "Nenhum post agendado. Agenda um post usando o seletor de data!"
+                      : `Nenhum post ${tab === "drafts" ? "em rascunho" : "publicado"}.`
                     }
                   </p>
                 </CardContent>
               </Card>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredPosts(tab === "posts" ? "all" : tab === "drafts" ? "draft" : tab).map((post) => (
-                  <Card key={post.id} className="glass hover:border-primary/50 transition-colors overflow-hidden group">
-                    {/* Platform Badge */}
-                    <div className={`h-1 ${getPlatformColor(post.platform)}`} />
-                    
-                    {/* Image Area */}
-                    {post.image_url ? (
-                      <div className="aspect-video bg-muted relative">
-                        <img
-                          src={post.image_url}
-                          alt="Post preview"
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    ) : (
-                      <div className="aspect-video bg-muted/50 flex items-center justify-center">
-                        <ImageIcon className="h-8 w-8 text-muted-foreground/50" />
-                      </div>
-                    )}
-                    
-                    <CardContent className="p-4">
-                      {/* Header */}
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-2 text-muted-foreground">
-                          {getPlatformIcon(post.platform)}
-                          <span className="text-sm capitalize">{post.platform}</span>
-                        </div>
-                        {getStatusBadge(post.status)}
-                      </div>
-                      
-                      {/* Caption - Editable */}
-                      {editingPost === post.id ? (
-                        <div className="mb-4">
-                          <Textarea
-                            value={editCaption}
-                            onChange={(e) => setEditCaption(e.target.value)}
-                            className="min-h-[80px] text-sm"
-                          />
-                          <div className="flex gap-2 mt-2">
-                            <Button size="sm" onClick={() => updatePost(post.id, editCaption)}>
-                              Guardar
-                            </Button>
-                            <Button size="sm" variant="outline" onClick={() => setEditingPost(null)}>
-                              Cancelar
-                            </Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <p 
-                          className="text-sm line-clamp-3 mb-4 cursor-pointer hover:text-primary transition-colors"
-                          onClick={() => {
-                            setEditingPost(post.id);
-                            setEditCaption(post.caption);
-                          }}
-                        >
-                          {post.caption}
-                        </p>
-                      )}
-                      
-                      {/* Hashtags */}
-                      {post.hashtags && post.hashtags.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mb-3">
-                          {post.hashtags.slice(0, 3).map((tag, idx) => (
-                            <span key={idx} className="text-xs text-primary">
-                              #{tag}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                      
-                      {/* Error feedback */}
-                      {post.status === "failed" && post.error_log && (
-                        <div className="mb-4 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
-                          <button 
-                            onClick={() => toggleErrorExpand(post.id)}
-                            className="flex items-center justify-between w-full text-left"
-                          >
-                            <div className="flex items-center gap-2 text-destructive">
-                              <AlertTriangle className="h-4 w-4 flex-shrink-0" />
-                              <span className="text-xs font-medium">Erro na publicação</span>
-                            </div>
-                            {expandedErrors.has(post.id) ? (
-                              <ChevronUp className="h-4 w-4 text-destructive" />
-                            ) : (
-                              <ChevronDown className="h-4 w-4 text-destructive" />
-                            )}
-                          </button>
-                          {expandedErrors.has(post.id) && (
-                            <div className="mt-2 pt-2 border-t border-destructive/20">
-                              <p className="text-xs text-destructive/90 break-words">
-                                {renderTextWithLinks(parseErrorMessage(post.error_log))}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                      
-                      {/* Footer */}
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-muted-foreground">
-                          {format(new Date(post.created_at), "d MMM, HH:mm", { locale: pt })}
-                        </span>
-                        <div className="flex items-center gap-1">
-                          {/* Delete button */}
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-8 w-8 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
-                            onClick={() => deletePost(post.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                          
-                          {/* Publish button */}
-                          {post.status !== "published" && (
-                            <Button
-                              size="sm"
-                              onClick={() => publishPost(post.id)}
-                              disabled={publishing === post.id}
-                            >
-                              {publishing === post.id ? (
-                                "A publicar..."
-                              ) : (
-                                <>
-                                  <Send className="h-3 w-3 mr-1" />
-                                  {post.status === "failed" ? "Tentar" : "Publicar"}
-                                </>
-                              )}
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                {filteredPosts(tab === "posts" ? "all" : tab === "drafts" ? "draft" : tab).map((post) => 
+                  renderPostCard(post)
+                )}
               </div>
             )}
           </TabsContent>
         ))}
+
+        {/* Calendar Tab */}
+        <TabsContent value="calendar" className="mt-6">
+          {scheduledPosts.length === 0 ? (
+            <Card className="glass">
+              <CardContent className="p-8 text-center">
+                <CalendarDays className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                <p className="text-muted-foreground mb-2">Nenhum post agendado</p>
+                <p className="text-sm text-muted-foreground">
+                  Agenda um post selecionando uma data no cartão do post na aba "Rascunhos".
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-6">
+              {Object.entries(groupedScheduledPosts).map(([dateKey, dayPosts]) => (
+                <div key={dateKey}>
+                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 capitalize">
+                    <CalendarDays className="h-5 w-5 text-primary" />
+                    {getDateLabel(dayPosts[0].scheduled_at!)}
+                  </h3>
+                  <div className="space-y-3">
+                    {dayPosts.map(post => (
+                      <Card key={post.id} className="glass">
+                        <CardContent className="p-4">
+                          <div className="flex items-start gap-4">
+                            {/* Time */}
+                            <div className="text-center min-w-[60px]">
+                              <p className="text-2xl font-bold text-primary">
+                                {format(new Date(post.scheduled_at!), "HH:mm")}
+                              </p>
+                            </div>
+                            
+                            {/* Platform & Content */}
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <div className={`w-6 h-6 rounded-full ${getPlatformColor(post.platform)} flex items-center justify-center text-white`}>
+                                  {getPlatformIcon(post.platform)}
+                                </div>
+                                <span className="text-sm font-medium capitalize">{post.platform}</span>
+                              </div>
+                              <p className="text-sm text-muted-foreground line-clamp-2">{post.caption}</p>
+                            </div>
+                            
+                            {/* Actions */}
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                              onClick={() => deletePost(post.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </TabsContent>
       </Tabs>
     </div>
   );
