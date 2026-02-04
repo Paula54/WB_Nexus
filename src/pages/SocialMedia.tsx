@@ -26,12 +26,14 @@ import {
   Trash2,
   Calendar as CalendarIcon,
   Image as ImageIcon,
-  CalendarDays
+  CalendarDays,
+  Pencil
 } from "lucide-react";
 import { format, isBefore, isToday, isTomorrow, startOfDay, addDays } from "date-fns";
 import { pt } from "date-fns/locale";
 import type { MarketingStrategyResult } from "@/types/nexus";
 import { cn } from "@/lib/utils";
+import { EditPostModal } from "@/components/social/EditPostModal";
 
 interface SocialPost {
   id: string;
@@ -66,6 +68,8 @@ export default function SocialMedia() {
   const [editCaption, setEditCaption] = useState("");
   const [scheduleDates, setScheduleDates] = useState<Record<string, Date | undefined>>({});
   const [scheduleTimes, setScheduleTimes] = useState<Record<string, string>>({});
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [selectedPost, setSelectedPost] = useState<SocialPost | null>(null);
 
   const toggleErrorExpand = (postId: string) => {
     setExpandedErrors(prev => {
@@ -252,6 +256,38 @@ export default function SocialMedia() {
       setEditingPost(null);
       fetchPosts();
     }
+  }
+
+  async function updatePostFull(postId: string, data: {
+    caption: string;
+    platform: string;
+    image_url: string | null;
+    hashtags: string[];
+    scheduled_at: string | null;
+  }) {
+    const { error } = await supabase
+      .from("social_posts")
+      .update({
+        caption: data.caption,
+        platform: data.platform,
+        image_url: data.image_url,
+        hashtags: data.hashtags,
+        scheduled_at: data.scheduled_at,
+      })
+      .eq("id", postId);
+
+    if (error) {
+      toast.error("Erro ao atualizar o post");
+      throw error;
+    } else {
+      toast.success("Post atualizado com sucesso!");
+      fetchPosts();
+    }
+  }
+
+  function openEditModal(post: SocialPost) {
+    setSelectedPost(post);
+    setEditModalOpen(true);
   }
 
   async function deletePost(postId: string) {
@@ -583,6 +619,17 @@ export default function SocialMedia() {
             {format(new Date(post.created_at), "d MMM, HH:mm", { locale: pt })}
           </span>
           <div className="flex items-center gap-1">
+            {/* Edit button */}
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-8 w-8 text-muted-foreground hover:text-primary opacity-0 group-hover:opacity-100 transition-opacity"
+              onClick={() => openEditModal(post)}
+              title="Editar post"
+            >
+              <Pencil className="h-4 w-4" />
+            </Button>
+            
             {/* Delete button */}
             <Button
               size="icon"
@@ -879,6 +926,14 @@ export default function SocialMedia() {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Edit Post Modal */}
+      <EditPostModal
+        post={selectedPost}
+        open={editModalOpen}
+        onOpenChange={setEditModalOpen}
+        onSave={updatePostFull}
+      />
     </div>
   );
 }
