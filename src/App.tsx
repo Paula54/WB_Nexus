@@ -19,6 +19,7 @@ import Settings from "@/pages/Settings";
 import SiteBuilder from "@/pages/SiteBuilder";
 import Strategy from "@/pages/Strategy";
 import SEO from "@/pages/SEO";
+import NotesReminders from "@/pages/NotesReminders";
 
 // Legal Pages
 import Privacidade from "@/pages/legal/Privacidade";
@@ -68,6 +69,7 @@ function AppRoutes() {
         <Route path="builder" element={<SiteBuilder />} />
         <Route path="strategy" element={<Strategy />} />
         <Route path="crm" element={<CRM />} />
+        <Route path="notes" element={<NotesReminders />} />
         <Route path="social-media" element={<SocialMedia />} />
         <Route path="seo" element={<SEO />} />
         <Route path="whatsapp" element={<WhatsAppInbox />} />
