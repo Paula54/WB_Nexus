@@ -19,19 +19,24 @@ As tuas capacidades EXECUTIVAS:
 - Criar novos leads no CRM
 - Adicionar notas a leads existentes
 - Definir lembretes de acompanhamento
+- Agendar publicações nas redes sociais
 - Aconselhar sobre estratégias de marketing e vendas
 
 Regras:
 - Mantém respostas concisas mas informativas (máximo 150 palavras)
 - Usa formatação markdown quando apropriado
 - Sê proativo em sugerir próximos passos
-- Quando o utilizador pedir para criar um lead, adicionar nota ou lembrete, USA AS FERRAMENTAS disponíveis
+- Quando o utilizador pedir para criar um lead, adicionar nota, lembrete ou agendar post, USA AS FERRAMENTAS disponíveis
 - Confirma sempre as ações executadas
 
 Exemplos de comandos que deves executar:
 - "Cria um lead chamado João Silva com email joao@email.com"
 - "Adiciona uma nota ao lead X: Interessado em T3"
-- "Define lembrete para amanhã às 10h para ligar ao cliente Y"`;
+- "Define lembrete para amanhã às 10h para ligar ao cliente Y"
+- "Agenda o post sobre o plano Elite para terça-feira às 10:00"
+- "Publica aquele post do Instagram para amanhã às 14h"
+
+Data atual: ${new Date().toISOString().split('T')[0]}`;
 
 const tools = [
   {
@@ -108,6 +113,22 @@ const tools = [
           sections: { type: "string", description: "JSON com as secções do site a guardar" },
         },
         required: ["project_name", "sections"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "schedule_post",
+      description: "Agenda um post de redes sociais para uma data e hora específica",
+      parameters: {
+        type: "object",
+        properties: {
+          post_search: { type: "string", description: "Texto para identificar o post (parte da legenda, nome da plataforma, etc.)" },
+          platform: { type: "string", description: "Plataforma: instagram, facebook, linkedin" },
+          scheduled_date: { type: "string", description: "Data e hora para agendar (ex: 'amanhã às 10h', 'terça-feira às 14:00', '2024-01-15T10:00')" },
+        },
+        required: ["scheduled_date"],
       },
     },
   },
@@ -280,6 +301,139 @@ serve(async (req) => {
           result = error
             ? { success: false, message: `Erro ao criar projeto: ${error.message}` }
             : { success: true, message: `Projeto "${project_name}" criado e guardado!` };
+        }
+      } else if (tool_name === "schedule_post") {
+        const { post_search, platform, scheduled_date } = tool_args;
+        
+        // Parse the scheduled date
+        const now = new Date();
+        let parsedDate: Date | null = null;
+        const lowerDate = scheduled_date.toLowerCase();
+        
+        // Parse natural language dates
+        if (lowerDate.includes("amanhã") || lowerDate.includes("amanha")) {
+          parsedDate = new Date(now);
+          parsedDate.setDate(parsedDate.getDate() + 1);
+          const timeMatch = lowerDate.match(/(\d{1,2})[h:.]?(\d{2})?/);
+          if (timeMatch) {
+            parsedDate.setHours(parseInt(timeMatch[1]), parseInt(timeMatch[2] || "0"), 0);
+          } else {
+            parsedDate.setHours(10, 0, 0);
+          }
+        } else if (lowerDate.includes("hoje")) {
+          parsedDate = new Date(now);
+          const timeMatch = lowerDate.match(/(\d{1,2})[h:.]?(\d{2})?/);
+          if (timeMatch) {
+            parsedDate.setHours(parseInt(timeMatch[1]), parseInt(timeMatch[2] || "0"), 0);
+          }
+        } else if (lowerDate.includes("segunda") || lowerDate.includes("terça") || lowerDate.includes("terca") || 
+                   lowerDate.includes("quarta") || lowerDate.includes("quinta") || lowerDate.includes("sexta") ||
+                   lowerDate.includes("sábado") || lowerDate.includes("sabado") || lowerDate.includes("domingo")) {
+          // Day of week parsing
+          const dayMap: Record<string, number> = {
+            "domingo": 0, "segunda": 1, "terça": 2, "terca": 2, "quarta": 3,
+            "quinta": 4, "sexta": 5, "sábado": 6, "sabado": 6
+          };
+          
+          for (const [dayName, dayNum] of Object.entries(dayMap)) {
+            if (lowerDate.includes(dayName)) {
+              parsedDate = new Date(now);
+              const currentDay = parsedDate.getDay();
+              let daysToAdd = dayNum - currentDay;
+              if (daysToAdd <= 0) daysToAdd += 7;
+              parsedDate.setDate(parsedDate.getDate() + daysToAdd);
+              break;
+            }
+          }
+          
+          if (parsedDate) {
+            const timeMatch = lowerDate.match(/(\d{1,2})[h:.]?(\d{2})?/);
+            if (timeMatch) {
+              parsedDate.setHours(parseInt(timeMatch[1]), parseInt(timeMatch[2] || "0"), 0);
+            } else {
+              parsedDate.setHours(10, 0, 0);
+            }
+          }
+        } else {
+          // Try to parse as ISO date
+          try {
+            parsedDate = new Date(scheduled_date);
+            if (isNaN(parsedDate.getTime())) {
+              parsedDate = null;
+            }
+          } catch {
+            parsedDate = null;
+          }
+        }
+
+        if (!parsedDate) {
+          result = { success: false, message: `Não consegui interpretar a data "${scheduled_date}". Tenta algo como "amanhã às 10h" ou "terça-feira às 14:00".` };
+        } else {
+          // Find posts that match the search criteria
+          let query = supabase
+            .from("social_posts")
+            .select("id, caption, platform, status")
+            .eq("user_id", user_id)
+            .in("status", ["draft", "failed"]);
+
+          if (platform) {
+            query = query.ilike("platform", `%${platform}%`);
+          }
+
+          const { data: posts } = await query.order("created_at", { ascending: false }).limit(10);
+
+          if (!posts || posts.length === 0) {
+            result = { success: false, message: "Não encontrei nenhum post em rascunho para agendar." };
+          } else {
+            // Find the best matching post
+            let targetPost = posts[0];
+            if (post_search) {
+              const matchedPost = posts.find(p => 
+                p.caption.toLowerCase().includes(post_search.toLowerCase())
+              );
+              if (matchedPost) {
+                targetPost = matchedPost;
+              }
+            }
+
+            // Update the post with the scheduled date and trigger publish
+            const { error: updateError } = await supabase
+              .from("social_posts")
+              .update({ scheduled_at: parsedDate.toISOString() })
+              .eq("id", targetPost.id);
+
+            if (updateError) {
+              result = { success: false, message: `Erro ao agendar: ${updateError.message}` };
+            } else {
+              // Call the publish edge function to schedule via Ayrshare
+              const publishResponse = await fetch(`${SUPABASE_URL}/functions/v1/publish-social-post`, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "Authorization": `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+                },
+                body: JSON.stringify({ postId: targetPost.id }),
+              });
+
+              const publishResult = await publishResponse.json();
+
+              if (publishResult.success) {
+                const dateStr = parsedDate.toLocaleDateString("pt-PT", { 
+                  weekday: "long", 
+                  day: "numeric", 
+                  month: "long",
+                  hour: "2-digit",
+                  minute: "2-digit"
+                });
+                result = { 
+                  success: true, 
+                  message: `⏰ Post agendado para ${dateStr}!\n\nPlataforma: ${targetPost.platform}\nLegenda: "${targetPost.caption.substring(0, 50)}${targetPost.caption.length > 50 ? '...' : ''}"` 
+                };
+              } else {
+                result = { success: false, message: `Erro ao agendar via Ayrshare: ${publishResult.error || "Erro desconhecido"}` };
+              }
+            }
+          }
         }
       }
 

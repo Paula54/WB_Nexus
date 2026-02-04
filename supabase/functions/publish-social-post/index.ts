@@ -84,6 +84,13 @@ serve(async (req) => {
       ayrsharePayload.post = `${post.caption}\n\n${hashtagString}`;
     }
 
+    // Add scheduling if scheduled_at is set
+    if (post.scheduled_at) {
+      const scheduledDate = new Date(post.scheduled_at);
+      // Ayrshare expects ISO 8601 format
+      ayrsharePayload.scheduleDate = scheduledDate.toISOString();
+    }
+
     console.log("Publishing to Ayrshare:", JSON.stringify(ayrsharePayload));
 
     // Call Ayrshare API
@@ -123,12 +130,16 @@ serve(async (req) => {
       );
     }
 
+    // Determine the status based on whether it was scheduled or published immediately
+    const isScheduled = Boolean(post.scheduled_at);
+    const newStatus = isScheduled ? "scheduled" : "published";
+    
     // Update post with success status
     const { error: updateError } = await supabase
       .from("social_posts")
       .update({
-        status: "published",
-        published_at: new Date().toISOString(),
+        status: newStatus,
+        published_at: isScheduled ? null : new Date().toISOString(),
         webhook_response: ayrshareData,
         error_log: null,
       })
@@ -138,10 +149,15 @@ serve(async (req) => {
       console.error("Error updating post status:", updateError);
     }
 
+    const successMessage = isScheduled 
+      ? "Post agendado com sucesso!"
+      : "Post publicado com sucesso!";
+
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: "Post publicado com sucesso!",
+        message: successMessage,
+        scheduled: isScheduled,
         ayrshare_response: ayrshareData 
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
