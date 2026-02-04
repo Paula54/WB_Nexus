@@ -8,6 +8,8 @@ import {
   Settings,
   Zap,
   Sparkles,
+  StickyNote,
+  Users,
 } from "lucide-react";
 import {
   Sidebar,
@@ -27,6 +29,8 @@ const menuItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard, type: PageType.DASHBOARD },
   { title: "Site Builder", url: "/builder", icon: Globe, type: PageType.BUILDER },
   { title: "Estratégia AI", url: "/strategy", icon: Sparkles, type: PageType.STRATEGY },
+  { title: "CRM", url: "/crm", icon: Users },
+  { title: "Notas & Lembretes", url: "/notes", icon: StickyNote },
   { title: "Social Media", url: "/social-media", icon: Share2, type: PageType.SOCIAL },
   { title: "SEO", url: "/seo", icon: Search, type: PageType.SEO },
   { title: "WhatsApp Inbox", url: "/whatsapp", icon: MessageCircle, type: PageType.WHATSAPP },
