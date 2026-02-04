@@ -1,0 +1,20 @@
+name: Supabase Keep-Alive Pulse
+
+on:
+  schedule:
+    # Executa às 00:00 de 6 em 6 dias (a pausa ocorre aos 7)
+    - cron: '0 0 */6 * *'
+  workflow_dispatch: # Permite-te carregar num botão para testar agora
+
+jobs:
+  ping_db:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Instalar cliente PostgreSQL
+        run: sudo apt-get install -y postgresql-client
+
+      - name: Enviar Pulso para a Base de Dados
+        env:
+          DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          psql "$DB_URL" -c "SELECT 1;"
