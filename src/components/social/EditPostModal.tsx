@@ -1,15 +1,15 @@
-import { useState, useEffect } from "react";
+ import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
-  DialogDescription,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+ } from "@/components/ui/dialog";
+ import { ImageUpload } from "./ImageUpload";
+ import { Button } from "@/components/ui/button";
+ import { Input } from "@/components/ui/input";
+ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -21,17 +21,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Instagram, 
-  Linkedin, 
-  Facebook, 
-  Calendar as CalendarIcon,
-  Image as ImageIcon,
-  Hash,
-  X,
-  Loader2,
-  Save
-} from "lucide-react";
+ import { 
+   Instagram, 
+   Linkedin, 
+   Facebook, 
+   Calendar as CalendarIcon,
+   Hash,
+   X,
+   Loader2,
+   Save
+ } from "lucide-react";
 import { format, isBefore, startOfDay } from "date-fns";
 import { pt } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -196,31 +195,12 @@ export function EditPostModal({ post, open, onOpenChange, onSave }: EditPostModa
             </Select>
           </div>
 
-          {/* Image URL */}
-          <div className="space-y-2">
-            <Label htmlFor="image-url" className="flex items-center gap-2">
-              <ImageIcon className="h-4 w-4" />
-              URL da Imagem
-            </Label>
-            <Input
-              id="image-url"
-              placeholder="https://exemplo.com/imagem.jpg"
-              value={imageUrl}
-              onChange={(e) => setImageUrl(e.target.value)}
+           {/* Image Upload */}
+           <ImageUpload
+             value={imageUrl}
+             onChange={setImageUrl}
+             disabled={saving}
             />
-            {imageUrl && (
-              <div className="mt-2 rounded-lg overflow-hidden border border-border bg-muted/30">
-                <img
-                  src={imageUrl}
-                  alt="Preview"
-                  className="w-full h-40 object-cover"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = 'none';
-                  }}
-                />
-              </div>
-            )}
-          </div>
 
           {/* Caption */}
           <div className="space-y-2">
