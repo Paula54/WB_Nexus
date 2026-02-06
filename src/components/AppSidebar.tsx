@@ -10,6 +10,7 @@ import {
   Sparkles,
   StickyNote,
   Users,
+  Megaphone,
 } from "lucide-react";
 import {
   Sidebar,
@@ -32,6 +33,7 @@ const menuItems = [
   { title: "CRM", url: "/crm", icon: Users },
   { title: "Notas & Lembretes", url: "/notes", icon: StickyNote },
   { title: "Social Media", url: "/social-media", icon: Share2, type: PageType.SOCIAL },
+  { title: "Anúncios", url: "/ads", icon: Megaphone },
   { title: "SEO", url: "/seo", icon: Search, type: PageType.SEO },
   { title: "WhatsApp Inbox", url: "/whatsapp", icon: MessageCircle, type: PageType.WHATSAPP },
 ];
