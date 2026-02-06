@@ -52,10 +52,10 @@ export default function SEO() {
       <div>
         <h1 className="text-3xl font-display font-bold text-foreground flex items-center gap-3">
           <Search className="h-8 w-8 text-primary" />
-          SEO Analyzer
+          Visibilidade no Google
         </h1>
         <p className="text-muted-foreground mt-1">
-          Analise e otimize o SEO do seu website
+          Descobre como o teu negócio aparece nas pesquisas e melhora a tua presença
         </p>
       </div>
 
@@ -88,7 +88,7 @@ export default function SEO() {
           {/* Score */}
           <Card className="glass">
             <CardHeader>
-              <CardTitle>Score SEO</CardTitle>
+              <CardTitle>Score de Visibilidade</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-center">

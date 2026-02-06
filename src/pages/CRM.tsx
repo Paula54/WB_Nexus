@@ -65,12 +65,12 @@ export default function CRM() {
       toast({
         variant: "destructive",
         title: "Erro",
-        description: "Não foi possível adicionar o lead.",
+        description: "Não foi possível adicionar o contacto.",
       });
     } else {
       toast({
-        title: "Lead adicionado",
-        description: `${newLead.name} foi adicionado com sucesso.`,
+        title: "Potencial cliente adicionado",
+        description: `${newLead.name} foi registado com sucesso.`,
       });
       setNewLead({ name: "", email: "", phone: "" });
       setShowAddForm(false);
@@ -104,14 +104,14 @@ export default function CRM() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-display font-bold text-foreground">CRM</h1>
+          <h1 className="text-3xl font-display font-bold text-foreground">Gestão de Vendas</h1>
           <p className="text-muted-foreground mt-1">
-            Gestão de leads e contactos
+            Os teus potenciais clientes e oportunidades de negócio
           </p>
         </div>
         <Button onClick={() => setShowAddForm(!showAddForm)}>
           <Plus className="h-4 w-4 mr-2" />
-          Novo Lead
+          Novo Potencial Cliente
         </Button>
       </div>
 
@@ -119,7 +119,7 @@ export default function CRM() {
       {showAddForm && (
         <Card className="glass">
           <CardHeader>
-            <CardTitle>Adicionar Lead</CardTitle>
+            <CardTitle>Adicionar Potencial Cliente</CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={addLead} className="space-y-4">
@@ -165,8 +165,8 @@ export default function CRM() {
       {/* Search */}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Pesquisar leads..."
+         <Input
+          placeholder="Pesquisar potenciais clientes..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="pl-10"
@@ -186,7 +186,7 @@ export default function CRM() {
         <Card className="glass">
           <CardContent className="p-8 text-center">
             <p className="text-muted-foreground">
-              {searchTerm ? "Nenhum lead encontrado." : "Ainda não tem leads. Adicione o primeiro!"}
+              {searchTerm ? "Nenhum resultado encontrado." : "Ainda não tens potenciais clientes. Adiciona o primeiro!"}
             </p>
           </CardContent>
         </Card>

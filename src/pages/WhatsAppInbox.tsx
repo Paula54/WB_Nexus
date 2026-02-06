@@ -148,7 +148,7 @@ export default function WhatsAppInbox() {
         <div className="mb-4">
           <h1 className="text-3xl font-display font-bold text-foreground">WhatsApp Inbox</h1>
           <p className="text-muted-foreground mt-1">
-            Gerencie conversas com leads via WhatsApp
+            Conversas com potenciais clientes via WhatsApp
           </p>
         </div>
 

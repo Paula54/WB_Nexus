@@ -81,7 +81,7 @@ export default function Ads() {
         <div>
           <h1 className="text-3xl font-display font-bold text-foreground">Anúncios</h1>
           <p className="text-muted-foreground mt-1">
-            Motor de Tráfego — Gestão de campanhas publicitárias
+            Atrai mais clientes com campanhas inteligentes
           </p>
         </div>
         <div className="flex items-center gap-3">

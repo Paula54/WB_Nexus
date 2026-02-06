@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { MessageCircle, X, Send, Sparkles, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,19 +30,9 @@ interface ToolCall {
   };
 }
 
-// Tool execution result interface
 interface ToolExecutionResult {
   success: boolean;
   message: string;
-}
-
-interface ToolCall {
-  id: string;
-  type: "function";
-  function: {
-    name: string;
-    arguments: string;
-  };
 }
 
 export function NexusConcierge() {
@@ -51,6 +41,7 @@ export function NexusConcierge() {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isExecutingTool, setIsExecutingTool] = useState(false);
+  const [hasLoadedProactive, setHasLoadedProactive] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
 
@@ -68,6 +59,50 @@ export function NexusConcierge() {
     }
   }, [user, isOpen]);
 
+  // Proactive Brain: analyze project state when opening with no history
+  const generateProactiveInsight = useCallback(async () => {
+    if (!user || hasLoadedProactive) return;
+    setHasLoadedProactive(true);
+
+    try {
+      const [hotLeadsRes, draftsRes, projectsRes, profileRes] = await Promise.all([
+        supabase.from("leads").select("name", { count: "exact" }).eq("ai_classification", "hot").limit(5),
+        supabase.from("social_posts").select("id", { count: "exact", head: true }).eq("status", "draft"),
+        supabase.from("projects").select("id", { count: "exact", head: true }),
+        supabase.from("profiles").select("full_name, company_name").eq("user_id", user.id).maybeSingle(),
+      ]);
+
+      const hotLeads = hotLeadsRes.data || [];
+      const hotCount = hotLeadsRes.count ?? 0;
+      const draftCount = draftsRes.count ?? 0;
+      const projectCount = projectsRes.count ?? 0;
+      const name = profileRes.data?.full_name?.split(" ")[0] || "";
+      const company = profileRes.data?.company_name || "";
+
+      let proactiveMessage = "";
+      const greeting = name ? `**${name}**, ` : "";
+
+      if (hotCount > 0) {
+        const leadNames = hotLeads.map(l => l.name).slice(0, 2).join(" e ");
+        proactiveMessage = `${greeting}detetei **${hotCount} cliente${hotCount > 1 ? "s" : ""} quente${hotCount > 1 ? "s" : ""}** (${leadNames}) que ainda não receberam resposta. 🔥\n\nQueres que eu prepare uma proposta para ${hotCount > 1 ? "eles" : "este contacto"}?`;
+      } else if (draftCount > 0 && draftCount > 2) {
+        proactiveMessage = `${greeting}tens **${draftCount} posts** prontos mas não publicados. A consistência é tudo no Instagram.\n\nQueres que eu publique os mais recentes agora?`;
+      } else if (projectCount === 0) {
+        proactiveMessage = `${greeting}bem-vindo ao Nexus! 🚀\n\nDiz-me o **setor do teu negócio** (ex: Cafetaria, Imobiliária, Salão de Beleza) e eu crio imediatamente:\n\n- ✅ Um rascunho de Landing Page\n- ✅ 3 posts de Instagram\n- ✅ Estratégia de comunicação\n\nVamos começar?`;
+      } else if (company) {
+        proactiveMessage = `${greeting}tudo pronto na **${company}**. Há alguma ação que queiras executar? Posso criar posts, registar clientes ou preparar campanhas. 💡`;
+      } else {
+        proactiveMessage = `${greeting}olá! Estou pronto para te ajudar. Posso criar conteúdo, registar clientes, agendar posts ou preparar campanhas. O que precisas? 🎯`;
+      }
+
+      if (proactiveMessage) {
+        setMessages([{ role: "assistant", content: proactiveMessage }]);
+      }
+    } catch (error) {
+      console.error("Error generating proactive insight:", error);
+    }
+  }, [user, hasLoadedProactive]);
+
   const loadConversationHistory = async () => {
     if (!user) return;
     
@@ -79,8 +114,11 @@ export function NexusConcierge() {
       .limit(1)
       .maybeSingle();
 
-    if (data?.messages) {
+    if (data?.messages && (data.messages as Message[]).length > 0) {
       setMessages(data.messages as Message[]);
+    } else {
+      // No history - trigger proactive insight
+      generateProactiveInsight();
     }
   };
 
@@ -133,7 +171,6 @@ export function NexusConcierge() {
 
       const result: ToolExecutionResult = await response.json();
       
-      // Show toast notification for feedback
       if (result.success) {
         toast.success(getToolSuccessTitle(toolName), {
           description: result.message,
@@ -157,10 +194,9 @@ export function NexusConcierge() {
     }
   };
 
-  // Get friendly title for toast based on tool name
   const getToolSuccessTitle = (toolName: string): string => {
     const titles: Record<string, string> = {
-      create_lead: "Lead criado! 🎉",
+      create_lead: "Potencial cliente criado! 🎉",
       add_note_to_lead: "Nota adicionada! 📝",
       add_note: "Nota guardada! 📝",
       set_reminder: "Lembrete definido! ⏰",
@@ -203,8 +239,7 @@ export function NexusConcierge() {
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
       let assistantContent = "";
-      let toolCalls: ToolCall[] = [];
-      let currentToolCall: Partial<ToolCall> | null = null;
+      const toolCalls: ToolCall[] = [];
 
       if (reader) {
         while (true) {
@@ -223,7 +258,6 @@ export function NexusConcierge() {
                 const parsed = JSON.parse(jsonStr);
                 const delta = parsed.choices?.[0]?.delta;
                 
-                // Handle regular content
                 if (delta?.content) {
                   assistantContent += delta.content;
                   setMessages((prev) => {
@@ -237,7 +271,6 @@ export function NexusConcierge() {
                   });
                 }
 
-                // Handle tool calls
                 if (delta?.tool_calls) {
                   for (const tc of delta.tool_calls) {
                     if (tc.index !== undefined) {
@@ -271,17 +304,14 @@ export function NexusConcierge() {
             try {
               const args = JSON.parse(tc.function.arguments);
               
-              // Show tool call in progress
               setMessages(prev => [...prev, {
                 role: "assistant",
                 content: `A executar: ${tc.function.name}...`,
                 toolCall: { name: tc.function.name, args }
               }]);
 
-              // Execute the tool
               const result = await executeTool(tc.function.name, args);
               
-              // Update with result
               setMessages(prev => {
                 const newMessages = prev.slice(0, -1);
                 return [...newMessages, {
@@ -291,7 +321,6 @@ export function NexusConcierge() {
                 }];
               });
 
-              // Get follow-up response from AI
               const followUpMessages = [
                 ...updatedMessages,
                 { role: "assistant" as const, content: `Executei ${tc.function.name} com resultado: ${result.message}` }
@@ -387,6 +416,7 @@ export function NexusConcierge() {
 
   const clearHistory = async () => {
     setMessages([]);
+    setHasLoadedProactive(false);
     if (user) {
       await supabase
         .from("concierge_conversations")
@@ -438,7 +468,7 @@ export function NexusConcierge() {
                     Nexus Concierge
                   </h3>
                   <p className="text-xs text-muted-foreground">
-                    Assistente Executivo com IA
+                    O teu colaborador de negócio
                   </p>
                 </div>
               </div>
@@ -459,16 +489,16 @@ export function NexusConcierge() {
               <div className="text-center py-8">
                 <Sparkles className="w-12 h-12 mx-auto text-primary/40 mb-4" />
                 <p className="text-muted-foreground text-sm">
-                  Olá! Sou o seu Concierge Nexus.
+                  Olá! Sou o teu Concierge Nexus.
                 </p>
                 <p className="text-muted-foreground text-sm mt-1">
-                  Posso criar leads, guardar notas, definir lembretes e guardar o seu site.
+                  Posso criar conteúdo, registar clientes e gerir o teu negócio.
                 </p>
                 <div className="mt-4 text-xs text-muted-foreground/70 space-y-1">
-                  <p>💡 "Cria um lead chamado João Silva"</p>
-                  <p>💡 "Anota que preciso rever orçamentos"</p>
-                  <p>💡 "Lembrete amanhã às 10h para ligar ao cliente"</p>
-                  <p>💡 "Guarda o progresso do site Imobiliária Luxo"</p>
+                  <p>💡 "Regista o João Silva como potencial cliente"</p>
+                  <p>💡 "Cria 3 posts para o Instagram"</p>
+                  <p>💡 "Lembra-me de ligar ao cliente amanhã"</p>
+                  <p>💡 "Qual a melhor estratégia para atrair clientes?"</p>
                 </div>
               </div>
             )}
@@ -531,7 +561,7 @@ export function NexusConcierge() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyPress={handleKeyPress}
-                placeholder="Cria um lead, adiciona nota..."
+                placeholder="Diz-me o que precisas..."
                 className="flex-1 bg-muted border-0"
                 disabled={isLoading || isExecutingTool}
               />
