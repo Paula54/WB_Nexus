@@ -4,8 +4,9 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
- } from "@/components/ui/dialog";
+} from "@/components/ui/dialog";
  import { ImageUpload } from "./ImageUpload";
  import { Button } from "@/components/ui/button";
  import { Input } from "@/components/ui/input";
