@@ -37,6 +37,12 @@ interface SeoAuditResult {
     hasCanonical: boolean;
     hasViewport: boolean;
     wordCount: number;
+    hasOgTitle: boolean;
+    hasOgDescription: boolean;
+    hasOgImage: boolean;
+    hasGoogleAnalytics: boolean;
+    hasRobotsTxt: boolean;
+    hasSitemap: boolean;
   };
   analyzedAt: string;
   url: string;
@@ -317,10 +323,10 @@ export default function SEO() {
                 </Card>
               )}
 
-              {/* HTML Check */}
+              {/* HTML & SEO Check */}
               <Card className="glass">
                 <CardHeader>
-                  <CardTitle className="text-base">Verificação HTML</CardTitle>
+                  <CardTitle className="text-base">Verificação Técnica</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2 text-sm">
@@ -334,6 +340,12 @@ export default function SEO() {
                         label: `Imagens sem alt (${analysis.htmlAnalysis.missingAltCount}/${analysis.htmlAnalysis.totalImages})`,
                         ok: analysis.htmlAnalysis.missingAltCount === 0,
                       },
+                      { label: "OG Title", ok: analysis.htmlAnalysis.hasOgTitle },
+                      { label: "OG Description", ok: analysis.htmlAnalysis.hasOgDescription },
+                      { label: "OG Image", ok: analysis.htmlAnalysis.hasOgImage },
+                      { label: "Google Analytics", ok: analysis.htmlAnalysis.hasGoogleAnalytics },
+                      { label: "robots.txt", ok: analysis.htmlAnalysis.hasRobotsTxt },
+                      { label: "sitemap.xml", ok: analysis.htmlAnalysis.hasSitemap },
                     ].map((check) => (
                       <div key={check.label} className="flex items-center justify-between py-1">
                         <span className="text-muted-foreground">{check.label}</span>
@@ -345,6 +357,22 @@ export default function SEO() {
                       </div>
                     ))}
                   </div>
+
+                  {/* Green Light Status */}
+                  {analysis.htmlAnalysis.title &&
+                    analysis.htmlAnalysis.metaDescription &&
+                    analysis.htmlAnalysis.hasH1 &&
+                    analysis.htmlAnalysis.hasOgTitle &&
+                    analysis.htmlAnalysis.hasOgDescription &&
+                    analysis.htmlAnalysis.hasRobotsTxt &&
+                    analysis.htmlAnalysis.hasSitemap && (
+                    <div className="mt-4 p-3 rounded-lg bg-green-500/10 border border-green-500/20 flex items-center gap-2">
+                      <CheckCircle className="h-5 w-5 text-green-500" />
+                      <span className="text-sm font-medium text-green-400">
+                        🟢 Site pronto para o Google!
+                      </span>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 

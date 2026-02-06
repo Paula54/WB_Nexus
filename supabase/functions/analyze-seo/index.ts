@@ -27,6 +27,12 @@ interface HtmlAnalysis {
   hasCanonical: boolean;
   hasViewport: boolean;
   wordCount: number;
+  hasOgTitle: boolean;
+  hasOgDescription: boolean;
+  hasOgImage: boolean;
+  hasGoogleAnalytics: boolean;
+  hasRobotsTxt: boolean;
+  hasSitemap: boolean;
 }
 
 async function getPageSpeedData(url: string, apiKey: string): Promise<PageSpeedResult | null> {
@@ -74,6 +80,12 @@ async function analyzeHtml(url: string): Promise<HtmlAnalysis> {
     hasCanonical: false,
     hasViewport: false,
     wordCount: 0,
+    hasOgTitle: false,
+    hasOgDescription: false,
+    hasOgImage: false,
+    hasGoogleAnalytics: false,
+    hasRobotsTxt: false,
+    hasSitemap: false,
   };
 
   try {
@@ -112,6 +124,14 @@ async function analyzeHtml(url: string): Promise<HtmlAnalysis> {
     // Check viewport
     defaults.hasViewport = /<meta\s[^>]*name=["']viewport["'][^>]*>/i.test(html);
 
+    // Check Open Graph tags
+    defaults.hasOgTitle = /<meta\s[^>]*property=["']og:title["'][^>]*>/i.test(html);
+    defaults.hasOgDescription = /<meta\s[^>]*property=["']og:description["'][^>]*>/i.test(html);
+    defaults.hasOgImage = /<meta\s[^>]*property=["']og:image["'][^>]*>/i.test(html);
+
+    // Check Google Analytics
+    defaults.hasGoogleAnalytics = /googletagmanager\.com\/gtag|google-analytics\.com\/analytics|gtag\s*\(/i.test(html);
+
     // Estimate word count (strip tags, count words)
     const textContent = html
       .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
@@ -120,6 +140,18 @@ async function analyzeHtml(url: string): Promise<HtmlAnalysis> {
       .replace(/\s+/g, " ")
       .trim();
     defaults.wordCount = textContent.split(/\s+/).filter((w) => w.length > 2).length;
+
+    // Check robots.txt and sitemap.xml
+    const baseUrl = new URL(url);
+    const origin = baseUrl.origin;
+
+    const [robotsRes, sitemapRes] = await Promise.all([
+      fetch(`${origin}/robots.txt`, { headers: { "User-Agent": "NexusAI SEO Auditor/1.0" } }).catch(() => null),
+      fetch(`${origin}/sitemap.xml`, { headers: { "User-Agent": "NexusAI SEO Auditor/1.0" } }).catch(() => null),
+    ]);
+
+    defaults.hasRobotsTxt = robotsRes?.ok === true;
+    defaults.hasSitemap = sitemapRes?.ok === true;
 
     return defaults;
   } catch (error) {
@@ -255,16 +287,24 @@ ${pageSpeedData ? `
             content: `És um auditor de SEO profissional. Analisa os dados reais fornecidos e gera uma auditoria completa em Português de Portugal.
 
 Regras para calcular o Score SEO (0-100):
-- Base: score de performance do PageSpeed (peso 40%)
-- Título presente e < 60 chars: +10 pontos
-- Meta description presente e < 160 chars: +10 pontos
-- H1 presente: +10 pontos
-- Sem imagens sem alt text: +10 pontos
+- Base: score de performance do PageSpeed (peso 30%)
+- Título presente e < 60 chars: +8 pontos
+- Meta description presente e < 160 chars: +8 pontos
+- H1 presente: +8 pontos
+- Sem imagens sem alt text: +6 pontos
 - Canonical presente: +5 pontos
 - Viewport presente: +5 pontos
-- Conteúdo com >300 palavras: +10 pontos
+- Conteúdo com >300 palavras: +5 pontos
+- OG Title presente: +5 pontos
+- OG Description presente: +5 pontos
+- OG Image presente: +5 pontos
+- robots.txt presente: +5 pontos
+- sitemap.xml presente: +5 pontos
 
 As sugestões devem ser ACIONÁVEIS e ESPECÍFICAS ao site analisado, não genéricas.
+Se Open Graph tags estiverem ausentes, sugerir a sua adição como prioridade alta (afeta partilhas sociais).
+Se robots.txt ou sitemap.xml estiverem ausentes, sugerir a sua criação como prioridade alta.
+Se Google Analytics não for detetado, sugerir a sua configuração como prioridade média.
 As keywords devem ser EXTRAÍDAS dos dados reais (título, H1, meta description, conteúdo).`,
           },
           {
@@ -322,6 +362,12 @@ As keywords devem ser EXTRAÍDAS dos dados reais (título, H1, meta description,
         hasCanonical: htmlAnalysis.hasCanonical,
         hasViewport: htmlAnalysis.hasViewport,
         wordCount: htmlAnalysis.wordCount,
+        hasOgTitle: htmlAnalysis.hasOgTitle,
+        hasOgDescription: htmlAnalysis.hasOgDescription,
+        hasOgImage: htmlAnalysis.hasOgImage,
+        hasGoogleAnalytics: htmlAnalysis.hasGoogleAnalytics,
+        hasRobotsTxt: htmlAnalysis.hasRobotsTxt,
+        hasSitemap: htmlAnalysis.hasSitemap,
       },
       analyzedAt: new Date().toISOString(),
       url: formattedUrl,
