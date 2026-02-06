@@ -374,6 +374,7 @@ export type Database = {
         Row: {
           content: Json
           created_at: string
+          domain: string | null
           id: string
           meta_access_token: string | null
           meta_ads_account_id: string | null
@@ -385,6 +386,7 @@ export type Database = {
         Insert: {
           content?: Json
           created_at?: string
+          domain?: string | null
           id?: string
           meta_access_token?: string | null
           meta_ads_account_id?: string | null
@@ -396,6 +398,7 @@ export type Database = {
         Update: {
           content?: Json
           created_at?: string
+          domain?: string | null
           id?: string
           meta_access_token?: string | null
           meta_ads_account_id?: string | null
