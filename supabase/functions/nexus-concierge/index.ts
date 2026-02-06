@@ -140,13 +140,22 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, execute_tool, tool_name, tool_args, user_id } = await req.json();
+    const body = await req.json();
+    const { messages, message, context, execute_tool, tool_name, tool_args, user_id } = body;
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
+    }
+
+    // Support single message format (for simple requests like ad generation)
+    let chatMessages: { role: string; content: string }[] = [];
+    if (messages && Array.isArray(messages)) {
+      chatMessages = messages;
+    } else if (message) {
+      chatMessages = [{ role: "user", content: message }];
     }
 
     // Handle tool execution
@@ -455,10 +464,10 @@ serve(async (req) => {
           model: "google/gemini-3-flash-preview",
           messages: [
             { role: "system", content: SYSTEM_PROMPT },
-            ...messages,
+            ...chatMessages,
           ],
           tools,
-          stream: true,
+          stream: chatMessages.length > 1, // Only stream for multi-turn conversations
         }),
       }
     );
@@ -484,6 +493,17 @@ serve(async (req) => {
       );
     }
 
+    // For single-message requests (like ad generation), return JSON response
+    if (chatMessages.length === 1) {
+      const result = await response.json();
+      const aiResponse = result.choices?.[0]?.message?.content || "";
+      return new Response(
+        JSON.stringify({ response: aiResponse }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // For multi-turn conversations, stream the response
     return new Response(response.body, {
       headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
     });
