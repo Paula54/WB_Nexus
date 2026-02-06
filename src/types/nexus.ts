@@ -51,12 +51,14 @@ export interface WhatsAppFlow {
   isActive: boolean;
 }
 
+export type PlanType = 'START' | 'GROWTH' | 'NEXUS_OS';
+
 export interface MarketingStrategyInput {
   clientName: string;
   productService: string;
   audience: string;
   objective: string;
-  plan: 'START' | 'PRO' | 'ELITE';
+  plan: PlanType;
 }
 
 export interface MarketingStrategyResult {
@@ -96,4 +98,5 @@ export interface MarketingStrategyResult {
       budget_daily: number;
     };
   };
+  cta_message?: string;
 }

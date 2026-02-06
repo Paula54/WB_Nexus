@@ -380,6 +380,8 @@ export type Database = {
           meta_ads_account_id: string | null
           name: string
           project_type: string
+          selected_plan: string | null
+          trial_expires_at: string | null
           updated_at: string
           user_id: string
         }
@@ -392,6 +394,8 @@ export type Database = {
           meta_ads_account_id?: string | null
           name: string
           project_type?: string
+          selected_plan?: string | null
+          trial_expires_at?: string | null
           updated_at?: string
           user_id: string
         }
@@ -404,6 +408,8 @@ export type Database = {
           meta_ads_account_id?: string | null
           name?: string
           project_type?: string
+          selected_plan?: string | null
+          trial_expires_at?: string | null
           updated_at?: string
           user_id?: string
         }

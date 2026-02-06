@@ -10,7 +10,7 @@ interface MarketingStrategyInput {
   productService: string;
   audience: string;
   objective: string;
-  plan: 'START' | 'PRO' | 'ELITE';
+  plan: 'START' | 'GROWTH' | 'NEXUS_OS';
 }
 
 serve(async (req) => {
@@ -26,15 +26,44 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    const planDetails = {
-      START: 'Site simples, 3 posts por semana, SEO básico',
-      PRO: 'Site avançado, 5 posts por semana, Google Ads, SEO completo',
-      ELITE: 'Site premium, posts diários, Google + Meta Ads, SEO + WhatsApp AI'
+    const planDetails: Record<string, string> = {
+      START: 'Site profissional, SEO básico — foco exclusivo em presença web',
+      GROWTH: 'Site avançado, Social Media (5 posts/semana), Google Ads, SEO completo',
+      NEXUS_OS: 'Site premium, Social Media diário, Google + Meta Ads, SEO avançado, WhatsApp AI, Automação total, Concierge IA'
+    };
+
+    const planInstructions: Record<string, string> = {
+      START: `O utilizador escolheu o plano START (Essencial).
+- Gera APENAS estratégia de site (HTML completo e SEO).
+- NÃO geres Google Ads, Meta Ads, Social Media ou WhatsApp.
+- O campo "ads" deve ter valores placeholder vazios.
+- O campo "social_media" deve ser um array vazio.
+- O campo "whatsapp_flow" deve ser um array vazio.
+- Foco total na qualidade da estrutura web e SEO on-page.`,
+
+      GROWTH: `O utilizador escolheu o plano GROWTH (Marketing).
+- Gera estratégia de Site + Social Media + Google Ads + SEO completo.
+- Gera 5 posts para a semana com legendas criativas.
+- Configura Google Ads com headlines e keywords.
+- NÃO geres Meta Ads nem WhatsApp.
+- O campo "ads.meta" deve ter valores placeholder.
+- O campo "whatsapp_flow" deve ser um array vazio.`,
+
+      NEXUS_OS: `O utilizador escolheu o plano NEXUS OS (Elite — o plano completo).
+- Gera um plano AGRESSIVO de marketing 360°.
+- Site premium completo com múltiplas secções.
+- 7 posts para a semana com estratégia de conteúdo diversificada.
+- Google Ads E Meta Ads totalmente configurados.
+- SEO avançado com keywords de long-tail.
+- 5 fluxos de WhatsApp AI para automação de vendas.
+- Toda a estratégia deve transmitir sofisticação e resultados.`
     };
 
     const systemPrompt = `És um especialista em marketing digital de elite. Gera estratégias completas e profissionais em Português de Portugal.
 
 IMPORTANTE: Responde APENAS com JSON válido, sem markdown, sem código, apenas o objeto JSON.
+
+${planInstructions[input.plan] || planInstructions.NEXUS_OS}
 
 A estrutura EXATA do JSON deve ser:
 {
@@ -77,7 +106,8 @@ A estrutura EXATA do JSON deve ser:
       "campaign_name": "Nome da campanha",
       "budget_daily": 10
     }
-  }
+  },
+  "cta_message": "Esta é uma amostra da tua estratégia ${input.plan === 'NEXUS_OS' ? 'Elite' : input.plan}. Ativa os teus 14 dias grátis para começar a execução automática."
 }`;
 
     const userPrompt = `Cria uma estratégia de marketing completa para:
@@ -88,13 +118,9 @@ PÚBLICO-ALVO: ${input.audience}
 OBJETIVO: ${input.objective}
 PLANO: ${input.plan} (${planDetails[input.plan]})
 
-Requisitos específicos por plano:
-- START: Site simples, 3 posts para a semana, SEO básico
-- PRO: Site elaborado, 5 posts, Google Ads configurado
-- ELITE: Site premium completo, 7 posts, Google + Meta Ads, 5 fluxos WhatsApp
-
 O HTML do site deve usar Tailwind CSS e ser responsivo.
-Gera conteúdo criativo, profissional e adaptado ao mercado português.`;
+Gera conteúdo criativo, profissional e adaptado ao mercado português.
+A mensagem CTA final deve ser persuasiva e reforçar o valor do plano escolhido.`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -140,7 +166,6 @@ Gera conteúdo criativo, profissional e adaptado ao mercado português.`;
     // Parse the JSON response, handling potential markdown code blocks
     let strategyResult;
     try {
-      // Remove potential markdown code blocks
       let cleanContent = content.trim();
       if (cleanContent.startsWith('```json')) {
         cleanContent = cleanContent.slice(7);
