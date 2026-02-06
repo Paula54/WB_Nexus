@@ -372,6 +372,8 @@ export type Database = {
           content: Json
           created_at: string
           id: string
+          meta_access_token: string | null
+          meta_ads_account_id: string | null
           name: string
           project_type: string
           updated_at: string
@@ -381,6 +383,8 @@ export type Database = {
           content?: Json
           created_at?: string
           id?: string
+          meta_access_token?: string | null
+          meta_ads_account_id?: string | null
           name: string
           project_type?: string
           updated_at?: string
@@ -390,6 +394,8 @@ export type Database = {
           content?: Json
           created_at?: string
           id?: string
+          meta_access_token?: string | null
+          meta_ads_account_id?: string | null
           name?: string
           project_type?: string
           updated_at?: string
