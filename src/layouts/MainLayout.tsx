@@ -5,6 +5,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { LogOut, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { NexusConcierge } from "@/components/NexusConcierge";
+import { DynamicSEOHead } from "@/components/seo/DynamicSEOHead";
+import { GoogleAnalytics } from "@/components/seo/GoogleAnalytics";
+
 export default function MainLayout() {
   const { signOut, user } = useAuth();
 
@@ -43,6 +46,8 @@ export default function MainLayout() {
           </div>
         </main>
         <NexusConcierge />
+        <DynamicSEOHead />
+        <GoogleAnalytics />
       </div>
     </SidebarProvider>
   );

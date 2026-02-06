@@ -375,6 +375,7 @@ export type Database = {
           content: Json
           created_at: string
           domain: string | null
+          google_analytics_id: string | null
           id: string
           meta_access_token: string | null
           meta_ads_account_id: string | null
@@ -389,6 +390,7 @@ export type Database = {
           content?: Json
           created_at?: string
           domain?: string | null
+          google_analytics_id?: string | null
           id?: string
           meta_access_token?: string | null
           meta_ads_account_id?: string | null
@@ -403,6 +405,7 @@ export type Database = {
           content?: Json
           created_at?: string
           domain?: string | null
+          google_analytics_id?: string | null
           id?: string
           meta_access_token?: string | null
           meta_ads_account_id?: string | null

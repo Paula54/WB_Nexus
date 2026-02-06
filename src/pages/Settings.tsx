@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
-import { Palette, User, Save, ChevronDown, ChevronUp, Settings as SettingsIcon, Store, Globe } from "lucide-react";
+import { Palette, User, Save, ChevronDown, ChevronUp, Settings as SettingsIcon, Store, Globe, BarChart3 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const SECTOR_OPTIONS = [
@@ -36,6 +36,7 @@ export default function Settings() {
   const [projectDomain, setProjectDomain] = useState("");
   const [projectId, setProjectId] = useState<string | null>(null);
   const [whatsappNumber, setWhatsappNumber] = useState("");
+  const [googleAnalyticsId, setGoogleAnalyticsId] = useState("");
 
   useEffect(() => {
     fetchProfile();
@@ -85,15 +86,17 @@ export default function Settings() {
 
     const { data, error } = await supabase
       .from("projects")
-      .select("id, domain")
+      .select("id, domain, google_analytics_id")
       .eq("user_id", user.id)
       .order("updated_at", { ascending: false })
       .limit(1)
       .maybeSingle();
 
     if (!error && data) {
+      const d = data as Record<string, unknown>;
       setProjectId(data.id);
-      setProjectDomain((data as Record<string, unknown>).domain as string || "");
+      setProjectDomain((d.domain as string) || "");
+      setGoogleAnalyticsId((d.google_analytics_id as string) || "");
     }
   }
 
@@ -103,16 +106,21 @@ export default function Settings() {
 
     setSaving(true);
 
+    const projectPayload = {
+      domain: projectDomain || null,
+      google_analytics_id: googleAnalyticsId || null,
+    } as Record<string, unknown>;
+
     if (projectId) {
       const { error } = await supabase
         .from("projects")
-        .update({ domain: projectDomain || null } as Record<string, unknown>)
+        .update(projectPayload)
         .eq("id", projectId);
 
       if (error) {
-        toast({ variant: "destructive", title: "Erro", description: "Não foi possível guardar o domínio." });
+        toast({ variant: "destructive", title: "Erro", description: "Não foi possível guardar as configurações." });
       } else {
-        toast({ title: "Domínio guardado 🌐", description: "A auditoria SEO está agora disponível para o teu site." });
+        toast({ title: "Configurações guardadas 🌐", description: "Domínio e Analytics atualizados com sucesso." });
       }
     } else {
       const { error } = await supabase
@@ -120,13 +128,13 @@ export default function Settings() {
         .insert({
           user_id: user.id,
           name: profile.company_name || "Meu Projeto",
-          domain: projectDomain || null,
+          ...projectPayload,
         } as Record<string, unknown>);
 
       if (error) {
         toast({ variant: "destructive", title: "Erro", description: "Não foi possível criar o projeto." });
       } else {
-        toast({ title: "Domínio configurado 🌐", description: "Já podes utilizar a Auditoria SEO." });
+        toast({ title: "Configurações guardadas 🌐", description: "Domínio e Analytics configurados." });
         fetchProjectDomain();
       }
     }
@@ -258,20 +266,20 @@ export default function Settings() {
         </CardContent>
       </Card>
 
-      {/* Domain Configuration */}
+      {/* Domain & Analytics Configuration */}
       <Card className="glass border-primary/20">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Globe className="h-5 w-5 text-primary" />
-            Domínio do Site
+            Domínio & Rastreamento
           </CardTitle>
           <CardDescription>
-            O domínio do teu site é utilizado para a auditoria automática de Visibilidade no Google
+            Configura o domínio do teu site e o Google Analytics para monitorização automática
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={saveProjectDomain} className="flex gap-3 items-end">
-            <div className="flex-1 space-y-2">
+          <form onSubmit={saveProjectDomain} className="space-y-4">
+            <div className="space-y-2">
               <Label htmlFor="domain">URL do site</Label>
               <Input
                 id="domain"
@@ -279,17 +287,39 @@ export default function Settings() {
                 onChange={(e) => setProjectDomain(e.target.value)}
                 placeholder="https://omeunegocio.pt"
               />
+              {projectDomain && (
+                <p className="text-xs text-primary">
+                  🌐 A auditoria SEO está ativa para <strong>{projectDomain}</strong>
+                </p>
+              )}
             </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="ga_id" className="flex items-center gap-2">
+                <BarChart3 className="h-4 w-4 text-muted-foreground" />
+                ID de Acompanhamento Google Analytics
+              </Label>
+              <Input
+                id="ga_id"
+                value={googleAnalyticsId}
+                onChange={(e) => setGoogleAnalyticsId(e.target.value)}
+                placeholder="G-XXXXXXXXXX"
+              />
+              <p className="text-xs text-muted-foreground">
+                Insere o teu Measurement ID (G-XXXXX) e o script será injetado automaticamente em todas as páginas.
+              </p>
+              {googleAnalyticsId && /^G-[A-Z0-9]+$/i.test(googleAnalyticsId) && (
+                <p className="text-xs text-primary">
+                  📊 Google Analytics ativo — <strong>{googleAnalyticsId}</strong> está a rastrear o teu site.
+                </p>
+              )}
+            </div>
+
             <Button type="submit" disabled={saving} size="default">
               <Save className="h-4 w-4 mr-2" />
-              {saving ? "A guardar..." : "Guardar"}
+              {saving ? "A guardar..." : "Guardar Configurações"}
             </Button>
           </form>
-          {projectDomain && (
-            <p className="text-xs text-primary mt-2">
-              🌐 A auditoria SEO está ativa para <strong>{projectDomain}</strong>
-            </p>
-          )}
         </CardContent>
       </Card>
 
