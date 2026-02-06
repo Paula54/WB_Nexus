@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
-import { Palette, User, Save, ChevronDown, ChevronUp, Settings as SettingsIcon, Store } from "lucide-react";
+import { Palette, User, Save, ChevronDown, ChevronUp, Settings as SettingsIcon, Store, Globe } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const SECTOR_OPTIONS = [
@@ -33,11 +33,14 @@ export default function Settings() {
     ai_custom_instructions: "",
     business_sector: "",
   });
+  const [projectDomain, setProjectDomain] = useState("");
+  const [projectId, setProjectId] = useState<string | null>(null);
   const [whatsappNumber, setWhatsappNumber] = useState("");
 
   useEffect(() => {
     fetchProfile();
     fetchWhatsAppAccount();
+    fetchProjectDomain();
   }, [user]);
 
   async function fetchProfile() {
@@ -75,6 +78,60 @@ export default function Settings() {
     if (!error && data) {
       setWhatsappNumber(data.twilio_phone_number);
     }
+  }
+
+  async function fetchProjectDomain() {
+    if (!user) return;
+
+    const { data, error } = await supabase
+      .from("projects")
+      .select("id, domain")
+      .eq("user_id", user.id)
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!error && data) {
+      setProjectId(data.id);
+      setProjectDomain((data as Record<string, unknown>).domain as string || "");
+    }
+  }
+
+  async function saveProjectDomain(e: React.FormEvent) {
+    e.preventDefault();
+    if (!user) return;
+
+    setSaving(true);
+
+    if (projectId) {
+      const { error } = await supabase
+        .from("projects")
+        .update({ domain: projectDomain || null } as Record<string, unknown>)
+        .eq("id", projectId);
+
+      if (error) {
+        toast({ variant: "destructive", title: "Erro", description: "Não foi possível guardar o domínio." });
+      } else {
+        toast({ title: "Domínio guardado 🌐", description: "A auditoria SEO está agora disponível para o teu site." });
+      }
+    } else {
+      const { error } = await supabase
+        .from("projects")
+        .insert({
+          user_id: user.id,
+          name: profile.company_name || "Meu Projeto",
+          domain: projectDomain || null,
+        } as Record<string, unknown>);
+
+      if (error) {
+        toast({ variant: "destructive", title: "Erro", description: "Não foi possível criar o projeto." });
+      } else {
+        toast({ title: "Domínio configurado 🌐", description: "Já podes utilizar a Auditoria SEO." });
+        fetchProjectDomain();
+      }
+    }
+
+    setSaving(false);
   }
 
   async function saveProfile(e: React.FormEvent) {
@@ -196,6 +253,41 @@ export default function Settings() {
               ✨ A IA está especializada para o setor de{" "}
               <strong>{SECTOR_OPTIONS.find(s => s.value === profile.business_sector)?.label}</strong>.
               Todo o conteúdo gerado será adaptado automaticamente.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Domain Configuration */}
+      <Card className="glass border-primary/20">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Globe className="h-5 w-5 text-primary" />
+            Domínio do Site
+          </CardTitle>
+          <CardDescription>
+            O domínio do teu site é utilizado para a auditoria automática de Visibilidade no Google
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={saveProjectDomain} className="flex gap-3 items-end">
+            <div className="flex-1 space-y-2">
+              <Label htmlFor="domain">URL do site</Label>
+              <Input
+                id="domain"
+                value={projectDomain}
+                onChange={(e) => setProjectDomain(e.target.value)}
+                placeholder="https://omeunegocio.pt"
+              />
+            </div>
+            <Button type="submit" disabled={saving} size="default">
+              <Save className="h-4 w-4 mr-2" />
+              {saving ? "A guardar..." : "Guardar"}
+            </Button>
+          </form>
+          {projectDomain && (
+            <p className="text-xs text-primary mt-2">
+              🌐 A auditoria SEO está ativa para <strong>{projectDomain}</strong>
             </p>
           )}
         </CardContent>
