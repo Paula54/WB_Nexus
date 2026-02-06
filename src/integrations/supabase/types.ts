@@ -332,6 +332,7 @@ export type Database = {
         Row: {
           ai_custom_instructions: string | null
           avatar_url: string | null
+          business_sector: string | null
           company_name: string | null
           contact_email: string | null
           created_at: string
@@ -344,6 +345,7 @@ export type Database = {
         Insert: {
           ai_custom_instructions?: string | null
           avatar_url?: string | null
+          business_sector?: string | null
           company_name?: string | null
           contact_email?: string | null
           created_at?: string
@@ -356,6 +358,7 @@ export type Database = {
         Update: {
           ai_custom_instructions?: string | null
           avatar_url?: string | null
+          business_sector?: string | null
           company_name?: string | null
           contact_email?: string | null
           created_at?: string
