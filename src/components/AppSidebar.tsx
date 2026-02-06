@@ -27,18 +27,18 @@ import { cn } from "@/lib/utils";
 import { PageType } from "@/types/nexus";
 
 const menuItems = [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard, type: PageType.DASHBOARD },
+  { title: "Centro de Comando", url: "/", icon: LayoutDashboard, type: PageType.DASHBOARD },
   { title: "Site Builder", url: "/builder", icon: Globe, type: PageType.BUILDER },
   { title: "Estratégia AI", url: "/strategy", icon: Sparkles, type: PageType.STRATEGY },
-  { title: "CRM", url: "/crm", icon: Users },
-  { title: "Notas & Lembretes", url: "/notes", icon: StickyNote },
-  { title: "Social Media", url: "/social-media", icon: Share2, type: PageType.SOCIAL },
+  { title: "Gestão de Vendas", url: "/crm", icon: Users },
+  { title: "Agenda & Notas", url: "/notes", icon: StickyNote },
+  { title: "Presença no Instagram", url: "/social-media", icon: Share2, type: PageType.SOCIAL },
   { title: "Anúncios", url: "/ads", icon: Megaphone },
-  { title: "SEO", url: "/seo", icon: Search, type: PageType.SEO },
+  { title: "Visibilidade no Google", url: "/seo", icon: Search, type: PageType.SEO },
   { title: "WhatsApp Inbox", url: "/whatsapp", icon: MessageCircle, type: PageType.WHATSAPP },
 ];
 
-const settingsItem = { title: "Definições", url: "/settings", icon: Settings };
+const settingsItem = { title: "Identidade da Marca", url: "/settings", icon: Settings };
 
 export function AppSidebar() {
   const { state } = useSidebar();
