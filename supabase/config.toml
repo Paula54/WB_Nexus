@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.send-whatsapp-reply]
 verify_jwt = false
+
+[functions.publish-ad-campaign]
+verify_jwt = false
