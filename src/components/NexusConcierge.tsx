@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { MessageCircle, X, Send, Sparkles, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
+import { MessageCircle, X, Send, Sparkles, Loader2, CheckCircle2, AlertCircle, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import ReactMarkdown from "react-markdown";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 
 interface Message {
   role: "user" | "assistant" | "tool_result";
@@ -35,6 +36,30 @@ interface ToolExecutionResult {
   message: string;
 }
 
+interface ActionButton {
+  label: string;
+  actionType: string;
+  params: string;
+}
+
+// Parse action buttons from message content
+function parseActionButtons(content: string): { cleanContent: string; buttons: ActionButton[] } {
+  const buttonRegex = /\[ACTION:([^:]+):([^:]+):([^\]]+)\]/g;
+  const buttons: ActionButton[] = [];
+  let match;
+
+  while ((match = buttonRegex.exec(content)) !== null) {
+    buttons.push({
+      label: match[1].trim(),
+      actionType: match[2].trim(),
+      params: match[3].trim(),
+    });
+  }
+
+  const cleanContent = content.replace(buttonRegex, "").trim();
+  return { cleanContent, buttons };
+}
+
 export function NexusConcierge() {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -44,6 +69,7 @@ export function NexusConcierge() {
   const [hasLoadedProactive, setHasLoadedProactive] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -59,7 +85,6 @@ export function NexusConcierge() {
     }
   }, [user, isOpen]);
 
-  // Proactive Brain: analyze project state when opening with no history
   const generateProactiveInsight = useCallback(async () => {
     if (!user || hasLoadedProactive) return;
     setHasLoadedProactive(true);
@@ -69,7 +94,7 @@ export function NexusConcierge() {
         supabase.from("leads").select("name", { count: "exact" }).eq("ai_classification", "hot").limit(5),
         supabase.from("social_posts").select("id", { count: "exact", head: true }).eq("status", "draft"),
         supabase.from("projects").select("id", { count: "exact", head: true }),
-        supabase.from("profiles").select("full_name, company_name").eq("user_id", user.id).maybeSingle(),
+        supabase.from("profiles").select("full_name, company_name, business_sector").eq("user_id", user.id).maybeSingle(),
       ]);
 
       const hotLeads = hotLeadsRes.data || [];
@@ -78,21 +103,24 @@ export function NexusConcierge() {
       const projectCount = projectsRes.count ?? 0;
       const name = profileRes.data?.full_name?.split(" ")[0] || "";
       const company = profileRes.data?.company_name || "";
+      const sector = profileRes.data?.business_sector || "";
 
       let proactiveMessage = "";
       const greeting = name ? `**${name}**, ` : "";
 
       if (hotCount > 0) {
         const leadNames = hotLeads.map(l => l.name).slice(0, 2).join(" e ");
-        proactiveMessage = `${greeting}detetei **${hotCount} cliente${hotCount > 1 ? "s" : ""} quente${hotCount > 1 ? "s" : ""}** (${leadNames}) que ainda não receberam resposta. 🔥\n\nQueres que eu prepare uma proposta para ${hotCount > 1 ? "eles" : "este contacto"}?`;
+        proactiveMessage = `${greeting}detetei **${hotCount} cliente${hotCount > 1 ? "s" : ""} quente${hotCount > 1 ? "s" : ""}** (${leadNames}) que ainda não receberam resposta. 🔥\n\nQueres que eu prepare uma proposta para ${hotCount > 1 ? "eles" : "este contacto"}?\n\n[ACTION:Responder Agora:navigate:/whatsapp]\n[ACTION:Agendar Lembrete:set_reminder:default]`;
       } else if (draftCount > 0 && draftCount > 2) {
-        proactiveMessage = `${greeting}tens **${draftCount} posts** prontos mas não publicados. A consistência é tudo no Instagram.\n\nQueres que eu publique os mais recentes agora?`;
+        proactiveMessage = `${greeting}tens **${draftCount} posts** prontos mas não publicados. A consistência nas redes sociais é chave para o crescimento.\n\nQueres que eu publique os mais recentes agora?\n\n[ACTION:Ver Posts:navigate:/social-media]\n[ACTION:Gerar Mais Posts:generate_draft:instagram]`;
       } else if (projectCount === 0) {
         proactiveMessage = `${greeting}bem-vindo ao Nexus! 🚀\n\nDiz-me o **setor do teu negócio** (ex: Cafetaria, Imobiliária, Salão de Beleza) e eu crio imediatamente:\n\n- ✅ Um rascunho de Landing Page\n- ✅ 3 posts de Instagram\n- ✅ Estratégia de comunicação\n\nVamos começar?`;
+      } else if (sector && company) {
+        proactiveMessage = `${greeting}tudo pronto na **${company}**. O que queres fazer hoje? 💡\n\n[ACTION:Gerar Post ${sector === "cafetaria" ? "Menu do Dia" : "Novo"}:generate_draft:instagram]\n[ACTION:Ver Clientes:navigate:/crm]\n[ACTION:Analisar Google:navigate:/seo]`;
       } else if (company) {
-        proactiveMessage = `${greeting}tudo pronto na **${company}**. Há alguma ação que queiras executar? Posso criar posts, registar clientes ou preparar campanhas. 💡`;
+        proactiveMessage = `${greeting}tudo pronto na **${company}**. Há alguma ação que queiras executar?\n\n[ACTION:Gerar Post Agora:generate_draft:instagram]\n[ACTION:Registar Cliente:create_lead:default]\n[ACTION:Ver Estratégia:navigate:/strategy]`;
       } else {
-        proactiveMessage = `${greeting}olá! Estou pronto para te ajudar. Posso criar conteúdo, registar clientes, agendar posts ou preparar campanhas. O que precisas? 🎯`;
+        proactiveMessage = `${greeting}olá! Estou pronto para te ajudar. O que precisas? 🎯\n\n[ACTION:Criar Conteúdo:generate_draft:instagram]\n[ACTION:Registar Cliente:create_lead:default]\n[ACTION:Ver Estratégia:navigate:/strategy]`;
       }
 
       if (proactiveMessage) {
@@ -105,7 +133,7 @@ export function NexusConcierge() {
 
   const loadConversationHistory = async () => {
     if (!user) return;
-    
+
     const { data } = await supabase
       .from("concierge_conversations")
       .select("messages")
@@ -117,7 +145,6 @@ export function NexusConcierge() {
     if (data?.messages && (data.messages as Message[]).length > 0) {
       setMessages(data.messages as Message[]);
     } else {
-      // No history - trigger proactive insight
       generateProactiveInsight();
     }
   };
@@ -170,7 +197,7 @@ export function NexusConcierge() {
       }
 
       const result: ToolExecutionResult = await response.json();
-      
+
       if (result.success) {
         toast.success(getToolSuccessTitle(toolName), {
           description: result.message,
@@ -182,7 +209,7 @@ export function NexusConcierge() {
           duration: 4000,
         });
       }
-      
+
       return result;
     } catch (error) {
       console.error("Tool execution error:", error);
@@ -201,8 +228,38 @@ export function NexusConcierge() {
       add_note: "Nota guardada! 📝",
       set_reminder: "Lembrete definido! ⏰",
       save_site_progress: "Progresso guardado! 💾",
+      generate_instagram_draft: "Rascunhos criados! ✨",
+      schedule_post: "Post agendado! ⏰",
     };
     return titles[toolName] || "Ação concluída! ✅";
+  };
+
+  // Handle action button clicks
+  const handleActionButton = async (button: ActionButton) => {
+    if (button.actionType === "navigate") {
+      navigate(button.params);
+      setIsOpen(false);
+      return;
+    }
+
+    if (button.actionType === "generate_draft") {
+      // Prompt user for topic via the chat
+      setInput(`Gera um post de ${button.params} sobre `);
+      return;
+    }
+
+    if (button.actionType === "create_lead") {
+      setInput("Regista o potencial cliente ");
+      return;
+    }
+
+    if (button.actionType === "set_reminder") {
+      setInput("Lembra-me de ");
+      return;
+    }
+
+    // Fallback: send as chat message
+    setInput(button.label);
   };
 
   const sendMessage = async () => {
@@ -223,11 +280,12 @@ export function NexusConcierge() {
             "Content-Type": "application/json",
             Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
           },
-          body: JSON.stringify({ 
+          body: JSON.stringify({
             messages: updatedMessages.filter(m => m.role !== "tool_result").map(m => ({
               role: m.role === "tool_result" ? "assistant" : m.role,
               content: m.content
-            }))
+            })),
+            user_id: user?.id,
           }),
         }
       );
@@ -257,7 +315,7 @@ export function NexusConcierge() {
               try {
                 const parsed = JSON.parse(jsonStr);
                 const delta = parsed.choices?.[0]?.delta;
-                
+
                 if (delta?.content) {
                   assistantContent += delta.content;
                   setMessages((prev) => {
@@ -298,20 +356,20 @@ export function NexusConcierge() {
       // Process tool calls if any
       if (toolCalls.length > 0) {
         setIsExecutingTool(true);
-        
+
         for (const tc of toolCalls) {
           if (tc.function.name && tc.function.arguments) {
             try {
               const args = JSON.parse(tc.function.arguments);
-              
+
               setMessages(prev => [...prev, {
                 role: "assistant",
-                content: `A executar: ${tc.function.name}...`,
+                content: `A executar: ${getToolFriendlyName(tc.function.name)}...`,
                 toolCall: { name: tc.function.name, args }
               }]);
 
               const result = await executeTool(tc.function.name, args);
-              
+
               setMessages(prev => {
                 const newMessages = prev.slice(0, -1);
                 return [...newMessages, {
@@ -334,11 +392,12 @@ export function NexusConcierge() {
                     "Content-Type": "application/json",
                     Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
                   },
-                  body: JSON.stringify({ 
+                  body: JSON.stringify({
                     messages: followUpMessages.map(m => ({
                       role: m.role,
                       content: m.content
-                    }))
+                    })),
+                    user_id: user?.id,
                   }),
                 }
               );
@@ -375,7 +434,7 @@ export function NexusConcierge() {
                               return [...prev, { role: "assistant", content: followUpContent }];
                             });
                           }
-                        } catch {}
+                        } catch { /* ignore */ }
                       }
                     }
                   }
@@ -386,7 +445,7 @@ export function NexusConcierge() {
             }
           }
         }
-        
+
         setIsExecutingTool(false);
       }
 
@@ -407,6 +466,19 @@ export function NexusConcierge() {
     }
   };
 
+  const getToolFriendlyName = (toolName: string): string => {
+    const names: Record<string, string> = {
+      create_lead: "Registar potencial cliente",
+      add_note_to_lead: "Adicionar nota",
+      add_note: "Guardar nota",
+      set_reminder: "Definir lembrete",
+      save_site_progress: "Guardar progresso",
+      generate_instagram_draft: "Gerar rascunhos",
+      schedule_post: "Agendar post",
+    };
+    return names[toolName] || toolName;
+  };
+
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -423,6 +495,57 @@ export function NexusConcierge() {
         .delete()
         .eq("user_id", user.id);
     }
+  };
+
+  // Render a message with action buttons extracted
+  const renderMessageContent = (message: Message) => {
+    if (message.role === "tool_result") {
+      return (
+        <div className="flex items-center gap-2 text-sm">
+          {message.toolResult?.success ? (
+            <CheckCircle2 className="w-4 h-4 shrink-0" />
+          ) : (
+            <AlertCircle className="w-4 h-4 shrink-0" />
+          )}
+          <span>{message.content}</span>
+        </div>
+      );
+    }
+
+    if (message.role === "assistant") {
+      const { cleanContent, buttons } = parseActionButtons(message.content);
+      return (
+        <div>
+          {cleanContent && (
+            <div className="prose prose-sm prose-invert max-w-none">
+              <ReactMarkdown>{cleanContent}</ReactMarkdown>
+            </div>
+          )}
+          {buttons.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mt-2.5">
+              {buttons.map((btn, i) => (
+                <button
+                  key={i}
+                  onClick={() => handleActionButton(btn)}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium",
+                    "transition-all duration-200 hover:scale-105",
+                    btn.actionType === "navigate"
+                      ? "bg-primary/20 text-primary hover:bg-primary/30 border border-primary/30"
+                      : "bg-accent/80 text-accent-foreground hover:bg-accent border border-accent/50"
+                  )}
+                >
+                  <Zap className="w-3 h-3" />
+                  {btn.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    return <p className="text-sm">{message.content}</p>;
   };
 
   return (
@@ -450,7 +573,7 @@ export function NexusConcierge() {
         <div
           className={cn(
             "fixed bottom-24 right-6 z-50",
-            "w-96 h-[500px] max-w-[calc(100vw-3rem)]",
+            "w-96 h-[520px] max-w-[calc(100vw-3rem)]",
             "bg-card border border-border rounded-2xl shadow-2xl",
             "flex flex-col overflow-hidden",
             "animate-scale-in"
@@ -498,7 +621,6 @@ export function NexusConcierge() {
                   <p>💡 "Regista o João Silva como potencial cliente"</p>
                   <p>💡 "Cria 3 posts para o Instagram"</p>
                   <p>💡 "Lembra-me de ligar ao cliente amanhã"</p>
-                  <p>💡 "Qual a melhor estratégia para atrair clientes?"</p>
                 </div>
               </div>
             )}
@@ -512,7 +634,7 @@ export function NexusConcierge() {
               >
                 <div
                   className={cn(
-                    "max-w-[80%] rounded-2xl px-4 py-2",
+                    "max-w-[85%] rounded-2xl px-4 py-2",
                     message.role === "user"
                       ? "bg-primary text-primary-foreground rounded-br-md"
                       : message.role === "tool_result"
@@ -522,22 +644,7 @@ export function NexusConcierge() {
                       : "bg-muted text-foreground rounded-bl-md"
                   )}
                 >
-                  {message.role === "tool_result" ? (
-                    <div className="flex items-center gap-2 text-sm">
-                      {message.toolResult?.success ? (
-                        <CheckCircle2 className="w-4 h-4" />
-                      ) : (
-                        <AlertCircle className="w-4 h-4" />
-                      )}
-                      <span>{message.content}</span>
-                    </div>
-                  ) : message.role === "assistant" ? (
-                    <div className="prose prose-sm prose-invert max-w-none">
-                      <ReactMarkdown>{message.content}</ReactMarkdown>
-                    </div>
-                  ) : (
-                    <p className="text-sm">{message.content}</p>
-                  )}
+                  {renderMessageContent(message)}
                 </div>
               </div>
             ))}

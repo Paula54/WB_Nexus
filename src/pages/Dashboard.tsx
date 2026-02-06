@@ -12,7 +12,8 @@ import {
   TrendingUp, 
   ArrowRight, 
   Zap,
-  Globe
+  Globe,
+  Instagram
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 

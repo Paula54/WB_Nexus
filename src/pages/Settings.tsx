@@ -3,11 +3,23 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
-import { Palette, User, Save, ChevronDown, ChevronUp, Settings as SettingsIcon } from "lucide-react";
+import { Palette, User, Save, ChevronDown, ChevronUp, Settings as SettingsIcon, Store } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+const SECTOR_OPTIONS = [
+  { value: "cafetaria", label: "☕ Cafetaria / Pastelaria" },
+  { value: "restaurante", label: "🍽️ Restaurante" },
+  { value: "imobiliaria", label: "🏠 Imobiliária" },
+  { value: "advocacia", label: "⚖️ Advocacia / Jurídico" },
+  { value: "salao_beleza", label: "💅 Salão de Beleza / Estética" },
+  { value: "fitness", label: "💪 Fitness / Ginásio" },
+  { value: "loja_roupa", label: "👗 Loja de Roupa / Moda" },
+  { value: "clinica", label: "🏥 Clínica / Saúde" },
+];
 
 export default function Settings() {
   const { user } = useAuth();
@@ -19,6 +31,7 @@ export default function Settings() {
     company_name: "",
     contact_email: "",
     ai_custom_instructions: "",
+    business_sector: "",
   });
   const [whatsappNumber, setWhatsappNumber] = useState("");
 
@@ -44,6 +57,7 @@ export default function Settings() {
         company_name: data.company_name || "",
         contact_email: data.contact_email || "",
         ai_custom_instructions: data.ai_custom_instructions || "",
+        business_sector: (data as Record<string, unknown>).business_sector as string || "",
       });
     }
     setLoading(false);
@@ -71,8 +85,12 @@ export default function Settings() {
 
     const { error } = await supabase.from("profiles").upsert({
       user_id: user.id,
-      ...profile,
-    });
+      full_name: profile.full_name,
+      company_name: profile.company_name,
+      contact_email: profile.contact_email,
+      ai_custom_instructions: profile.ai_custom_instructions,
+      business_sector: profile.business_sector || null,
+    } as Record<string, unknown>);
 
     if (error) {
       toast({
@@ -83,7 +101,9 @@ export default function Settings() {
     } else {
       toast({
         title: "Identidade guardada ✨",
-        description: "A identidade da tua marca foi atualizada.",
+        description: profile.business_sector
+          ? `A IA está agora especializada no setor "${SECTOR_OPTIONS.find(s => s.value === profile.business_sector)?.label || profile.business_sector}".`
+          : "A identidade da tua marca foi atualizada.",
       });
     }
 
@@ -143,6 +163,43 @@ export default function Settings() {
           Define quem é o teu negócio e como a IA comunica por ti
         </p>
       </div>
+
+      {/* Sector Selector - Prominent */}
+      <Card className="glass border-primary/30 bg-primary/5">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Store className="h-5 w-5 text-primary" />
+            Setor do Negócio
+          </CardTitle>
+          <CardDescription>
+            Escolhe o teu setor para que a IA gere conteúdo especializado e estratégias adaptadas ao teu mercado
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Select
+            value={profile.business_sector}
+            onValueChange={(value) => setProfile({ ...profile, business_sector: value })}
+          >
+            <SelectTrigger className="w-full md:w-96">
+              <SelectValue placeholder="Seleciona o setor do teu negócio..." />
+            </SelectTrigger>
+            <SelectContent>
+              {SECTOR_OPTIONS.map((sector) => (
+                <SelectItem key={sector.value} value={sector.value}>
+                  {sector.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {profile.business_sector && (
+            <p className="text-xs text-primary mt-2">
+              ✨ A IA está especializada para o setor de{" "}
+              <strong>{SECTOR_OPTIONS.find(s => s.value === profile.business_sector)?.label}</strong>.
+              Todo o conteúdo gerado será adaptado automaticamente.
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Brand Identity */}
       <Card className="glass">
@@ -206,7 +263,7 @@ export default function Settings() {
         </CardContent>
       </Card>
 
-      {/* Advanced / Technical Settings - Hidden by default */}
+      {/* Advanced / Technical Settings */}
       <div className="border border-border/50 rounded-lg overflow-hidden">
         <button
           onClick={() => setShowAdvanced(!showAdvanced)}
