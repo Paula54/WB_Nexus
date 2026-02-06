@@ -14,6 +14,62 @@ export type Database = {
   }
   public: {
     Tables: {
+      ads_campaigns: {
+        Row: {
+          ad_copy: string | null
+          created_at: string
+          daily_budget: number
+          end_date: string | null
+          id: string
+          metrics: Json | null
+          platform: string
+          project_id: string | null
+          start_date: string | null
+          status: string
+          target_audience: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ad_copy?: string | null
+          created_at?: string
+          daily_budget?: number
+          end_date?: string | null
+          id?: string
+          metrics?: Json | null
+          platform: string
+          project_id?: string | null
+          start_date?: string | null
+          status?: string
+          target_audience?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ad_copy?: string | null
+          created_at?: string
+          daily_budget?: number
+          end_date?: string | null
+          id?: string
+          metrics?: Json | null
+          platform?: string
+          project_id?: string | null
+          start_date?: string | null
+          status?: string
+          target_audience?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ads_campaigns_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       compliance_pages: {
         Row: {
           content: string | null
