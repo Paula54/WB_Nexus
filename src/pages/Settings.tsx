@@ -7,8 +7,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
-import { Palette, User, Save, ChevronDown, ChevronUp, Settings as SettingsIcon, Store, Globe, BarChart3 } from "lucide-react";
+import { Palette, User, Save, ChevronDown, ChevronUp, Settings as SettingsIcon, Store, Globe, BarChart3, Plug } from "lucide-react";
 import { cn } from "@/lib/utils";
+import GoogleAdsConnect from "@/components/settings/GoogleAdsConnect";
 
 const SECTOR_OPTIONS = [
   { value: "cafetaria", label: "☕ Cafetaria / Pastelaria" },
@@ -384,6 +385,15 @@ export default function Settings() {
           </form>
         </CardContent>
       </Card>
+
+      {/* Integrations */}
+      <div className="space-y-4">
+        <h2 className="text-xl font-display font-semibold text-foreground flex items-center gap-2">
+          <Plug className="h-5 w-5 text-primary" />
+          Integrações
+        </h2>
+        <GoogleAdsConnect />
+      </div>
 
       {/* Advanced / Technical Settings */}
       <div className="border border-border/50 rounded-lg overflow-hidden">
