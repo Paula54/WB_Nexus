@@ -1,13 +1,16 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Sparkles, Loader2 } from "lucide-react";
+import { Sparkles, Loader2, CreditCard, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useProjectData } from "@/hooks/useProjectData";
+import { useStripeCheckout } from "@/hooks/useStripeCheckout";
 import { PlanSelector } from "@/components/strategy/PlanSelector";
 import { StrategyResults } from "@/components/strategy/StrategyResults";
 import type { MarketingStrategyInput, MarketingStrategyResult, PlanType } from "@/types/nexus";
@@ -15,6 +18,9 @@ import type { MarketingStrategyInput, MarketingStrategyResult, PlanType } from "
 export default function Strategy() {
   const { toast } = useToast();
   const { user } = useAuth();
+  const { project } = useProjectData();
+  const { startCheckout, loading: checkoutLoading } = useStripeCheckout();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState<MarketingStrategyInput>({
     clientName: "",
@@ -24,6 +30,37 @@ export default function Strategy() {
     plan: "NEXUS_OS",
   });
   const [result, setResult] = useState<MarketingStrategyResult | null>(null);
+
+  // Handle checkout callback
+  useEffect(() => {
+    const checkoutStatus = searchParams.get("checkout");
+    if (checkoutStatus === "success") {
+      toast({
+        title: "Pagamento iniciado! 🎉",
+        description: "O teu plano será ativado assim que o pagamento for confirmado.",
+      });
+      setSearchParams({}, { replace: true });
+    } else if (checkoutStatus === "cancel") {
+      toast({
+        title: "Checkout cancelado",
+        description: "Podes tentar novamente quando quiseres.",
+        variant: "destructive",
+      });
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setSearchParams, toast]);
+
+  const handleActivatePlan = async () => {
+    if (!project?.id) {
+      toast({
+        title: "Projeto não encontrado",
+        description: "Gera uma estratégia primeiro para criar o teu projeto.",
+        variant: "destructive",
+      });
+      return;
+    }
+    await startCheckout(formData.plan, project.id);
+  };
 
   const handleGenerate = async () => {
     if (!formData.clientName || !formData.productService || !formData.audience || !formData.objective) {
@@ -192,6 +229,29 @@ export default function Strategy() {
               </>
             )}
           </Button>
+
+          {/* Activate Plan Button */}
+          {project?.id && (
+            <Button
+              className="w-full border-2 border-nexus-gold text-nexus-gold hover:bg-nexus-gold hover:text-nexus-navy font-bold text-base transition-all duration-300"
+              variant="outline"
+              size="lg"
+              onClick={handleActivatePlan}
+              disabled={checkoutLoading}
+            >
+              {checkoutLoading ? (
+                <>
+                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                  A preparar pagamento...
+                </>
+              ) : (
+                <>
+                  <CreditCard className="h-5 w-5 mr-2" />
+                  Ativar Plano {formData.plan === "NEXUS_OS" ? "Elite" : formData.plan} — 14 dias grátis
+                </>
+              )}
+            </Button>
+          )}
         </CardContent>
       </Card>
 
