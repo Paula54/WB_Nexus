@@ -8,6 +8,8 @@ import KpiCards from "@/components/ads/KpiCards";
 import CampaignList from "@/components/ads/CampaignList";
 import CampaignCreateDialog from "@/components/ads/CampaignCreateDialog";
 import MetaAdsConnectModal from "@/components/ads/MetaAdsConnectModal";
+import { useTrialStatus } from "@/hooks/useTrialStatus";
+import TrialExpiredBanner from "@/components/TrialExpiredBanner";
 
 interface Campaign {
   id: string;
@@ -27,6 +29,7 @@ interface Campaign {
 
 export default function Ads() {
   const { user } = useAuth();
+  const trial = useTrialStatus();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [metaConnected, setMetaConnected] = useState(false);
@@ -76,6 +79,7 @@ export default function Ads() {
 
   return (
     <div className="space-y-6">
+      {trial.isExpired && <TrialExpiredBanner plan={trial.plan} />}
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -99,7 +103,7 @@ export default function Ads() {
               Conectar API Meta Ads
             </Button>
           )}
-          {user && (
+          {user && !trial.isExpired && (
             <CampaignCreateDialog
               userId={user.id}
               metaConnected={metaConnected}
