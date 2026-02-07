@@ -232,6 +232,39 @@ export type Database = {
           },
         ]
       }
+      google_ads_accounts: {
+        Row: {
+          created_at: string
+          google_ads_customer_id: string | null
+          google_email: string | null
+          google_refresh_token: string
+          id: string
+          is_active: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          google_ads_customer_id?: string | null
+          google_email?: string | null
+          google_refresh_token: string
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          google_ads_customer_id?: string | null
+          google_email?: string | null
+          google_refresh_token?: string
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       leads: {
         Row: {
           ai_classification: string | null
