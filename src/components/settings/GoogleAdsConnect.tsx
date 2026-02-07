@@ -2,10 +2,12 @@ import { useEffect, useState, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
-import { Link2, Unlink, Loader2 } from "lucide-react";
+import { Link2, Unlink, Loader2, Save } from "lucide-react";
 
 interface GoogleAdsAccount {
   id: string;
@@ -19,6 +21,8 @@ export default function GoogleAdsConnect() {
   const [account, setAccount] = useState<GoogleAdsAccount | null>(null);
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
+  const [customerId, setCustomerId] = useState("");
+  const [savingCustomerId, setSavingCustomerId] = useState(false);
 
   const fetchAccount = useCallback(async () => {
     if (!user) return;
@@ -29,7 +33,9 @@ export default function GoogleAdsConnect() {
       .eq("is_active", true)
       .maybeSingle();
 
-    setAccount(data as GoogleAdsAccount | null);
+    const acct = data as GoogleAdsAccount | null;
+    setAccount(acct);
+    setCustomerId(acct?.google_ads_customer_id || "");
     setLoading(false);
   }, [user]);
 
@@ -193,26 +199,101 @@ export default function GoogleAdsConnect() {
       </CardHeader>
       <CardContent className="space-y-4">
         {account ? (
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Badge className="bg-primary/15 text-primary border-primary/30">
-                ✅ Conectado
-              </Badge>
-              {account.google_email && (
-                <span className="text-sm text-muted-foreground">{account.google_email}</span>
-              )}
+          <>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Badge className="bg-primary/15 text-primary border-primary/30">
+                  ✅ Conectado
+                </Badge>
+                {account.google_email && (
+                  <span className="text-sm text-muted-foreground">{account.google_email}</span>
+                )}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={disconnectAccount}
+                disabled={connecting}
+                className="gap-2 text-destructive hover:text-destructive"
+              >
+                {connecting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Unlink className="h-4 w-4" />}
+                Desligar
+              </Button>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={disconnectAccount}
-              disabled={connecting}
-              className="gap-2 text-destructive hover:text-destructive"
-            >
-              {connecting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Unlink className="h-4 w-4" />}
-              Desligar
-            </Button>
-          </div>
+
+            {/* Customer ID field */}
+            <div className="border-t border-border/50 pt-4 space-y-3">
+              <div className="space-y-2">
+                <Label htmlFor="google_ads_customer_id" className="text-sm">
+                  Customer ID do Google Ads
+                </Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="google_ads_customer_id"
+                    value={customerId}
+                    onChange={(e) => {
+                      // Allow only digits and hyphens, auto-format as XXX-XXX-XXXX
+                      const raw = e.target.value.replace(/[^0-9]/g, "").slice(0, 10);
+                      const formatted = raw.replace(/(\d{3})(\d{3})(\d{0,4})/, (_, a, b, c) =>
+                        c ? `${a}-${b}-${c}` : b ? `${a}-${b}` : a
+                      );
+                      setCustomerId(formatted);
+                    }}
+                    placeholder="123-456-7890"
+                    maxLength={12}
+                    className="font-mono"
+                  />
+                  <Button
+                    size="default"
+                    variant="secondary"
+                    disabled={savingCustomerId || !customerId || customerId === account.google_ads_customer_id}
+                    onClick={async () => {
+                      // Validate format: XXX-XXX-XXXX
+                      const cleaned = customerId.replace(/-/g, "");
+                      if (!/^\d{10}$/.test(cleaned)) {
+                        toast({
+                          variant: "destructive",
+                          title: "Formato inválido",
+                          description: "O Customer ID deve ter 10 dígitos (ex: 123-456-7890).",
+                        });
+                        return;
+                      }
+
+                      setSavingCustomerId(true);
+                      const { error } = await supabase
+                        .from("google_ads_accounts" as string)
+                        .update({ google_ads_customer_id: customerId })
+                        .eq("id", account.id);
+
+                      if (error) {
+                        toast({
+                          variant: "destructive",
+                          title: "Erro",
+                          description: "Não foi possível guardar o Customer ID.",
+                        });
+                      } else {
+                        toast({
+                          title: "Customer ID guardado ✅",
+                          description: `ID ${customerId} associado à tua conta.`,
+                        });
+                        setAccount({ ...account, google_ads_customer_id: customerId });
+                      }
+                      setSavingCustomerId(false);
+                    }}
+                  >
+                    {savingCustomerId ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Save className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Encontras o teu Customer ID no canto superior direito do painel Google Ads (formato: XXX-XXX-XXXX).
+                </p>
+              </div>
+            </div>
+          </>
         ) : (
           <Button
             onClick={startOAuthFlow}
