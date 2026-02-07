@@ -9,6 +9,8 @@ import { MessageCircle, Flame, Send, User } from "lucide-react";
 import { format } from "date-fns";
 import { pt } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { useTrialStatus } from "@/hooks/useTrialStatus";
+import TrialExpiredBanner from "@/components/TrialExpiredBanner";
 
 interface Lead {
   id: string;
@@ -27,6 +29,7 @@ interface Message {
 
 export default function WhatsAppInbox() {
   const { user } = useAuth();
+  const trial = useTrialStatus();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -100,6 +103,15 @@ export default function WhatsAppInbox() {
     e.preventDefault();
     if (!selectedLead || !newMessage.trim()) return;
 
+    if (trial.isExpired) {
+      toast({
+        variant: "destructive",
+        title: "Subscrição Necessária",
+        description: "O teu período experimental expirou. Ativa a subscrição para enviar mensagens.",
+      });
+      return;
+    }
+
     setSending(true);
 
     try {
@@ -145,6 +157,7 @@ export default function WhatsAppInbox() {
   return (
     <div className="h-[calc(100vh-8rem)]">
       <div className="flex flex-col h-full">
+        {trial.isExpired && <div className="mb-4"><TrialExpiredBanner plan={trial.plan} /></div>}
         <div className="mb-4">
           <h1 className="text-3xl font-display font-bold text-foreground">WhatsApp Inbox</h1>
           <p className="text-muted-foreground mt-1">

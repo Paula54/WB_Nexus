@@ -34,6 +34,8 @@ import { pt } from "date-fns/locale";
 import type { MarketingStrategyResult } from "@/types/nexus";
 import { cn } from "@/lib/utils";
 import { EditPostModal } from "@/components/social/EditPostModal";
+import { useTrialStatus } from "@/hooks/useTrialStatus";
+import TrialExpiredBanner from "@/components/TrialExpiredBanner";
 
 interface SocialPost {
   id: string;
@@ -57,6 +59,7 @@ interface Project {
 
 export default function SocialMedia() {
   const { user } = useAuth();
+  const trial = useTrialStatus();
   const [posts, setPosts] = useState<SocialPost[]>([]);
   const [latestStrategy, setLatestStrategy] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
@@ -316,6 +319,12 @@ export default function SocialMedia() {
   }
 
   async function publishOrSchedulePost(postId: string) {
+    if (trial.isExpired) {
+      toast.error("Subscrição Necessária", {
+        description: "O teu período experimental expirou. Ativa a subscrição para publicar."
+      });
+      return;
+    }
     const scheduledDateTime = getScheduledDateTime(postId);
     
     // If there's a scheduled date, save it to the database first
@@ -671,6 +680,7 @@ export default function SocialMedia() {
 
   return (
     <div className="space-y-6">
+      {trial.isExpired && <TrialExpiredBanner plan={trial.plan} />}
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
