@@ -93,6 +93,7 @@ Deno.serve(async (req) => {
 
     // Remove hyphens from customer ID for API call
     const customerId = account.google_ads_customer_id.replace(/-/g, "");
+    console.log(`A iniciar chamada para o Customer ID: ${account.google_ads_customer_id} (${customerId})`);
 
     // Call Google Ads API to list campaigns
     const query = `
@@ -123,14 +124,52 @@ Deno.serve(async (req) => {
       }
     );
 
-    const adsData = await adsResponse.json();
+    // Read raw text first to avoid JSON parse errors on HTML responses
+    const rawBody = await adsResponse.text();
+    console.log(`Google Ads API status: ${adsResponse.status}, content-type: ${adsResponse.headers.get("content-type")}`);
+
+    let adsData: unknown;
+    try {
+      adsData = JSON.parse(rawBody);
+    } catch {
+      console.error("Google Ads API returned non-JSON:", rawBody.substring(0, 500));
+      
+      // Check for common HTML error patterns
+      let friendlyError = "A API do Google Ads devolveu uma resposta inesperada.";
+      if (rawBody.includes("DEVELOPER_TOKEN") || rawBody.includes("developer-token")) {
+        friendlyError = "O Developer Token do Google Ads não é válido ou ainda está em modo de teste.";
+      } else if (adsResponse.status === 403) {
+        friendlyError = "Acesso negado pela API do Google Ads. Verifica se o Developer Token está aprovado.";
+      } else if (adsResponse.status === 401) {
+        friendlyError = "Token de acesso expirado ou inválido. Tenta reconectar a conta Google Ads.";
+      }
+      
+      return new Response(
+        JSON.stringify({
+          error: friendlyError,
+          details: { status: adsResponse.status, body_preview: rawBody.substring(0, 300) },
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     if (!adsResponse.ok) {
       console.error("Google Ads API error:", JSON.stringify(adsData));
-      const errorMessage =
-        adsData?.error?.message ||
-        adsData?.[0]?.error?.message ||
-        "Erro ao consultar a API do Google Ads.";
+      
+      // Check for developer token issues
+      const errorDetails = adsData as Record<string, unknown>;
+      const errorStr = JSON.stringify(adsData);
+      let errorMessage = "Erro ao consultar a API do Google Ads.";
+      
+      if (errorStr.includes("DEVELOPER_TOKEN_PROHIBITED") || errorStr.includes("NOT_APPROVED")) {
+        errorMessage = "O teu Developer Token do Google Ads ainda está em modo de teste ou aguarda aprovação pela Google.";
+      } else {
+        errorMessage =
+          (errorDetails?.error as Record<string, string>)?.message ||
+          ((adsData as Array<Record<string, Record<string, string>>>)?.[0]?.error?.message) ||
+          errorMessage;
+      }
+      
       return new Response(
         JSON.stringify({
           error: errorMessage,
