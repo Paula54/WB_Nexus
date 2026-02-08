@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
-const GOOGLE_ADS_API_VERSION = "v18";
+const GOOGLE_ADS_API_VERSION = "v17";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -119,6 +119,7 @@ Deno.serve(async (req) => {
           "Content-Type": "application/json",
           Authorization: `Bearer ${accessToken}`,
           "developer-token": DEVELOPER_TOKEN,
+          "login-customer-id": customerId,
         },
         body: JSON.stringify({ query }),
       }
