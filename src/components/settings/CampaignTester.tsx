@@ -34,20 +34,13 @@ export default function CampaignTester({ customerId }: CampaignTesterProps) {
     setTesting(true);
     setResults(null);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) throw new Error("Sessão inválida");
+      const { data, error: fnError } = await supabase.functions.invoke("list-google-campaigns", {
+        method: "POST",
+      });
 
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/list-google-campaigns`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${session.access_token}`,
-          },
-        }
-      );
-      const result = await res.json();
+      if (fnError) throw fnError;
+
+      const result = data as CampaignResult;
       setResults(result);
 
       if (result.success) {

@@ -62,21 +62,13 @@ export function useGoogleAdsCampaigns() {
     setError(null);
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) throw new Error("Sessão inválida");
+      const { data, error: fnError } = await supabase.functions.invoke("list-google-campaigns", {
+        method: "POST",
+      });
 
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/list-google-campaigns`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${session.access_token}`,
-          },
-        }
-      );
+      if (fnError) throw fnError;
 
-      const result: GoogleAdsResult = await res.json();
+      const result = data as GoogleAdsResult;
 
       if (result.success) {
         setCampaigns(result.campaigns || []);
