@@ -46,7 +46,7 @@ Deno.serve(async (req) => {
     const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     const { data: account, error: accountError } = await adminClient
       .from("google_ads_accounts")
-      .select("google_refresh_token, google_ads_customer_id")
+      .select("google_refresh_token, google_ads_customer_id, mcc_customer_id")
       .eq("user_id", user.id)
       .eq("is_active", true)
       .maybeSingle();
@@ -91,11 +91,15 @@ Deno.serve(async (req) => {
 
     const accessToken = tokenData.access_token;
 
-    // Remove hyphens from customer ID for API call
-    const customerId = account.google_ads_customer_id.replace(/-/g, "");
-    console.log(`A iniciar chamada para o Customer ID: ${account.google_ads_customer_id} (${customerId})`);
+    // Sanitize customer IDs — remove hyphens and spaces
+    const customerId = account.google_ads_customer_id.replace(/[-\s]/g, "");
+    const loginCustomerId = account.mcc_customer_id
+      ? account.mcc_customer_id.replace(/[-\s]/g, "")
+      : customerId;
 
-    // Call Google Ads API to list campaigns
+    console.log(`Customer ID (target): ${customerId}, Login Customer ID (MCC): ${loginCustomerId}`);
+
+    // Simplified query to validate the API bridge
     const query = `
       SELECT 
         campaign.id, 
@@ -119,7 +123,7 @@ Deno.serve(async (req) => {
           "Content-Type": "application/json",
           Authorization: `Bearer ${accessToken}`,
           "developer-token": DEVELOPER_TOKEN,
-          "login-customer-id": customerId,
+          "login-customer-id": loginCustomerId,
         },
         body: JSON.stringify({ query }),
       }
@@ -162,8 +166,12 @@ Deno.serve(async (req) => {
       const errorStr = JSON.stringify(adsData);
       let errorMessage = "Erro ao consultar a API do Google Ads.";
       
-      if (errorStr.includes("DEVELOPER_TOKEN_PROHIBITED") || errorStr.includes("NOT_APPROVED")) {
-        errorMessage = "O teu Developer Token do Google Ads ainda está em modo de teste ou aguarda aprovação pela Google.";
+      if (errorStr.includes("DEVELOPER_TOKEN_PROHIBITED") || errorStr.includes("NOT_APPROVED") || errorStr.includes("DEVELOPER_TOKEN_NOT_APPROVED")) {
+        errorMessage = "O teu Developer Token do Google Ads ainda está em modo de teste. Para contas de teste, a ponte está funcional — mas para contas reais, o token precisa de aprovação pela Google.";
+      } else if (errorStr.includes("CUSTOMER_NOT_FOUND")) {
+        errorMessage = "A conta de teste não foi encontrada. Verifica se o Customer ID está correto e se pertence ao Gestor (MCC) configurado.";
+      } else if (errorStr.includes("USER_PERMISSION_DENIED")) {
+        errorMessage = "Sem permissão para aceder a esta conta. Verifica se a conta de teste está associada ao MCC correto.";
       } else {
         errorMessage =
           (errorDetails?.error as Record<string, string>)?.message ||
