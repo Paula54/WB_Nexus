@@ -26,3 +26,6 @@ verify_jwt = false
 
 [functions.google-ads-auth]
 verify_jwt = false
+
+[functions.list-google-campaigns]
+verify_jwt = false
