@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
-const GOOGLE_ADS_API_VERSION = "v17";
+const GOOGLE_ADS_API_VERSION = "v18";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -91,128 +91,77 @@ Deno.serve(async (req) => {
 
     const accessToken = tokenData.access_token;
 
-    // Sanitize customer IDs — remove hyphens and spaces
-    const customerId = account.google_ads_customer_id.replace(/[-\s]/g, "");
-    const loginCustomerId = account.mcc_customer_id
-      ? account.mcc_customer_id.replace(/[-\s]/g, "")
-      : customerId;
+    // Hard-coded IDs for testing — remove after validation
+    const MCC_ID = "8664492509";
+    const CUSTOMER_ID = "8539173952";
 
-    console.log(`Customer ID (target): ${customerId}, Login Customer ID (MCC): ${loginCustomerId}`);
+    console.log(`[v18] Target: ${CUSTOMER_ID}, MCC: ${MCC_ID}`);
 
-    // Simplified query to validate the API bridge
-    const query = `
-      SELECT 
-        campaign.id, 
-        campaign.name, 
-        campaign.status,
-        campaign.advertising_channel_type,
-        campaign_budget.amount_micros,
-        metrics.impressions,
-        metrics.clicks,
-        metrics.cost_micros
-      FROM campaign 
-      ORDER BY campaign.id
-      LIMIT 50
-    `;
+    const query = "SELECT campaign.id, campaign.name, campaign.status FROM campaign";
 
-    const adsResponse = await fetch(
-      `https://googleads.googleapis.com/${GOOGLE_ADS_API_VERSION}/customers/${customerId}/googleAds:search`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-          "developer-token": DEVELOPER_TOKEN,
-          "login-customer-id": loginCustomerId,
-        },
-        body: JSON.stringify({ query }),
-      }
-    );
+    const endpoint = `https://googleads.googleapis.com/${GOOGLE_ADS_API_VERSION}/customers/${CUSTOMER_ID}/googleAds:search`;
+    console.log(`[v18] Endpoint: ${endpoint}`);
+
+    const adsResponse = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${accessToken}`,
+        "developer-token": DEVELOPER_TOKEN,
+        "login-customer-id": MCC_ID,
+      },
+      body: JSON.stringify({ query }),
+    });
 
     // Read raw text first to avoid JSON parse errors on HTML responses
     const rawBody = await adsResponse.text();
-    console.log(`Google Ads API status: ${adsResponse.status}, content-type: ${adsResponse.headers.get("content-type")}`);
+    console.log(`[v18] Status: ${adsResponse.status}, Content-Type: ${adsResponse.headers.get("content-type")}`);
+    console.log(`[v18] Body preview: ${rawBody.substring(0, 500)}`);
+
+    if (!adsResponse.ok) {
+      return new Response(
+        JSON.stringify({
+          error: "Erro Google Ads API",
+          status: adsResponse.status,
+          message: `HTTP ${adsResponse.status} da API Google Ads`,
+          details: rawBody.substring(0, 2000),
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     let adsData: unknown;
     try {
       adsData = JSON.parse(rawBody);
     } catch {
-      console.error("Google Ads API returned non-JSON:", rawBody.substring(0, 500));
-      
-      // Check for common HTML error patterns
-      let friendlyError = "A API do Google Ads devolveu uma resposta inesperada.";
-      if (rawBody.includes("DEVELOPER_TOKEN") || rawBody.includes("developer-token")) {
-        friendlyError = "O Developer Token do Google Ads não é válido ou ainda está em modo de teste.";
-      } else if (adsResponse.status === 403) {
-        friendlyError = "Acesso negado pela API do Google Ads. Verifica se o Developer Token está aprovado.";
-      } else if (adsResponse.status === 401) {
-        friendlyError = "Token de acesso expirado ou inválido. Tenta reconectar a conta Google Ads.";
-      }
-      
       return new Response(
         JSON.stringify({
-          error: friendlyError,
-          details: { status: adsResponse.status, body_preview: rawBody.substring(0, 300) },
+          error: "Resposta não-JSON da API Google Ads",
+          status: adsResponse.status,
+          details: rawBody.substring(0, 2000),
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    if (!adsResponse.ok) {
-      console.error("Google Ads API error:", JSON.stringify(adsData));
-      
-      // Check for developer token issues
-      const errorDetails = adsData as Record<string, unknown>;
-      const errorStr = JSON.stringify(adsData);
-      let errorMessage = "Erro ao consultar a API do Google Ads.";
-      
-      if (errorStr.includes("DEVELOPER_TOKEN_PROHIBITED") || errorStr.includes("NOT_APPROVED") || errorStr.includes("DEVELOPER_TOKEN_NOT_APPROVED")) {
-        errorMessage = "O teu Developer Token do Google Ads ainda está em modo de teste. Para contas de teste, a ponte está funcional — mas para contas reais, o token precisa de aprovação pela Google.";
-      } else if (errorStr.includes("CUSTOMER_NOT_FOUND")) {
-        errorMessage = "A conta de teste não foi encontrada. Verifica se o Customer ID está correto e se pertence ao Gestor (MCC) configurado.";
-      } else if (errorStr.includes("USER_PERMISSION_DENIED")) {
-        errorMessage = "Sem permissão para aceder a esta conta. Verifica se a conta de teste está associada ao MCC correto.";
-      } else {
-        errorMessage =
-          (errorDetails?.error as Record<string, string>)?.message ||
-          ((adsData as Array<Record<string, Record<string, string>>>)?.[0]?.error?.message) ||
-          errorMessage;
-      }
-      
-      return new Response(
-        JSON.stringify({
-          error: errorMessage,
-          details: adsData,
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Parse the response — search returns { results: [...] } directly
+    // Parse the response
     const campaigns: Array<Record<string, unknown>> = [];
     const responseData = adsData as Record<string, unknown>;
     const results = (responseData.results || []) as Array<Record<string, unknown>>;
 
     for (const result of results) {
       const campaign = result.campaign as Record<string, unknown> | undefined;
-      const budget = result.campaignBudget as Record<string, unknown> | undefined;
-      const metrics = result.metrics as Record<string, unknown> | undefined;
       campaigns.push({
         id: campaign?.id,
         name: campaign?.name,
         status: campaign?.status,
-        channel_type: campaign?.advertisingChannelType,
-        budget_micros: budget?.amountMicros,
-        impressions: metrics?.impressions,
-        clicks: metrics?.clicks,
-        cost_micros: metrics?.costMicros,
       });
     }
 
     return new Response(
       JSON.stringify({
         success: true,
-        customer_id: account.google_ads_customer_id,
+        customer_id: CUSTOMER_ID,
         total: campaigns.length,
         campaigns,
       }),
