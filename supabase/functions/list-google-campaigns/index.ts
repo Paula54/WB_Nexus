@@ -112,7 +112,7 @@ Deno.serve(async (req) => {
     `;
 
     const adsResponse = await fetch(
-      `https://googleads.googleapis.com/${GOOGLE_ADS_API_VERSION}/customers/${customerId}/googleAds:searchStream`,
+      `https://googleads.googleapis.com/${GOOGLE_ADS_API_VERSION}/customers/${customerId}/googleAds:search`,
       {
         method: "POST",
         headers: {
@@ -179,26 +179,25 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Parse the stream response — searchStream returns an array of result batches
+    // Parse the response — search returns { results: [...] } directly
     const campaigns: Array<Record<string, unknown>> = [];
+    const responseData = adsData as Record<string, unknown>;
+    const results = (responseData.results || []) as Array<Record<string, unknown>>;
 
-    if (Array.isArray(adsData)) {
-      for (const batch of adsData) {
-        if (batch.results) {
-          for (const result of batch.results) {
-            campaigns.push({
-              id: result.campaign?.id,
-              name: result.campaign?.name,
-              status: result.campaign?.status,
-              channel_type: result.campaign?.advertisingChannelType,
-              budget_micros: result.campaignBudget?.amountMicros,
-              impressions: result.metrics?.impressions,
-              clicks: result.metrics?.clicks,
-              cost_micros: result.metrics?.costMicros,
-            });
-          }
-        }
-      }
+    for (const result of results) {
+      const campaign = result.campaign as Record<string, unknown> | undefined;
+      const budget = result.campaignBudget as Record<string, unknown> | undefined;
+      const metrics = result.metrics as Record<string, unknown> | undefined;
+      campaigns.push({
+        id: campaign?.id,
+        name: campaign?.name,
+        status: campaign?.status,
+        channel_type: campaign?.advertisingChannelType,
+        budget_micros: budget?.amountMicros,
+        impressions: metrics?.impressions,
+        clicks: metrics?.clicks,
+        cost_micros: metrics?.costMicros,
+      });
     }
 
     return new Response(
