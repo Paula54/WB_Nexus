@@ -91,39 +91,36 @@ Deno.serve(async (req) => {
 
     const accessToken = tokenData.access_token;
 
-    // Hard-coded IDs for testing — remove after validation
-    const MCC_ID = "8664492509";
-    const CUSTOMER_ID = "8539173952";
-
-    console.log(`[v18] Target: ${CUSTOMER_ID}, MCC: ${MCC_ID}`);
-
-    const query = "SELECT campaign.id, campaign.name, campaign.status FROM campaign";
-
-    const endpoint = `https://googleads.googleapis.com/${GOOGLE_ADS_API_VERSION}/customers/${CUSTOMER_ID}/googleAds:search`;
-    console.log(`[v18] Endpoint: ${endpoint}`);
+    // === TEMPORARY: Validate OAuth bridge via listAccessibleCustomers ===
+    const endpoint = `https://googleads.googleapis.com/${GOOGLE_ADS_API_VERSION}/customers:listAccessibleCustomers`;
+    console.log(`[bridge-test] Endpoint: ${endpoint}`);
 
     const adsResponse = await fetch(endpoint, {
-      method: "POST",
+      method: "GET",
       headers: {
-        "Content-Type": "application/json",
         "Authorization": `Bearer ${accessToken}`,
         "developer-token": DEVELOPER_TOKEN,
-        "login-customer-id": MCC_ID,
       },
-      body: JSON.stringify({ query }),
     });
 
-    // Read raw text first to avoid JSON parse errors on HTML responses
     const rawBody = await adsResponse.text();
-    console.log(`[v18] Status: ${adsResponse.status}, Content-Type: ${adsResponse.headers.get("content-type")}`);
-    console.log(`[v18] Body preview: ${rawBody.substring(0, 500)}`);
+    console.log(`[bridge-test] Status: ${adsResponse.status}, Content-Type: ${adsResponse.headers.get("content-type")}`);
+    console.log(`[bridge-test] Body preview: ${rawBody.substring(0, 500)}`);
 
     if (!adsResponse.ok) {
+      // Check for specific token issues
+      let diagnosticMsg = `HTTP ${adsResponse.status} da API Google Ads`;
+      if (rawBody.includes("DEVELOPER_TOKEN_PROHIBITED")) {
+        diagnosticMsg = "DEVELOPER_TOKEN_PROHIBITED — O Developer Token não tem permissão. Verifica o estado no Google Ads API Center.";
+      } else if (rawBody.includes("UNAUTHENTICATED")) {
+        diagnosticMsg = "UNAUTHENTICATED — O access_token é inválido ou expirou. Tenta reconectar a conta Google.";
+      }
+
       return new Response(
         JSON.stringify({
           error: "Erro Google Ads API",
           status: adsResponse.status,
-          message: `HTTP ${adsResponse.status} da API Google Ads`,
+          message: diagnosticMsg,
           details: rawBody.substring(0, 2000),
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -144,26 +141,23 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Parse the response
-    const campaigns: Array<Record<string, unknown>> = [];
+    // Parse accessible customers
     const responseData = adsData as Record<string, unknown>;
-    const results = (responseData.results || []) as Array<Record<string, unknown>>;
-
-    for (const result of results) {
-      const campaign = result.campaign as Record<string, unknown> | undefined;
-      campaigns.push({
-        id: campaign?.id,
-        name: campaign?.name,
-        status: campaign?.status,
-      });
-    }
+    const resourceNames = (responseData.resourceNames || []) as string[];
+    const accessibleIds = resourceNames.map((r) => r.replace("customers/", ""));
 
     return new Response(
       JSON.stringify({
         success: true,
-        customer_id: CUSTOMER_ID,
-        total: campaigns.length,
-        campaigns,
+        customer_id: account.google_ads_customer_id || "N/A",
+        total: accessibleIds.length,
+        campaigns: accessibleIds.map((id) => ({
+          id,
+          name: `Conta acessível: ${id}`,
+          status: "ACCESSIBLE",
+        })),
+        _bridge_test: true,
+        _message: `Ponte Validada! O teu acesso foi confirmado para ${accessibleIds.length} conta(s): ${accessibleIds.join(", ")}`,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
