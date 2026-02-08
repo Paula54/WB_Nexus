@@ -415,6 +415,7 @@ export default function GoogleAdsConnect() {
                 </div>
               )}
             </div>
+          </>
         ) : (
           <Button
             onClick={startOAuthFlow}
