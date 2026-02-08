@@ -8,6 +8,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { Link2, Unlink, Loader2, Save, ListChecks } from "lucide-react";
+import GoogleAdsIcon from "./GoogleAdsIcon";
+import CustomerIdField from "./CustomerIdField";
+import CampaignTester from "./CampaignTester";
 
 interface GoogleAdsAccount {
   id: string;
@@ -21,24 +24,6 @@ export default function GoogleAdsConnect() {
   const [account, setAccount] = useState<GoogleAdsAccount | null>(null);
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
-  const [customerId, setCustomerId] = useState("");
-  const [savingCustomerId, setSavingCustomerId] = useState(false);
-  const [testingCampaigns, setTestingCampaigns] = useState(false);
-  const [campaignResults, setCampaignResults] = useState<null | {
-    success?: boolean;
-    total?: number;
-    campaigns?: Array<{
-      id: string;
-      name: string;
-      status: string;
-      channel_type: string;
-      impressions: string;
-      clicks: string;
-      cost_micros: string;
-    }>;
-    error?: string;
-    details?: unknown;
-  }>(null);
 
   const fetchAccount = useCallback(async () => {
     if (!user) return;
@@ -49,80 +34,40 @@ export default function GoogleAdsConnect() {
       .eq("is_active", true)
       .maybeSingle();
 
-    const acct = data as GoogleAdsAccount | null;
-    setAccount(acct);
-    setCustomerId(acct?.google_ads_customer_id || "");
+    setAccount(data as GoogleAdsAccount | null);
     setLoading(false);
   }, [user]);
 
-  // Handle OAuth callback
+  // Handle OAuth callback query params (success or error from server-side callback)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const code = params.get("code");
-    const state = params.get("state");
+    const connected = params.get("google_ads_connected");
+    const googleEmail = params.get("google_email");
+    const error = params.get("google_ads_error");
 
-    if (code && state && user) {
-      handleOAuthCallback(code);
+    if (connected === "true") {
+      toast({
+        title: "Conta Google Ads ligada ✅",
+        description: googleEmail
+          ? `Ligada como ${googleEmail}`
+          : "Ligação estabelecida com sucesso!",
+      });
+      // Clean URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+      fetchAccount();
+    } else if (error) {
+      toast({
+        variant: "destructive",
+        title: "Erro na ligação Google Ads",
+        description: decodeURIComponent(error),
+      });
+      window.history.replaceState({}, document.title, window.location.pathname);
     }
-  }, [user]);
+  }, [fetchAccount]);
 
   useEffect(() => {
     fetchAccount();
   }, [fetchAccount]);
-
-  async function handleOAuthCallback(code: string) {
-    setConnecting(true);
-
-    // Clean URL
-    const cleanUrl = window.location.origin + window.location.pathname;
-    window.history.replaceState({}, document.title, cleanUrl);
-
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) throw new Error("Sessão inválida");
-
-      const redirectUri = `${window.location.origin}/settings`;
-
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-ads-auth`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({ code, redirect_uri: redirectUri }),
-        }
-      );
-
-      const result = await response.json();
-
-      if (result.success) {
-        toast({
-          title: "Conta Google Ads ligada ✅",
-          description: result.google_email
-            ? `Ligada como ${result.google_email}`
-            : "Ligação estabelecida com sucesso!",
-        });
-        fetchAccount();
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Erro na ligação",
-          description: result.error || "Não foi possível ligar a conta.",
-        });
-      }
-    } catch (err: unknown) {
-      console.error("OAuth callback error:", err);
-      toast({
-        variant: "destructive",
-        title: "Erro",
-        description: "Falha ao processar a autorização do Google.",
-      });
-    } finally {
-      setConnecting(false);
-    }
-  }
 
   async function startOAuthFlow() {
     if (!user) return;
@@ -132,10 +77,10 @@ export default function GoogleAdsConnect() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) throw new Error("Sessão inválida");
 
-      const redirectUri = `${window.location.origin}/settings`;
+      const returnOrigin = window.location.origin;
 
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-ads-auth?redirect_uri=${encodeURIComponent(redirectUri)}`,
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-ads-auth?return_origin=${encodeURIComponent(returnOrigin)}`,
         {
           method: "GET",
           headers: {
@@ -201,12 +146,7 @@ export default function GoogleAdsConnect() {
     <Card className="glass border-primary/20">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
-          <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none">
-            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />
-            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
-            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
-            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
-          </svg>
+          <GoogleAdsIcon />
           Integração Google Ads
         </CardTitle>
         <CardDescription>
@@ -237,184 +177,14 @@ export default function GoogleAdsConnect() {
               </Button>
             </div>
 
-            {/* Customer ID field */}
-            <div className="border-t border-border/50 pt-4 space-y-3">
-              <div className="space-y-2">
-                <Label htmlFor="google_ads_customer_id" className="text-sm">
-                  Customer ID do Google Ads
-                </Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="google_ads_customer_id"
-                    value={customerId}
-                    onChange={(e) => {
-                      // Allow only digits and hyphens, auto-format as XXX-XXX-XXXX
-                      const raw = e.target.value.replace(/[^0-9]/g, "").slice(0, 10);
-                      const formatted = raw.replace(/(\d{3})(\d{3})(\d{0,4})/, (_, a, b, c) =>
-                        c ? `${a}-${b}-${c}` : b ? `${a}-${b}` : a
-                      );
-                      setCustomerId(formatted);
-                    }}
-                    placeholder="123-456-7890"
-                    maxLength={12}
-                    className="font-mono"
-                  />
-                  <Button
-                    size="default"
-                    variant="secondary"
-                    disabled={savingCustomerId || !customerId || customerId === account.google_ads_customer_id}
-                    onClick={async () => {
-                      // Validate format: XXX-XXX-XXXX
-                      const cleaned = customerId.replace(/-/g, "");
-                      if (!/^\d{10}$/.test(cleaned)) {
-                        toast({
-                          variant: "destructive",
-                          title: "Formato inválido",
-                          description: "O Customer ID deve ter 10 dígitos (ex: 123-456-7890).",
-                        });
-                        return;
-                      }
+            <CustomerIdField
+              account={account}
+              onAccountUpdate={(updated) => setAccount(updated)}
+            />
 
-                      setSavingCustomerId(true);
-                      const { error } = await supabase
-                        .from("google_ads_accounts" as string)
-                        .update({ google_ads_customer_id: customerId })
-                        .eq("id", account.id);
-
-                      if (error) {
-                        toast({
-                          variant: "destructive",
-                          title: "Erro",
-                          description: "Não foi possível guardar o Customer ID.",
-                        });
-                      } else {
-                        toast({
-                          title: "Customer ID guardado ✅",
-                          description: `ID ${customerId} associado à tua conta.`,
-                        });
-                        setAccount({ ...account, google_ads_customer_id: customerId });
-                      }
-                      setSavingCustomerId(false);
-                    }}
-                  >
-                    {savingCustomerId ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Save className="h-4 w-4" />
-                    )}
-                  </Button>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Encontras o teu Customer ID no canto superior direito do painel Google Ads (formato: XXX-XXX-XXXX).
-                </p>
-              </div>
-            </div>
-
-            {/* Test: List Campaigns */}
-            <div className="border-t border-border/50 pt-4 space-y-3">
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={testingCampaigns || !account.google_ads_customer_id}
-                  onClick={async () => {
-                    setTestingCampaigns(true);
-                    setCampaignResults(null);
-                    try {
-                      const { data: { session } } = await supabase.auth.getSession();
-                      if (!session?.access_token) throw new Error("Sessão inválida");
-
-                      const res = await fetch(
-                        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/list-google-campaigns`,
-                        {
-                          method: "POST",
-                          headers: {
-                            "Content-Type": "application/json",
-                            Authorization: `Bearer ${session.access_token}`,
-                          },
-                        }
-                      );
-                      const result = await res.json();
-                      setCampaignResults(result);
-
-                      if (result.success) {
-                        toast({
-                          title: `${result.total} campanha(s) encontrada(s) ✅`,
-                          description: `Customer ID: ${result.customer_id}`,
-                        });
-                      } else {
-                        toast({
-                          variant: "destructive",
-                          title: "Erro ao listar campanhas",
-                          description: result.error || "Erro desconhecido",
-                        });
-                      }
-                    } catch (err: unknown) {
-                      console.error("Test campaigns error:", err);
-                      toast({
-                        variant: "destructive",
-                        title: "Erro",
-                        description: "Falha ao contactar a API.",
-                      });
-                    } finally {
-                      setTestingCampaigns(false);
-                    }
-                  }}
-                  className="gap-2"
-                >
-                  {testingCampaigns ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <ListChecks className="h-4 w-4" />
-                  )}
-                  {testingCampaigns ? "A consultar..." : "Testar — Listar Campanhas"}
-                </Button>
-                {!account.google_ads_customer_id && (
-                  <span className="text-xs text-muted-foreground">
-                    Guarda o Customer ID primeiro
-                  </span>
-                )}
-              </div>
-
-              {/* Results */}
-              {campaignResults && (
-                <div className="rounded-md border border-border/50 bg-muted/30 p-3 space-y-2 max-h-64 overflow-y-auto">
-                  {campaignResults.error ? (
-                    <div className="space-y-1">
-                      <p className="text-sm text-destructive font-medium">❌ {campaignResults.error}</p>
-                      {campaignResults.details && (
-                        <pre className="text-xs text-muted-foreground whitespace-pre-wrap break-all">
-                          {JSON.stringify(campaignResults.details, null, 2)}
-                        </pre>
-                      )}
-                    </div>
-                  ) : (
-                    <>
-                      <p className="text-sm font-medium text-foreground">
-                        ✅ {campaignResults.total} campanha(s) encontrada(s)
-                      </p>
-                      {campaignResults.campaigns && campaignResults.campaigns.length > 0 ? (
-                        <div className="space-y-2">
-                          {campaignResults.campaigns.map((c) => (
-                            <div key={c.id} className="flex items-center justify-between text-xs border-b border-border/30 pb-1.5">
-                              <div>
-                                <span className="font-medium text-foreground">{c.name}</span>
-                                <span className="text-muted-foreground ml-2">({c.channel_type})</span>
-                              </div>
-                              <Badge variant={c.status === "ENABLED" ? "default" : "secondary"} className="text-[10px]">
-                                {c.status}
-                              </Badge>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-xs text-muted-foreground">Nenhuma campanha encontrada nesta conta.</p>
-                      )}
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
+            <CampaignTester
+              customerId={account.google_ads_customer_id}
+            />
           </>
         ) : (
           <Button
