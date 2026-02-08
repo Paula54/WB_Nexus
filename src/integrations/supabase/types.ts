@@ -240,6 +240,7 @@ export type Database = {
           google_refresh_token: string
           id: string
           is_active: boolean
+          mcc_customer_id: string | null
           updated_at: string
           user_id: string
         }
@@ -250,6 +251,7 @@ export type Database = {
           google_refresh_token: string
           id?: string
           is_active?: boolean
+          mcc_customer_id?: string | null
           updated_at?: string
           user_id: string
         }
@@ -260,6 +262,7 @@ export type Database = {
           google_refresh_token?: string
           id?: string
           is_active?: boolean
+          mcc_customer_id?: string | null
           updated_at?: string
           user_id?: string
         }
