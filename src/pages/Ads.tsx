@@ -1,14 +1,17 @@
 import { useEffect, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link2 } from "lucide-react";
 import KpiCards from "@/components/ads/KpiCards";
 import CampaignList from "@/components/ads/CampaignList";
+import GoogleCampaignList from "@/components/ads/GoogleCampaignList";
 import CampaignCreateDialog from "@/components/ads/CampaignCreateDialog";
 import MetaAdsConnectModal from "@/components/ads/MetaAdsConnectModal";
 import { useTrialStatus } from "@/hooks/useTrialStatus";
+import { useGoogleAdsCampaigns } from "@/hooks/useGoogleAdsCampaigns";
 import TrialExpiredBanner from "@/components/TrialExpiredBanner";
 
 interface Campaign {
@@ -35,6 +38,9 @@ export default function Ads() {
   const [metaConnected, setMetaConnected] = useState(false);
   const [projectId, setProjectId] = useState<string | null>(null);
   const [connectModalOpen, setConnectModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("google");
+
+  const googleAds = useGoogleAdsCampaigns();
 
   const fetchCampaigns = useCallback(async () => {
     if (!user) return;
@@ -103,6 +109,11 @@ export default function Ads() {
               Conectar API Meta Ads
             </Button>
           )}
+          {googleAds.connected && (
+            <Badge className="bg-primary/15 text-primary border-primary/30 px-3 py-1.5 text-sm">
+              ✅ Google Ads Conectado
+            </Badge>
+          )}
           {user && !trial.isExpired && (
             <CampaignCreateDialog
               userId={user.id}
@@ -114,21 +125,53 @@ export default function Ads() {
         </div>
       </div>
 
-      {/* KPI Cards */}
-      <KpiCards
-        totalImpressions={totalImpressions}
-        totalClicks={totalClicks}
-        totalSpend={totalSpend}
-        ctr={ctr}
-        costPerLead={costPerLead}
-      />
+      {/* Tabs: Google Ads vs Meta/Local */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="google">Google Ads</TabsTrigger>
+          <TabsTrigger value="local">Meta / Local</TabsTrigger>
+        </TabsList>
 
-      {/* Campaigns List */}
-      <CampaignList
-        campaigns={campaigns}
-        loading={loading}
-        onRefresh={fetchCampaigns}
-      />
+        <TabsContent value="google" className="space-y-6">
+          {/* Google Ads KPI Cards */}
+          <KpiCards
+            totalImpressions={googleAds.totalImpressions}
+            totalClicks={googleAds.totalClicks}
+            totalSpend={googleAds.totalSpend}
+            ctr={googleAds.ctr}
+            costPerLead={googleAds.costPerLead}
+          />
+
+          {/* Google Ads Campaign List */}
+          <GoogleCampaignList
+            campaigns={googleAds.campaigns}
+            loading={googleAds.loading}
+            syncing={googleAds.syncing}
+            connected={googleAds.connected}
+            customerIdMissing={googleAds.customerIdMissing}
+            error={googleAds.error}
+            onSync={googleAds.syncNow}
+          />
+        </TabsContent>
+
+        <TabsContent value="local" className="space-y-6">
+          {/* Local/Meta KPI Cards */}
+          <KpiCards
+            totalImpressions={totalImpressions}
+            totalClicks={totalClicks}
+            totalSpend={totalSpend}
+            ctr={ctr}
+            costPerLead={costPerLead}
+          />
+
+          {/* Local Campaigns List */}
+          <CampaignList
+            campaigns={campaigns}
+            loading={loading}
+            onRefresh={fetchCampaigns}
+          />
+        </TabsContent>
+      </Tabs>
 
       {/* Meta Ads Connect Modal */}
       <MetaAdsConnectModal
