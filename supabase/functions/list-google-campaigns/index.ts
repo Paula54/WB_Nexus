@@ -25,8 +25,8 @@ Deno.serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: "Não autenticado. Faz login novamente." }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -35,9 +35,10 @@ Deno.serve(async (req) => {
     });
     const { data: { user }, error: userError } = await supabaseUser.auth.getUser();
     if (userError || !user) {
+      console.error("Auth error:", userError);
       return new Response(
-        JSON.stringify({ error: "Invalid token" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: "Token inválido. Faz logout e login novamente." }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -53,14 +54,14 @@ Deno.serve(async (req) => {
     if (accountError || !account) {
       return new Response(
         JSON.stringify({ error: "Nenhuma conta Google Ads ligada." }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     if (!account.google_ads_customer_id) {
       return new Response(
         JSON.stringify({ error: "Customer ID não configurado. Define-o nas Definições." }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -84,7 +85,7 @@ Deno.serve(async (req) => {
         JSON.stringify({
           error: `Erro ao renovar token: ${tokenData.error_description || tokenData.error}`,
         }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -174,7 +175,7 @@ Deno.serve(async (req) => {
     console.error("list-google-campaigns error:", error);
     return new Response(
       JSON.stringify({ error: error.message }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });
