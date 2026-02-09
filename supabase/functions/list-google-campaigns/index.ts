@@ -17,9 +17,10 @@ Deno.serve(async (req) => {
   try {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const GOOGLE_CLIENT_ID = (Deno.env.get("GOOGLE_CLIENT_ID") || "").trim();
-    const GOOGLE_CLIENT_SECRET = (Deno.env.get("GOOGLE_CLIENT_SECRET") || "").trim();
+    const GOOGLE_CLIENT_ID = (Deno.env.get("GOOGLE_ADS_CLIENT_ID") || "").trim();
+    const GOOGLE_CLIENT_SECRET = (Deno.env.get("GOOGLE_ADS_CLIENT_SECRET") || "").trim();
     const DEVELOPER_TOKEN = (Deno.env.get("GOOGLE_ADS_DEVELOPER_TOKEN") || "").trim();
+    const MANAGER_ID = (Deno.env.get("GOOGLE_ADS_MANAGER_ID") || "").trim().replace(/-/g, "");
 
     // Verify user auth
     const authHeader = req.headers.get("Authorization");
@@ -65,6 +66,9 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Clean customer ID (remove dashes/spaces)
+    const cleanCustomerId = account.google_ads_customer_id.replace(/[-\s]/g, "").trim();
+
     // Refresh the access token
     const tokenRes = await fetch(GOOGLE_TOKEN_URL, {
       method: "POST",
@@ -91,31 +95,49 @@ Deno.serve(async (req) => {
 
     const accessToken = tokenData.access_token.trim();
 
-    // === TEMPORARY: Validate OAuth bridge via listAccessibleCustomers ===
-    const endpoint = `https://googleads.googleapis.com/${GOOGLE_ADS_API_VERSION}/customers:listAccessibleCustomers`.trim();
-    console.log(`[bridge-test] Endpoint: ${endpoint}`);
-    console.log(`[bridge-test] Developer Token length: ${DEVELOPER_TOKEN.length}, first 4: ${DEVELOPER_TOKEN.substring(0, 4)}`);
+    // Use Manager ID from secrets, fallback to DB mcc_customer_id
+    const loginCustomerId = MANAGER_ID || (account.mcc_customer_id || "").replace(/[-\s]/g, "").trim();
+
+    // Build endpoint for campaign search
+    const endpoint = `https://googleads.googleapis.com/${GOOGLE_ADS_API_VERSION}/customers/${cleanCustomerId}/googleAds:search`;
+    console.log(`[google-ads] Endpoint: ${endpoint}`);
+    console.log(`[google-ads] Customer ID: ${cleanCustomerId}, Login Customer ID: ${loginCustomerId}`);
+    console.log(`[google-ads] Developer Token length: ${DEVELOPER_TOKEN.length}`);
+
+    // Build headers
+    const adsHeaders: Record<string, string> = {
+      "Authorization": `Bearer ${accessToken}`,
+      "developer-token": DEVELOPER_TOKEN,
+      "Content-Type": "application/json",
+    };
+
+    // Add login-customer-id header for MCC hierarchy
+    if (loginCustomerId) {
+      adsHeaders["login-customer-id"] = loginCustomerId;
+    }
+
+    const gaqlQuery = `SELECT campaign.id, campaign.name, campaign.status, campaign.advertising_channel_type, campaign_budget.amount_micros, metrics.impressions, metrics.clicks, metrics.cost_micros FROM campaign ORDER BY campaign.id`;
 
     const adsResponse = await fetch(endpoint, {
-      method: "GET",
-      headers: {
-        "Authorization": `Bearer ${accessToken}`,
-        "developer-token": DEVELOPER_TOKEN,
-        "Content-Type": "application/json",
-      },
+      method: "POST",
+      headers: adsHeaders,
+      body: JSON.stringify({ query: gaqlQuery }),
     });
 
     const rawBody = await adsResponse.text();
-    console.log(`[bridge-test] Status: ${adsResponse.status}, Content-Type: ${adsResponse.headers.get("content-type")}`);
-    console.log(`[bridge-test] Body preview: ${rawBody.substring(0, 500)}`);
+    console.log(`[google-ads] Status: ${adsResponse.status}`);
+    console.log(`[google-ads] Body preview: ${rawBody.substring(0, 500)}`);
 
     if (!adsResponse.ok) {
-      // Check for specific token issues
       let diagnosticMsg = `HTTP ${adsResponse.status} da API Google Ads`;
       if (rawBody.includes("DEVELOPER_TOKEN_PROHIBITED")) {
         diagnosticMsg = "DEVELOPER_TOKEN_PROHIBITED — O Developer Token não tem permissão. Verifica o estado no Google Ads API Center.";
       } else if (rawBody.includes("UNAUTHENTICATED")) {
         diagnosticMsg = "UNAUTHENTICATED — O access_token é inválido ou expirou. Tenta reconectar a conta Google.";
+      } else if (rawBody.includes("CUSTOMER_NOT_FOUND")) {
+        diagnosticMsg = "CUSTOMER_NOT_FOUND — O Customer ID não existe ou não está acessível com esta conta.";
+      } else if (rawBody.includes("NOT_ADS_USER")) {
+        diagnosticMsg = "NOT_ADS_USER — A conta Google autenticada não tem acesso ao Google Ads.";
       }
 
       return new Response(
@@ -129,6 +151,7 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Parse the GAQL response
     let adsData: unknown;
     try {
       adsData = JSON.parse(rawBody);
@@ -143,23 +166,33 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Parse accessible customers
+    // Extract campaigns from GAQL results
     const responseData = adsData as Record<string, unknown>;
-    const resourceNames = (responseData.resourceNames || []) as string[];
-    const accessibleIds = resourceNames.map((r) => r.replace("customers/", ""));
+    const results = (responseData.results || []) as Array<Record<string, unknown>>;
+
+    const campaigns = results.map((row) => {
+      const campaign = (row.campaign || {}) as Record<string, string>;
+      const budget = (row.campaignBudget || {}) as Record<string, string>;
+      const metrics = (row.metrics || {}) as Record<string, string>;
+
+      return {
+        id: campaign.id || "",
+        name: campaign.name || "",
+        status: campaign.status || "",
+        channel_type: campaign.advertisingChannelType || "",
+        budget_micros: budget.amountMicros || "0",
+        impressions: metrics.impressions || "0",
+        clicks: metrics.clicks || "0",
+        cost_micros: metrics.costMicros || "0",
+      };
+    });
 
     return new Response(
       JSON.stringify({
         success: true,
-        customer_id: account.google_ads_customer_id || "N/A",
-        total: accessibleIds.length,
-        campaigns: accessibleIds.map((id) => ({
-          id,
-          name: `Conta acessível: ${id}`,
-          status: "ACCESSIBLE",
-        })),
-        _bridge_test: true,
-        _message: `Ponte Validada! O teu acesso foi confirmado para ${accessibleIds.length} conta(s): ${accessibleIds.join(", ")}`,
+        customer_id: cleanCustomerId,
+        total: campaigns.length,
+        campaigns,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

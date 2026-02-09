@@ -4,7 +4,6 @@ const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v2/userinfo";
 
 Deno.serve(async (req) => {
-  // This function is called by Google OAuth redirect — it's a GET with ?code=...&state=...
   if (req.method === "OPTIONS") {
     return new Response(null, {
       headers: {
@@ -17,12 +16,12 @@ Deno.serve(async (req) => {
   try {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const GOOGLE_CLIENT_ID = Deno.env.get("GOOGLE_CLIENT_ID")!;
-    const GOOGLE_CLIENT_SECRET = Deno.env.get("GOOGLE_CLIENT_SECRET")!;
+    const GOOGLE_CLIENT_ID = (Deno.env.get("GOOGLE_ADS_CLIENT_ID") || "").trim();
+    const GOOGLE_CLIENT_SECRET = (Deno.env.get("GOOGLE_ADS_CLIENT_SECRET") || "").trim();
 
     const url = new URL(req.url);
     const code = url.searchParams.get("code");
-    const state = url.searchParams.get("state"); // Contains user_id|return_url
+    const state = url.searchParams.get("state");
     const error = url.searchParams.get("error");
 
     // Parse state: "user_id|return_origin"
@@ -35,12 +34,10 @@ Deno.serve(async (req) => {
       returnOrigin = parts[1] || "";
     }
 
-    // Fallback return URL
     const returnUrl = returnOrigin
       ? `${returnOrigin}/settings`
       : "https://marketing-ai-core.lovable.app/settings";
 
-    // Handle Google errors
     if (error) {
       console.error("Google OAuth error:", error);
       const errorUrl = `${returnUrl}?google_ads_error=${encodeURIComponent(error)}`;
@@ -52,7 +49,6 @@ Deno.serve(async (req) => {
       return Response.redirect(errorUrl, 302);
     }
 
-    // Build the redirect_uri — must match exactly what was sent to Google
     const redirectUri = `${SUPABASE_URL}/functions/v1/google-ads-callback`;
 
     // Exchange authorization code for tokens
@@ -99,7 +95,6 @@ Deno.serve(async (req) => {
     // Store in database using service role
     const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Upsert: one active account per user
     const { data: existing } = await adminClient
       .from("google_ads_accounts")
       .select("id")
@@ -126,7 +121,6 @@ Deno.serve(async (req) => {
         });
     }
 
-    // Redirect back to the app with success
     const successUrl = `${returnUrl}?google_ads_connected=true&google_email=${encodeURIComponent(googleEmail)}`;
     return Response.redirect(successUrl, 302);
   } catch (err) {
