@@ -82,7 +82,7 @@ export default function CampaignTester({ customerId }: CampaignTesterProps) {
           ) : (
             <ListChecks className="h-4 w-4" />
           )}
-          {testing ? "A consultar..." : "Testar — Listar Campanhas"}
+          {testing ? "A consultar..." : "Sincronizar Dados Reais"}
         </Button>
         {!customerId && (
           <span className="text-xs text-muted-foreground">

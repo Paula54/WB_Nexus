@@ -15,7 +15,7 @@ Deno.serve(async (req) => {
 
   try {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-    const GOOGLE_CLIENT_ID = Deno.env.get("GOOGLE_CLIENT_ID")!;
+    const GOOGLE_CLIENT_ID = (Deno.env.get("GOOGLE_ADS_CLIENT_ID") || "").trim();
 
     // Verify user auth
     const authHeader = req.headers.get("Authorization");
@@ -44,11 +44,10 @@ Deno.serve(async (req) => {
       );
     }
 
-    // The return_origin tells the callback where to redirect the user back to
     const requestUrl = new URL(req.url);
     const returnOrigin = requestUrl.searchParams.get("return_origin") || "";
 
-    // redirect_uri points to the server-side callback edge function
+    // redirect_uri must match exactly what Google Cloud Console has
     const redirectUri = `${SUPABASE_URL}/functions/v1/google-ads-callback`;
 
     // state carries user_id and return_origin separated by pipe
@@ -58,7 +57,7 @@ Deno.serve(async (req) => {
       client_id: GOOGLE_CLIENT_ID,
       redirect_uri: redirectUri,
       response_type: "code",
-      scope: "https://www.googleapis.com/auth/adwords openid email",
+      scope: "https://www.googleapis.com/auth/adwords",
       access_type: "offline",
       prompt: "consent",
       state,
