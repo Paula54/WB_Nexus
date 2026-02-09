@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
-const GOOGLE_ADS_API_VERSION = "v18";
+const GOOGLE_ADS_API_VERSION = "v17";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -17,9 +17,9 @@ Deno.serve(async (req) => {
   try {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const GOOGLE_CLIENT_ID = Deno.env.get("GOOGLE_CLIENT_ID")!;
-    const GOOGLE_CLIENT_SECRET = Deno.env.get("GOOGLE_CLIENT_SECRET")!;
-    const DEVELOPER_TOKEN = Deno.env.get("GOOGLE_ADS_DEVELOPER_TOKEN")!;
+    const GOOGLE_CLIENT_ID = (Deno.env.get("GOOGLE_CLIENT_ID") || "").trim();
+    const GOOGLE_CLIENT_SECRET = (Deno.env.get("GOOGLE_CLIENT_SECRET") || "").trim();
+    const DEVELOPER_TOKEN = (Deno.env.get("GOOGLE_ADS_DEVELOPER_TOKEN") || "").trim();
 
     // Verify user auth
     const authHeader = req.headers.get("Authorization");
@@ -89,17 +89,19 @@ Deno.serve(async (req) => {
       );
     }
 
-    const accessToken = tokenData.access_token;
+    const accessToken = tokenData.access_token.trim();
 
     // === TEMPORARY: Validate OAuth bridge via listAccessibleCustomers ===
-    const endpoint = `https://googleads.googleapis.com/${GOOGLE_ADS_API_VERSION}/customers:listAccessibleCustomers`;
+    const endpoint = `https://googleads.googleapis.com/${GOOGLE_ADS_API_VERSION}/customers:listAccessibleCustomers`.trim();
     console.log(`[bridge-test] Endpoint: ${endpoint}`);
+    console.log(`[bridge-test] Developer Token length: ${DEVELOPER_TOKEN.length}, first 4: ${DEVELOPER_TOKEN.substring(0, 4)}`);
 
     const adsResponse = await fetch(endpoint, {
       method: "GET",
       headers: {
         "Authorization": `Bearer ${accessToken}`,
         "developer-token": DEVELOPER_TOKEN,
+        "Content-Type": "application/json",
       },
     });
 
