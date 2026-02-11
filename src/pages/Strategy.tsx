@@ -1,27 +1,30 @@
 import { useState, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Sparkles, Loader2, CreditCard, CheckCircle2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Sparkles, Loader2, Building2, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useProjectData } from "@/hooks/useProjectData";
-import { useStripeCheckout } from "@/hooks/useStripeCheckout";
-import { PlanSelector } from "@/components/strategy/PlanSelector";
 import { StrategyResults } from "@/components/strategy/StrategyResults";
-import type { MarketingStrategyInput, MarketingStrategyResult, PlanType } from "@/types/nexus";
+import type { MarketingStrategyInput, MarketingStrategyResult } from "@/types/nexus";
+
+interface BusinessSummary {
+  trade_name: string | null;
+  legal_name: string | null;
+  nif: string | null;
+}
 
 export default function Strategy() {
   const { toast } = useToast();
   const { user } = useAuth();
   const { project } = useProjectData();
-  const { startCheckout, loading: checkoutLoading } = useStripeCheckout();
-  const [searchParams, setSearchParams] = useSearchParams();
   const [loading, setLoading] = useState(false);
+  const [business, setBusiness] = useState<BusinessSummary | null>(null);
   const [formData, setFormData] = useState<MarketingStrategyInput>({
     clientName: "",
     productService: "",
@@ -31,36 +34,33 @@ export default function Strategy() {
   });
   const [result, setResult] = useState<MarketingStrategyResult | null>(null);
 
-  // Handle checkout callback
+  // Fetch business profile data
   useEffect(() => {
-    const checkoutStatus = searchParams.get("checkout");
-    if (checkoutStatus === "success") {
-      toast({
-        title: "Pagamento iniciado! 🎉",
-        description: "O teu plano será ativado assim que o pagamento for confirmado.",
-      });
-      setSearchParams({}, { replace: true });
-    } else if (checkoutStatus === "cancel") {
-      toast({
-        title: "Checkout cancelado",
-        description: "Podes tentar novamente quando quiseres.",
-        variant: "destructive",
-      });
-      setSearchParams({}, { replace: true });
-    }
-  }, [searchParams, setSearchParams, toast]);
-
-  const handleActivatePlan = async () => {
-    if (!project?.id) {
-      toast({
-        title: "Projeto não encontrado",
-        description: "Gera uma estratégia primeiro para criar o teu projeto.",
-        variant: "destructive",
-      });
-      return;
-    }
-    await startCheckout(formData.plan, project.id);
-  };
+    if (!user) return;
+    (async () => {
+      const { data } = await supabase
+        .from("business_profiles" as string)
+        .select("trade_name, legal_name, nif")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (data) {
+        const d = data as Record<string, unknown>;
+        const biz: BusinessSummary = {
+          trade_name: (d.trade_name as string) || null,
+          legal_name: (d.legal_name as string) || null,
+          nif: (d.nif as string) || null,
+        };
+        setBusiness(biz);
+        // Pre-fill client name from business profile
+        if (biz.trade_name || biz.legal_name) {
+          setFormData((prev) => ({
+            ...prev,
+            clientName: prev.clientName || biz.trade_name || biz.legal_name || "",
+          }));
+        }
+      }
+    })();
+  }, [user]);
 
   const handleGenerate = async () => {
     if (!formData.clientName || !formData.productService || !formData.audience || !formData.objective) {
@@ -74,7 +74,6 @@ export default function Strategy() {
 
     setLoading(true);
     try {
-      // Save selected plan and set trial
       if (user) {
         const trialExpires = new Date();
         trialExpires.setDate(trialExpires.getDate() + 14);
@@ -119,15 +118,13 @@ export default function Strategy() {
         }
       );
 
-      if (!response.ok) {
-        throw new Error("Erro ao gerar estratégia");
-      }
+      if (!response.ok) throw new Error("Erro ao gerar estratégia");
 
       const data = await response.json();
       setResult(data);
       toast({
         title: "Estratégia Gerada! ✨",
-        description: `O teu plano ${formData.plan === "NEXUS_OS" ? "Elite" : formData.plan} está pronto.`,
+        description: "A tua estratégia de marketing personalizada está pronta.",
       });
     } catch (error) {
       console.error("Error generating strategy:", error);
@@ -145,19 +142,43 @@ export default function Strategy() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-display font-bold text-foreground flex items-center gap-3">
-          <Sparkles className="h-8 w-8 text-nexus-gold" />
+          <Sparkles className="h-8 w-8 text-primary" />
           Estratégia de Marketing AI
         </h1>
         <p className="text-muted-foreground mt-1">
-          Escolhe o teu plano e gera uma estratégia completa em segundos
+          Preenche os dados do projeto e gera uma estratégia completa em segundos
         </p>
       </div>
 
-      {/* Plan Selector */}
-      <PlanSelector
-        selected={formData.plan}
-        onSelect={(plan: PlanType) => setFormData({ ...formData, plan })}
-      />
+      {/* Business Profile Summary */}
+      {business && (business.trade_name || business.legal_name) ? (
+        <Card className="glass border-primary/20 bg-primary/5">
+          <CardContent className="p-4 flex items-center gap-3">
+            <Building2 className="h-5 w-5 text-primary shrink-0" />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm font-medium">{business.trade_name || business.legal_name}</span>
+                {business.nif && (
+                  <Badge variant="secondary" className="text-xs">NIF {business.nif}</Badge>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Dados carregados do perfil da empresa
+              </p>
+            </div>
+            <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="border-amber-500/20 bg-amber-500/5">
+          <CardContent className="p-4 flex items-center gap-3">
+            <Building2 className="h-5 w-5 text-amber-500 shrink-0" />
+            <p className="text-sm text-muted-foreground">
+              <a href="/settings" className="text-primary hover:underline font-medium">Preenche os Dados da Empresa</a> para pré-carregar automaticamente o nome do negócio.
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Project Data Form */}
       <Card className="glass">
@@ -212,7 +233,7 @@ export default function Strategy() {
           </div>
 
           <Button
-            className="w-full bg-nexus-gold text-nexus-navy hover:bg-nexus-gold/90 font-bold text-base"
+            className="w-full font-bold text-base"
             size="lg"
             onClick={handleGenerate}
             disabled={loading}
@@ -220,7 +241,7 @@ export default function Strategy() {
             {loading ? (
               <>
                 <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                A gerar a tua estratégia {formData.plan === "NEXUS_OS" ? "Elite" : ""}...
+                A gerar a tua estratégia...
               </>
             ) : (
               <>
@@ -229,29 +250,6 @@ export default function Strategy() {
               </>
             )}
           </Button>
-
-          {/* Activate Plan Button */}
-          {project?.id && (
-            <Button
-              className="w-full border-2 border-nexus-gold text-nexus-gold hover:bg-nexus-gold hover:text-nexus-navy font-bold text-base transition-all duration-300"
-              variant="outline"
-              size="lg"
-              onClick={handleActivatePlan}
-              disabled={checkoutLoading}
-            >
-              {checkoutLoading ? (
-                <>
-                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                  A preparar pagamento...
-                </>
-              ) : (
-                <>
-                  <CreditCard className="h-5 w-5 mr-2" />
-                  Ativar Plano {formData.plan === "NEXUS_OS" ? "Elite" : formData.plan} — 14 dias grátis
-                </>
-              )}
-            </Button>
-          )}
         </CardContent>
       </Card>
 
@@ -263,7 +261,7 @@ export default function Strategy() {
           <div className="text-center text-muted-foreground p-8">
             <Sparkles className="h-12 w-12 mx-auto mb-3 opacity-20" />
             <p className="text-sm">
-              Escolhe um plano, preenche os dados e clica em "Gerar Estratégia"
+              Preenche os dados e clica em "Gerar Estratégia"
             </p>
           </div>
         </Card>
