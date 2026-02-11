@@ -66,8 +66,8 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Clean customer ID (remove dashes/spaces)
-    const cleanCustomerId = account.google_ads_customer_id.replace(/[-\s]/g, "").trim();
+    // Clean customer ID (keep only digits)
+    const cleanCustomerId = account.google_ads_customer_id.replace(/\D/g, "");
 
     // Refresh the access token
     const tokenRes = await fetch(GOOGLE_TOKEN_URL, {
