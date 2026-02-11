@@ -104,17 +104,15 @@ Deno.serve(async (req) => {
     console.log(`[google-ads] Customer ID: ${cleanCustomerId}, Login Customer ID: ${loginCustomerId}`);
     console.log(`[google-ads] Developer Token length: ${DEVELOPER_TOKEN.length}`);
 
-    // Build headers
+    // Build headers — login-customer-id is MANDATORY for MCC hierarchy
     const adsHeaders: Record<string, string> = {
       "Authorization": `Bearer ${accessToken}`,
       "developer-token": DEVELOPER_TOKEN,
       "Content-Type": "application/json",
+      "login-customer-id": loginCustomerId || MANAGER_ID,
     };
 
-    // Add login-customer-id header for MCC hierarchy
-    if (loginCustomerId) {
-      adsHeaders["login-customer-id"] = loginCustomerId;
-    }
+    console.log(`[google-ads] Headers: developer-token length=${DEVELOPER_TOKEN.length}, login-customer-id=${adsHeaders["login-customer-id"]}`);
 
     const gaqlQuery = `SELECT campaign.id, campaign.name, campaign.status, campaign.advertising_channel_type, campaign_budget.amount_micros, metrics.impressions, metrics.clicks, metrics.cost_micros FROM campaign ORDER BY campaign.id`;
 
