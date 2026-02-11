@@ -20,7 +20,7 @@ Deno.serve(async (req) => {
     const GOOGLE_CLIENT_ID = (Deno.env.get("GOOGLE_ADS_CLIENT_ID") || "").trim();
     const GOOGLE_CLIENT_SECRET = (Deno.env.get("GOOGLE_ADS_CLIENT_SECRET") || "").trim();
     const DEVELOPER_TOKEN = (Deno.env.get("GOOGLE_ADS_DEVELOPER_TOKEN") || "").trim();
-    const MANAGER_ID = (Deno.env.get("GOOGLE_ADS_MANAGER_ID") || "").trim().replace(/-/g, "");
+    const MANAGER_ID = (Deno.env.get("GOOGLE_ADS_MANAGER_ID") || "").replace(/\D/g, "");
 
     // Verify user auth
     const authHeader = req.headers.get("Authorization");
@@ -96,7 +96,7 @@ Deno.serve(async (req) => {
     const accessToken = tokenData.access_token.trim();
 
     // Use Manager ID from secrets, fallback to DB mcc_customer_id
-    const loginCustomerId = MANAGER_ID || (account.mcc_customer_id || "").replace(/[-\s]/g, "").trim();
+    const loginCustomerId = MANAGER_ID || (account.mcc_customer_id || "").replace(/\D/g, "");
 
     // Build endpoint for campaign search
     const endpoint = `https://googleads.googleapis.com/${GOOGLE_ADS_API_VERSION}/customers/${cleanCustomerId}/googleAds:search`;
@@ -138,6 +138,8 @@ Deno.serve(async (req) => {
         diagnosticMsg = "CUSTOMER_NOT_FOUND — O Customer ID não existe ou não está acessível com esta conta.";
       } else if (rawBody.includes("NOT_ADS_USER")) {
         diagnosticMsg = "NOT_ADS_USER — A conta Google autenticada não tem acesso ao Google Ads.";
+      } else if (rawBody.includes("USER_PERMISSION_DENIED")) {
+        diagnosticMsg = "USER_PERMISSION_DENIED — O utilizador não tem permissão. Verifica se o login-customer-id (MCC) está correto e se a conta tem acesso à subconta.";
       }
 
       return new Response(
