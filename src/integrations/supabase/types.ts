@@ -70,6 +70,111 @@ export type Database = {
           },
         ]
       }
+      assets: {
+        Row: {
+          created_at: string
+          file_name: string
+          file_path: string
+          file_size: number | null
+          file_type: string
+          id: string
+          mime_type: string | null
+          public_url: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          file_type: string
+          id?: string
+          mime_type?: string | null
+          public_url?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          file_type?: string
+          id?: string
+          mime_type?: string | null
+          public_url?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      business_profiles: {
+        Row: {
+          address_line1: string | null
+          address_line2: string | null
+          city: string | null
+          complaints_book_url: string | null
+          country: string | null
+          created_at: string
+          dre_url: string | null
+          email: string | null
+          facebook_url: string | null
+          id: string
+          instagram_url: string | null
+          legal_name: string | null
+          linkedin_url: string | null
+          nif: string | null
+          phone: string | null
+          postal_code: string | null
+          trade_name: string | null
+          updated_at: string
+          user_id: string
+          website: string | null
+        }
+        Insert: {
+          address_line1?: string | null
+          address_line2?: string | null
+          city?: string | null
+          complaints_book_url?: string | null
+          country?: string | null
+          created_at?: string
+          dre_url?: string | null
+          email?: string | null
+          facebook_url?: string | null
+          id?: string
+          instagram_url?: string | null
+          legal_name?: string | null
+          linkedin_url?: string | null
+          nif?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          trade_name?: string | null
+          updated_at?: string
+          user_id: string
+          website?: string | null
+        }
+        Update: {
+          address_line1?: string | null
+          address_line2?: string | null
+          city?: string | null
+          complaints_book_url?: string | null
+          country?: string | null
+          created_at?: string
+          dre_url?: string | null
+          email?: string | null
+          facebook_url?: string | null
+          id?: string
+          instagram_url?: string | null
+          legal_name?: string | null
+          linkedin_url?: string | null
+          nif?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          trade_name?: string | null
+          updated_at?: string
+          user_id?: string
+          website?: string | null
+        }
+        Relationships: []
+      }
       compliance_pages: {
         Row: {
           content: string | null
