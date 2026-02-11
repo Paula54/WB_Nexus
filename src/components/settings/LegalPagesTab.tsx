@@ -214,7 +214,7 @@ export default function LegalPagesTab() {
         user_id: user.id,
         page_type: type,
         content,
-        status: "generated",
+        status: "validated",
         validated_at: new Date().toISOString(),
       } as Record<string, unknown>,
       { onConflict: "user_id,page_type" }
@@ -227,7 +227,7 @@ export default function LegalPagesTab() {
         user_id: user.id,
         page_type: type,
         content,
-        status: "generated",
+        status: "validated",
         validated_at: new Date().toISOString(),
       } as Record<string, unknown>);
 
