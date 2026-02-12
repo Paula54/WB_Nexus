@@ -111,6 +111,7 @@ serve(async (req) => {
     // Create the checkout session with embedded pricing
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
+      locale: 'pt',
       mode: 'subscription',
       payment_method_types: ['card'],
       line_items: [
