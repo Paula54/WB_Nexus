@@ -9,6 +9,7 @@ import KpiCards from "@/components/ads/KpiCards";
 import CampaignList from "@/components/ads/CampaignList";
 import GoogleCampaignList from "@/components/ads/GoogleCampaignList";
 import CampaignCreateDialog from "@/components/ads/CampaignCreateDialog";
+import MetaCampaignList from "@/components/ads/MetaCampaignList";
 import MetaAdsConnectModal from "@/components/ads/MetaAdsConnectModal";
 import { useTrialStatus } from "@/hooks/useTrialStatus";
 import { useGoogleAdsCampaigns } from "@/hooks/useGoogleAdsCampaigns";
@@ -127,9 +128,10 @@ export default function Ads() {
 
       {/* Tabs: Google Ads vs Meta/Local */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList>
+         <TabsList>
           <TabsTrigger value="google">Google Ads</TabsTrigger>
-          <TabsTrigger value="local">Meta / Local</TabsTrigger>
+          <TabsTrigger value="meta">Meta Ads</TabsTrigger>
+          <TabsTrigger value="local">Local</TabsTrigger>
         </TabsList>
 
         <TabsContent value="google" className="space-y-6">
@@ -152,6 +154,10 @@ export default function Ads() {
             error={googleAds.error}
             onSync={googleAds.syncNow}
           />
+        </TabsContent>
+
+        <TabsContent value="meta" className="space-y-6">
+          <MetaCampaignList metaConnected={metaConnected} />
         </TabsContent>
 
         <TabsContent value="local" className="space-y-6">
