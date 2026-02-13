@@ -32,3 +32,12 @@ verify_jwt = false
 
 [functions.list-google-campaigns]
 verify_jwt = false
+
+[functions.meta-token-exchange]
+verify_jwt = false
+
+[functions.list-meta-campaigns]
+verify_jwt = false
+
+[functions.publish-instagram]
+verify_jwt = false
