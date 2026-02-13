@@ -11,6 +11,7 @@ import {
   StickyNote,
   Users,
   Megaphone,
+  CreditCard,
 } from "lucide-react";
 import {
   Sidebar,
@@ -38,7 +39,10 @@ const menuItems = [
   { title: "WhatsApp Inbox", url: "/whatsapp", icon: MessageCircle, type: PageType.WHATSAPP },
 ];
 
-const settingsItem = { title: "Identidade da Marca", url: "/settings", icon: Settings };
+const bottomItems = [
+  { title: "Plano & Subscrição", url: "/settings/subscription", icon: CreditCard },
+  { title: "Identidade da Marca", url: "/settings", icon: Settings },
+];
 
 export function AppSidebar() {
   const { state } = useSidebar();
@@ -104,26 +108,31 @@ export function AppSidebar() {
         <SidebarGroup className="mt-auto mb-4">
           <SidebarGroupContent>
             <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  isActive={location.pathname === settingsItem.url}
-                  tooltip={settingsItem.title}
-                >
-                  <NavLink
-                    to={settingsItem.url}
-                    className={cn(
-                      "flex items-center gap-3 px-3 py-2 rounded-lg transition-all",
-                      location.pathname === settingsItem.url
-                        ? "bg-sidebar-accent text-sidebar-primary font-medium"
-                        : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
-                    )}
-                  >
-                    <settingsItem.icon className="w-5 h-5 shrink-0" />
-                    {!collapsed && <span>{settingsItem.title}</span>}
-                  </NavLink>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+              {bottomItems.map((item) => {
+                const isActive = location.pathname === item.url;
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={isActive}
+                      tooltip={item.title}
+                    >
+                      <NavLink
+                        to={item.url}
+                        className={cn(
+                          "flex items-center gap-3 px-3 py-2 rounded-lg transition-all",
+                          isActive
+                            ? "bg-sidebar-accent text-sidebar-primary font-medium"
+                            : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
+                        )}
+                      >
+                        <item.icon className="w-5 h-5 shrink-0" />
+                        {!collapsed && <span>{item.title}</span>}
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
