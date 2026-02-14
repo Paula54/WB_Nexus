@@ -604,7 +604,9 @@ export type Database = {
           created_at: string
           domain: string | null
           google_analytics_id: string | null
+          gtm_container_id: string | null
           id: string
+          measurement_id: string | null
           meta_access_token: string | null
           meta_ads_account_id: string | null
           name: string
@@ -619,7 +621,9 @@ export type Database = {
           created_at?: string
           domain?: string | null
           google_analytics_id?: string | null
+          gtm_container_id?: string | null
           id?: string
+          measurement_id?: string | null
           meta_access_token?: string | null
           meta_ads_account_id?: string | null
           name: string
@@ -634,7 +638,9 @@ export type Database = {
           created_at?: string
           domain?: string | null
           google_analytics_id?: string | null
+          gtm_container_id?: string | null
           id?: string
+          measurement_id?: string | null
           meta_access_token?: string | null
           meta_ads_account_id?: string | null
           name?: string
