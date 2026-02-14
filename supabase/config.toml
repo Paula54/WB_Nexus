@@ -80,3 +80,6 @@ verify_jwt = false
 
 [functions.fetch-ga4-data]
 verify_jwt = false
+
+[functions.provision-google-tracking]
+verify_jwt = false
