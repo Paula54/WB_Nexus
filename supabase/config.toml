@@ -47,3 +47,6 @@ verify_jwt = false
 
 [functions.publish-facebook]
 verify_jwt = false
+
+[functions.generate-ad-creatives]
+verify_jwt = false
