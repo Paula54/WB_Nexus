@@ -415,6 +415,51 @@ export type Database = {
         }
         Relationships: []
       }
+      google_analytics_connections: {
+        Row: {
+          created_at: string
+          ga4_property_id: string | null
+          google_access_token: string | null
+          google_email: string | null
+          google_refresh_token: string
+          id: string
+          is_active: boolean
+          scopes: string[] | null
+          search_console_site_url: string | null
+          token_expires_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          ga4_property_id?: string | null
+          google_access_token?: string | null
+          google_email?: string | null
+          google_refresh_token: string
+          id?: string
+          is_active?: boolean
+          scopes?: string[] | null
+          search_console_site_url?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          ga4_property_id?: string | null
+          google_access_token?: string | null
+          google_email?: string | null
+          google_refresh_token?: string
+          id?: string
+          is_active?: boolean
+          scopes?: string[] | null
+          search_console_site_url?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       leads: {
         Row: {
           ai_classification: string | null
