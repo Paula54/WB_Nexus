@@ -68,3 +68,15 @@ verify_jwt = false
 
 [functions.wallet-topup]
 verify_jwt = false
+
+[functions.google-analytics-auth]
+verify_jwt = false
+
+[functions.google-analytics-callback]
+verify_jwt = false
+
+[functions.fetch-search-console]
+verify_jwt = false
+
+[functions.fetch-ga4-data]
+verify_jwt = false
