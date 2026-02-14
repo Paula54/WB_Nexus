@@ -26,11 +26,15 @@ export default function Termos() {
           <section className="space-y-4">
             <h2 className="text-xl font-semibold">1. Identificação do Prestador</h2>
             <p>
-              A plataforma <strong>Nexus AI-OS</strong> é operada pela <strong>Astrolábio Mágico Investimentos, Lda.</strong>
+              A plataforma <strong>Nexus AI-OS</strong> é operada pela <strong>Web Business</strong> (<a href="https://web-business.pt" target="_blank" rel="noopener noreferrer" className="text-primary underline">web-business.pt</a>),
+              marca ativa desde 2013 no setor digital, pertencente à <strong>Astrolábio Mágico Investimentos, Lda.</strong>
               {" "}(NIF: 515346969), com sede na Estrada da Malveira da Serra, 920, Aldeia de Juso, 2750-834 Cascais, Portugal.
             </p>
             <p>
-              Contacto:{" "}
+              A responsabilidade legal e fiscal do serviço é da Astrolábio Mágico Investimentos, Lda.
+            </p>
+            <p>
+              Contacto oficial de suporte:{" "}
               <a href="mailto:info@astrolabio-magico-invest.pt" className="text-primary underline">
                 info@astrolabio-magico-invest.pt
               </a>
@@ -40,8 +44,10 @@ export default function Termos() {
           <section className="space-y-4">
             <h2 className="text-xl font-semibold">2. Objeto do Serviço</h2>
             <p>
-              O Nexus AI-OS é um <strong>Sistema Operativo de Inteligência Artificial (AI-OS)</strong> destinado ao
-              marketing digital e automação de negócios. A plataforma oferece as seguintes funcionalidades:
+              O Nexus AI-OS é um <strong>Sistema Operativo de Inteligência Artificial (AI-OS)</strong> desenvolvido pela
+              Web Business para marketing digital e automação de negócios, desenhado para qualquer setor de atividade.
+              O Nexus faz parte do ecossistema tecnológico da Web Business, ativa desde 2013, garantindo conformidade
+              com o RGPD. A plataforma oferece as seguintes funcionalidades:
             </p>
             <ul className="list-disc pl-6 space-y-2">
               <li>Automação de publicações em redes sociais (Instagram e Facebook)</li>
@@ -131,7 +137,7 @@ export default function Termos() {
         </div>
 
         <div className="mt-12 pt-8 border-t border-border text-center text-sm text-muted-foreground">
-          <p>© 2026 Astrolábio Mágico Investimentos, Lda. Todos os direitos reservados.</p>
+          <p>Nexus © 2026 | Powered by <a href="https://web-business.pt" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Web Business</a> – Um produto Astrolábio Mágico Investimentos LDA.</p>
           <p className="mt-1">Estrada da Malveira da Serra, 920, Aldeia de Juso, 2750-834 Cascais</p>
         </div>
       </div>

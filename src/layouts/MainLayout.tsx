@@ -44,14 +44,17 @@ export default function MainLayout() {
           <div className="flex-1 p-6 overflow-auto">
             <Outlet />
           </div>
-          <footer className="border-t border-border px-6 py-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-            <Link to="/privacy" className="hover:text-foreground transition-colors">Privacidade</Link>
-            <span>·</span>
-            <Link to="/terms" className="hover:text-foreground transition-colors">Termos</Link>
-            <span>·</span>
-            <Link to="/devolucoes" className="hover:text-foreground transition-colors">Devoluções</Link>
-            <span>·</span>
-            <Link to="/contacto" className="hover:text-foreground transition-colors">Contacto</Link>
+          <footer className="border-t border-border px-6 py-4 flex flex-col items-center gap-2 text-xs text-muted-foreground">
+            <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
+              <Link to="/privacy" className="hover:text-foreground transition-colors">Privacidade</Link>
+              <span>·</span>
+              <Link to="/terms" className="hover:text-foreground transition-colors">Termos</Link>
+              <span>·</span>
+              <Link to="/devolucoes" className="hover:text-foreground transition-colors">Devoluções</Link>
+              <span>·</span>
+              <Link to="/contacto" className="hover:text-foreground transition-colors">Contacto</Link>
+            </div>
+            <p>Nexus © 2026 | Powered by <a href="https://web-business.pt" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Web Business</a> – Um produto Astrolábio Mágico Investimentos LDA.</p>
           </footer>
         </main>
         <NexusConcierge />

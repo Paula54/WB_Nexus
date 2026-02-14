@@ -26,12 +26,16 @@ export default function Privacidade() {
           <section className="space-y-4">
             <h2 className="text-xl font-semibold">1. Responsável pelo Tratamento</h2>
             <p>
-              A <strong>Astrolábio Mágico Investimentos, Lda.</strong> (NIF: 515346969), com sede na
-              Estrada da Malveira da Serra, 920, Aldeia de Juso, 2750-834 Cascais, Portugal,
-              é a entidade responsável pelo tratamento dos dados pessoais recolhidos através da plataforma <strong>Nexus AI-OS</strong>.
+              O <strong>Nexus</strong> é um produto tecnológico operado pela <strong>Web Business</strong> (<a href="https://web-business.pt" target="_blank" rel="noopener noreferrer" className="text-primary underline">web-business.pt</a>),
+              marca ativa desde 2013 no setor digital, pertencente à <strong>Astrolábio Mágico Investimentos, Lda.</strong> (NIF: 515346969),
+              com sede na Estrada da Malveira da Serra, 920, Aldeia de Juso, 2750-834 Cascais, Portugal.
             </p>
             <p>
-              Contacto:{" "}
+              A Astrolábio Mágico Investimentos, Lda. é a entidade legalmente responsável pelo tratamento dos dados pessoais
+              recolhidos através da plataforma <strong>Nexus AI-OS</strong>, parte integrante do ecossistema tecnológico da Web Business.
+            </p>
+            <p>
+              Contacto oficial de suporte:{" "}
               <a href="mailto:info@astrolabio-magico-invest.pt" className="text-primary underline">
                 info@astrolabio-magico-invest.pt
               </a>
@@ -41,8 +45,10 @@ export default function Privacidade() {
           <section className="space-y-4">
             <h2 className="text-xl font-semibold">2. O que é o Nexus AI-OS</h2>
             <p>
-              O Nexus é um <strong>AI-OS (Sistema Operativo de Inteligência Artificial)</strong> concebido
-              para marketing digital e automação de negócios. As suas funções principais incluem:
+              O Nexus é um <strong>AI-OS (Sistema Operativo de Inteligência Artificial)</strong> desenvolvido pela
+              Web Business para marketing digital e automação de negócios, desenhado para qualquer setor de atividade.
+              Com mais de uma década de experiência no ecossistema digital, a Web Business garante conformidade
+              com o RGPD em todas as operações da plataforma. As suas funções principais incluem:
             </p>
             <ul className="list-disc pl-6 space-y-2">
               <li>Automação de publicações em redes sociais (Instagram e Facebook)</li>
@@ -154,7 +160,7 @@ export default function Privacidade() {
         </div>
 
         <div className="mt-12 pt-8 border-t border-border text-center text-sm text-muted-foreground">
-          <p>© 2026 Astrolábio Mágico Investimentos, Lda. Todos os direitos reservados.</p>
+          <p>Nexus © 2026 | Powered by <a href="https://web-business.pt" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Web Business</a> – Um produto Astrolábio Mágico Investimentos LDA.</p>
           <p className="mt-1">Estrada da Malveira da Serra, 920, Aldeia de Juso, 2750-834 Cascais</p>
         </div>
       </div>
