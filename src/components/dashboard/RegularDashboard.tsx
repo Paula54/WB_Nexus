@@ -5,8 +5,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { 
   Sparkles, Users, Share2, MessageCircle, Flame, TrendingUp, 
-  ArrowRight, Zap, Globe, Instagram
+  ArrowRight, Zap, Globe, Instagram, CheckCircle2
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
 
 interface Insight {
@@ -28,12 +29,14 @@ export function RegularDashboard() {
   });
   const [loading, setLoading] = useState(true);
   const [profileName, setProfileName] = useState("");
+  const [metaConnected, setMetaConnected] = useState(false);
+  const [whatsappActive, setWhatsappActive] = useState(false);
 
   useEffect(() => {
     async function fetchAll() {
       if (!user) return;
       try {
-        const [projectsRes, leadsRes, hotLeadsRes, postsRes, publishedRes, draftsRes, profileRes] = await Promise.all([
+        const [projectsRes, leadsRes, hotLeadsRes, postsRes, publishedRes, draftsRes, profileRes, metaRes, waRes] = await Promise.all([
           supabase.from("projects").select("id", { count: "exact", head: true }),
           supabase.from("leads").select("id", { count: "exact", head: true }),
           supabase.from("leads").select("id", { count: "exact", head: true }).eq("ai_classification", "hot"),
@@ -41,6 +44,8 @@ export function RegularDashboard() {
           supabase.from("social_posts").select("id", { count: "exact", head: true }).eq("status", "published"),
           supabase.from("social_posts").select("id", { count: "exact", head: true }).eq("status", "draft"),
           supabase.from("profiles").select("full_name").eq("user_id", user.id).maybeSingle(),
+          supabase.from("projects").select("meta_access_token, meta_ads_account_id").eq("user_id", user.id).limit(1).maybeSingle(),
+          supabase.from("whatsapp_accounts").select("id").eq("user_id", user.id).eq("is_active", true).limit(1).maybeSingle(),
         ]);
         setStats({
           projects: projectsRes.count ?? 0, leads: leadsRes.count ?? 0,
@@ -50,6 +55,8 @@ export function RegularDashboard() {
           draftPosts: draftsRes.count ?? 0,
         });
         if (profileRes.data?.full_name) setProfileName(profileRes.data.full_name.split(" ")[0]);
+        setMetaConnected(!!(metaRes.data?.meta_access_token && metaRes.data?.meta_ads_account_id));
+        setWhatsappActive(!!waRes.data);
       } catch (error) {
         console.error("Error fetching stats:", error);
       } finally {
@@ -137,6 +144,22 @@ export function RegularDashboard() {
           {profileName ? `Olá, ${profileName} 👋` : "Centro de Comando"}
         </h1>
         <p className="text-muted-foreground mt-1">Aqui está o que a IA identificou para ti hoje.</p>
+        {(whatsappActive || metaConnected) && (
+          <div className="flex flex-wrap gap-2 mt-3">
+            {whatsappActive && (
+              <Badge className="bg-neon-green/20 text-neon-green border-neon-green/30 gap-1.5">
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                WhatsApp ATIVO
+              </Badge>
+            )}
+            {metaConnected && (
+              <Badge className="bg-neon-green/20 text-neon-green border-neon-green/30 gap-1.5">
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                Meta Ads ATIVO
+              </Badge>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
