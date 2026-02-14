@@ -4,6 +4,15 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+// Porkbun registration prices (updated periodically)
+const TLD_PRICES: Record<string, number> = {
+  com: 11.08, net: 12.52, org: 11.08, pt: 15.00, eu: 5.46,
+  io: 28.12, co: 9.58, dev: 13.52, app: 14.52, me: 5.08,
+  xyz: 1.08, info: 2.58, biz: 2.58, tech: 3.08, site: 1.08,
+};
+const DEFAULT_PRICE = 12.00;
+const MARGIN = 15;
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -21,73 +30,46 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Clean domain input
     const cleanDomain = domain.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/$/, "");
-
-    // Check pricing/availability via Porkbun API
-    const pricingRes = await fetch("https://api.porkbun.com/api/json/v3/pricing/get", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        apikey: PORKBUN_API_KEY,
-        secretapikey: PORKBUN_SECRET_KEY,
-      }),
-    });
-    const pricingData = await pricingRes.json();
-
-    // Extract TLD from domain
     const parts = cleanDomain.split(".");
     const tld = parts.length >= 2 ? parts.slice(1).join(".") : "com";
     const sld = parts[0];
 
-    // Check availability via Porkbun
-    const checkRes = await fetch(`https://api.porkbun.com/api/json/v3/domain/checkAvailability/${cleanDomain}`, {
+    // Check availability only (skip slow pricing API)
+    const checkRes = await fetch(`https://api.porkbun.com/api/json/v3/domain/checkDomain/${cleanDomain}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        apikey: PORKBUN_API_KEY,
-        secretapikey: PORKBUN_SECRET_KEY,
-      }),
+      body: JSON.stringify({ apikey: PORKBUN_API_KEY, secretapikey: PORKBUN_SECRET_KEY }),
     });
-    const checkData = await checkRes.json();
+
+    let checkData: any = {};
+    try {
+      const text = await checkRes.text();
+      if (text.startsWith("{") || text.startsWith("[")) {
+        checkData = JSON.parse(text);
+      } else {
+        console.error("Check API non-JSON:", text.substring(0, 200));
+      }
+    } catch (e) {
+      console.error("Failed to parse check response:", e);
+    }
 
     const available = checkData.status === "SUCCESS" && checkData.avail === "yes";
-    
-    // Get cost price from pricing data
-    let costPrice = 0;
-    if (pricingData.pricing && pricingData.pricing[tld]) {
-      costPrice = parseFloat(pricingData.pricing[tld].registration || "0");
-    }
+    const costPrice = TLD_PRICES[tld] || DEFAULT_PRICE;
+    const finalPrice = Math.round((costPrice + MARGIN) * 100) / 100;
 
-    const MARGIN = 15;
-    const finalPrice = costPrice + MARGIN;
-
-    // Also suggest alternatives with popular TLDs
-    const suggestions: Array<{ domain: string; tld: string; costPrice: number; finalPrice: number }> = [];
+    // Suggest alternatives
     const popularTlds = ["com", "pt", "eu", "net", "io", "co"];
-
-    for (const altTld of popularTlds) {
-      if (altTld === tld) continue;
-      if (pricingData.pricing && pricingData.pricing[altTld]) {
-        const altCost = parseFloat(pricingData.pricing[altTld].registration || "0");
-        suggestions.push({
-          domain: `${sld}.${altTld}`,
-          tld: altTld,
-          costPrice: altCost,
-          finalPrice: altCost + MARGIN,
-        });
-      }
-    }
+    const suggestions = popularTlds
+      .filter((t) => t !== tld)
+      .map((t) => {
+        const c = TLD_PRICES[t] || DEFAULT_PRICE;
+        return { domain: `${sld}.${t}`, tld: t, costPrice: c, finalPrice: Math.round((c + MARGIN) * 100) / 100 };
+      })
+      .slice(0, 5);
 
     return new Response(
-      JSON.stringify({
-        domain: cleanDomain,
-        available,
-        costPrice,
-        finalPrice,
-        tld,
-        suggestions: suggestions.slice(0, 5),
-      }),
+      JSON.stringify({ domain: cleanDomain, available, costPrice, finalPrice, tld, suggestions }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
