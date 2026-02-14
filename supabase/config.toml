@@ -65,3 +65,6 @@ verify_jwt = false
 
 [functions.domain-register]
 verify_jwt = false
+
+[functions.wallet-topup]
+verify_jwt = false

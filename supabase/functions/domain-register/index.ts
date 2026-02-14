@@ -12,12 +12,9 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const PORKBUN_API_KEY = Deno.env.get("PORKBUN_API_KEY")!;
-    const PORKBUN_SECRET_KEY = Deno.env.get("PORKBUN_SECRET_KEY")!;
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    // Get user from auth header
     const authHeader = req.headers.get("authorization");
     if (!authHeader) {
       return new Response(
@@ -26,10 +23,9 @@ Deno.serve(async (req) => {
       );
     }
 
-    const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     const anonClient = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY")!);
     const { data: { user }, error: authError } = await anonClient.auth.getUser(authHeader.replace("Bearer ", ""));
-    
+
     if (authError || !user) {
       return new Response(
         JSON.stringify({ error: "Token inválido" }),
@@ -37,6 +33,7 @@ Deno.serve(async (req) => {
       );
     }
 
+    const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     const { domain, finalPrice, costPrice } = await req.json();
 
     if (!domain || !finalPrice || !costPrice) {
@@ -61,68 +58,9 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Register domain via Porkbun
-    const registerRes = await fetch(`https://api.porkbun.com/api/json/v3/domain/register/${domain}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        apikey: PORKBUN_API_KEY,
-        secretapikey: PORKBUN_SECRET_KEY,
-        years: 1,
-      }),
-    });
-    const registerData = await registerRes.json();
-
-    if (registerData.status !== "SUCCESS") {
-      console.error("Porkbun register error:", registerData);
-      return new Response(
-        JSON.stringify({ error: registerData.message || "Erro ao registar domínio", details: registerData }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Update nameservers to Lovable's IP
-    try {
-      await fetch(`https://api.porkbun.com/api/json/v3/domain/updateNs/${domain}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          apikey: PORKBUN_API_KEY,
-          secretapikey: PORKBUN_SECRET_KEY,
-          ns: ["ns1.porkbun.com", "ns2.porkbun.com"],
-        }),
-      });
-
-      // Add A record pointing to Lovable
-      await fetch(`https://api.porkbun.com/api/json/v3/dns/create/${domain}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          apikey: PORKBUN_API_KEY,
-          secretapikey: PORKBUN_SECRET_KEY,
-          type: "A",
-          name: "",
-          content: "185.158.133.1",
-          ttl: "600",
-        }),
-      });
-
-      // Add www A record
-      await fetch(`https://api.porkbun.com/api/json/v3/dns/create/${domain}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          apikey: PORKBUN_API_KEY,
-          secretapikey: PORKBUN_SECRET_KEY,
-          type: "A",
-          name: "www",
-          content: "185.158.133.1",
-          ttl: "600",
-        }),
-      });
-    } catch (nsError) {
-      console.error("Nameserver setup error (non-blocking):", nsError);
-    }
+    // ========== MOCK MODE ==========
+    // No real Porkbun registration — simulates success
+    console.log(`[MOCK] Domain registration simulated for: ${domain}`);
 
     // Debit wallet
     await adminClient.from("wallet_transactions").insert({
@@ -133,14 +71,14 @@ Deno.serve(async (req) => {
       reference_id: domain,
     });
 
-    // Save domain registration
+    // Save domain registration (mock)
     await adminClient.from("domain_registrations").insert({
       user_id: user.id,
       domain_name: domain,
       status: "active",
       purchase_price: finalPrice,
       cost_price: costPrice,
-      porkbun_id: registerData.domain || null,
+      porkbun_id: `mock-${Date.now()}`,
       nameservers: ["ns1.porkbun.com", "ns2.porkbun.com"],
     });
 
@@ -148,7 +86,8 @@ Deno.serve(async (req) => {
       JSON.stringify({
         success: true,
         domain,
-        message: `Domínio ${domain} registado com sucesso!`,
+        mock: true,
+        message: `[DEMO] Domínio ${domain} registado com sucesso!`,
         newBalance: balance - finalPrice,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
