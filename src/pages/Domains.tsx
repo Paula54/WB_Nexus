@@ -8,7 +8,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
   Globe, Search, Wallet, Plus, ArrowDownLeft,
-  CheckCircle2, XCircle, Loader2, ShoppingCart, CreditCard, Sparkles
+  CheckCircle2, XCircle, Loader2, ShoppingCart, CreditCard, Sparkles,
+  AlertTriangle, CalendarClock
 } from "lucide-react";
 
 interface SuggestionItem {
@@ -42,6 +43,7 @@ interface DomainRegistration {
   status: string;
   purchase_price: number;
   created_at: string;
+  expiry_date: string | null;
 }
 
 export default function Domains() {
@@ -306,17 +308,39 @@ export default function Domains() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                {domains.map((d) => (
-                  <div key={d.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
-                    <div className="flex items-center gap-3">
-                      <Badge className="bg-neon-green/20 text-neon-green border-neon-green/30 text-xs">Ativo</Badge>
-                      <span className="font-medium text-foreground">{d.domain_name}</span>
+                {domains.map((d) => {
+                  const daysUntilExpiry = d.expiry_date
+                    ? Math.ceil((new Date(d.expiry_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+                    : null;
+                  const isExpiring = daysUntilExpiry !== null && daysUntilExpiry <= 30 && daysUntilExpiry > 0;
+                  const isExpired = daysUntilExpiry !== null && daysUntilExpiry <= 0;
+
+                  return (
+                    <div key={d.id} className={`flex items-center justify-between p-3 rounded-lg ${isExpiring ? "bg-yellow-500/10 border border-yellow-500/30" : isExpired ? "bg-destructive/10 border border-destructive/30" : "bg-muted/30"}`}>
+                      <div className="flex items-center gap-3">
+                        {isExpired ? (
+                          <Badge className="bg-destructive/20 text-destructive border-destructive/30 text-xs">Expirado</Badge>
+                        ) : isExpiring ? (
+                          <Badge className="bg-yellow-500/20 text-yellow-500 border-yellow-500/30 text-xs gap-1">
+                            <AlertTriangle className="h-3 w-3" />
+                            {daysUntilExpiry}d
+                          </Badge>
+                        ) : (
+                          <Badge className="bg-neon-green/20 text-neon-green border-neon-green/30 text-xs">Ativo</Badge>
+                        )}
+                        <span className="font-medium text-foreground">{d.domain_name}</span>
+                      </div>
+                      <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                        {d.expiry_date && (
+                          <span className="flex items-center gap-1">
+                            <CalendarClock className="h-3.5 w-3.5" />
+                            {new Date(d.expiry_date).toLocaleDateString("pt-PT")}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <span className="text-sm text-muted-foreground">
-                      {new Date(d.created_at).toLocaleDateString("pt-PT")}
-                    </span>
-                  </div>
-                ))}
+                  );
+                })}
               </CardContent>
             </Card>
           )}
