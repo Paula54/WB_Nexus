@@ -21,58 +21,126 @@ serve(async (req) => {
       );
     }
 
-    const TWILIO_ACCOUNT_SID = Deno.env.get("TWILIO_ACCOUNT_SID");
-    const TWILIO_AUTH_TOKEN = Deno.env.get("TWILIO_AUTH_TOKEN");
+    const WHATSAPP_ACCESS_TOKEN = Deno.env.get("WHATSAPP_ACCESS_TOKEN");
+    const WHATSAPP_PHONE_NUMBER_ID = Deno.env.get("WHATSAPP_PHONE_NUMBER_ID");
 
-    if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN) {
-      console.error("Twilio credentials not configured");
+    if (!WHATSAPP_ACCESS_TOKEN) {
+      console.error("WhatsApp access token not configured");
       return new Response(
-        JSON.stringify({ error: "Twilio credentials not configured" }),
+        JSON.stringify({ error: "WhatsApp access token not configured" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Format phone number for WhatsApp (must include country code)
-    const formattedPhone = phone.startsWith("+") ? phone : `+${phone}`;
-    const twilioFromNumber = Deno.env.get("TWILIO_WHATSAPP_NUMBER") || "whatsapp:+14155238886";
+    // If no Phone Number ID stored, discover it from the WABA
+    let phoneNumberId = WHATSAPP_PHONE_NUMBER_ID;
 
-    // Send via Twilio WhatsApp API
-    const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`;
-    
-    const formData = new URLSearchParams();
-    formData.append("From", twilioFromNumber.startsWith("whatsapp:") ? twilioFromNumber : `whatsapp:${twilioFromNumber}`);
-    formData.append("To", `whatsapp:${formattedPhone}`);
-    formData.append("Body", message);
+    if (!phoneNumberId) {
+      console.log("Discovering Phone Number ID from Meta API...");
+      
+      // First, get the WABA ID from shared phone numbers
+      const wabaDiscovery = await fetch(
+        `https://graph.facebook.com/v21.0/debug_token?input_token=${WHATSAPP_ACCESS_TOKEN}`,
+        { headers: { "Authorization": `Bearer ${WHATSAPP_ACCESS_TOKEN}` } }
+      );
+      
+      // Try to get WABA directly from business account
+      const businessRes = await fetch(
+        `https://graph.facebook.com/v21.0/me/businesses`,
+        { headers: { "Authorization": `Bearer ${WHATSAPP_ACCESS_TOKEN}` } }
+      );
+      const businessData = await businessRes.json();
+      console.log("Business accounts:", JSON.stringify(businessData));
 
-    const twilioResponse = await fetch(twilioUrl, {
-      method: "POST",
-      headers: {
-        "Authorization": `Basic ${btoa(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`)}`,
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: formData.toString(),
-    });
+      // Try finding WABA through the business
+      if (businessData.data && businessData.data.length > 0) {
+        const businessId = businessData.data[0].id;
+        const wabaRes = await fetch(
+          `https://graph.facebook.com/v21.0/${businessId}/owned_whatsapp_business_accounts`,
+          { headers: { "Authorization": `Bearer ${WHATSAPP_ACCESS_TOKEN}` } }
+        );
+        const wabaData = await wabaRes.json();
+        console.log("WABA data:", JSON.stringify(wabaData));
 
-    const twilioResult = await twilioResponse.json();
+        if (wabaData.data && wabaData.data.length > 0) {
+          const wabaId = wabaData.data[0].id;
+          
+          // Get phone numbers from WABA
+          const phonesRes = await fetch(
+            `https://graph.facebook.com/v21.0/${wabaId}/phone_numbers`,
+            { headers: { "Authorization": `Bearer ${WHATSAPP_ACCESS_TOKEN}` } }
+          );
+          const phonesData = await phonesRes.json();
+          console.log("Phone numbers:", JSON.stringify(phonesData));
 
-    if (!twilioResponse.ok) {
-      console.error("Twilio error:", twilioResult);
+          if (phonesData.data && phonesData.data.length > 0) {
+            phoneNumberId = phonesData.data[0].id;
+            console.log("Discovered Phone Number ID:", phoneNumberId);
+          }
+        }
+      }
+
+      if (!phoneNumberId) {
+        return new Response(
+          JSON.stringify({ 
+            error: "Could not discover Phone Number ID. Please set WHATSAPP_PHONE_NUMBER_ID secret.",
+            businessData 
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
+    // Format phone: remove spaces, ensure country code, remove '+'
+    let cleanPhone = phone.replace(/[\s\-()]/g, "");
+    if (cleanPhone.startsWith("+")) cleanPhone = cleanPhone.substring(1);
+    if (!cleanPhone.startsWith("351") && cleanPhone.startsWith("9")) {
+      cleanPhone = "351" + cleanPhone;
+    }
+
+    console.log(`Sending WhatsApp message to ${cleanPhone} via Meta Cloud API (Phone ID: ${phoneNumberId})`);
+
+    // Send via Meta WhatsApp Cloud API
+    const metaResponse = await fetch(
+      `https://graph.facebook.com/v21.0/${phoneNumberId}/messages`,
+      {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${WHATSAPP_ACCESS_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messaging_product: "whatsapp",
+          recipient_type: "individual",
+          to: cleanPhone,
+          type: "text",
+          text: { body: message },
+        }),
+      }
+    );
+
+    const metaResult = await metaResponse.json();
+
+    if (!metaResponse.ok || metaResult.error) {
+      console.error("Meta WhatsApp API error:", JSON.stringify(metaResult));
       return new Response(
-        JSON.stringify({ 
-          error: "Failed to send WhatsApp message", 
-          details: twilioResult.message || twilioResult.error_message 
+        JSON.stringify({
+          error: "Failed to send WhatsApp message via Meta API",
+          details: metaResult.error?.message || JSON.stringify(metaResult),
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log("WhatsApp message sent successfully:", twilioResult.sid);
+    const messageId = metaResult.messages?.[0]?.id;
+    console.log("WhatsApp message sent successfully via Meta API:", messageId);
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        messageSid: twilioResult.sid,
-        leadId 
+      JSON.stringify({
+        success: true,
+        messageId,
+        leadId,
+        provider: "meta_cloud_api",
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
