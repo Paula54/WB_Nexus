@@ -63,9 +63,16 @@ export default function Contacto() {
                   <p className="text-sm text-muted-foreground">NIF: 515346969</p>
                 </div>
                 <div className="flex items-start gap-2">
+                  <Mail className="h-4 w-4 mt-1 text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground">
+                    <a href="mailto:paula1silvasantos@gmail.com" className="text-primary underline">paula1silvasantos@gmail.com</a>
+                  </p>
+                </div>
+                <div className="flex items-start gap-2">
                   <MapPin className="h-4 w-4 mt-1 text-muted-foreground" />
                   <div className="text-sm text-muted-foreground">
-                    <p>Cascais</p>
+                    <p>Estrada da Malveira da Serra, 920</p>
+                    <p>Aldeia de Juso, 2750-834 Cascais</p>
                     <p>Portugal</p>
                   </div>
                 </div>
@@ -151,6 +158,7 @@ export default function Contacto() {
 
         <div className="mt-12 pt-8 border-t border-border text-center text-sm text-muted-foreground">
           <p>© 2026 Astrolábio Mágico Investimentos, Lda. Todos os direitos reservados.</p>
+          <p className="mt-1">Estrada da Malveira da Serra, 920, Aldeia de Juso, 2750-834 Cascais</p>
         </div>
       </div>
     </div>

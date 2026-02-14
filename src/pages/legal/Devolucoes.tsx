@@ -20,14 +20,18 @@ export default function Devolucoes() {
 
         <div className="prose prose-invert max-w-none space-y-6">
           <p className="text-muted-foreground">
-            Última atualização: Janeiro de 2026
+            Última atualização: Fevereiro de 2026
           </p>
 
           <section className="space-y-4">
             <h2 className="text-xl font-semibold">1. Serviços Digitais</h2>
             <p>
-              A Nexus AI é um serviço digital de subscrição. Por natureza, os serviços digitais 
-              não são elegíveis para devolução física, mas oferecemos garantias de satisfação.
+              O <strong>Nexus AI-OS</strong> é um serviço digital de subscrição operado pela{" "}
+              <strong>Astrolábio Mágico Investimentos, Lda.</strong> (NIF: 515346969).
+              Por natureza, os serviços digitais não são elegíveis para devolução física, mas oferecemos garantias de satisfação.
+            </p>
+            <p>
+              Contacto: <a href="mailto:paula1silvasantos@gmail.com" className="text-primary underline">paula1silvasantos@gmail.com</a>
             </p>
           </section>
 
@@ -87,6 +91,7 @@ export default function Devolucoes() {
 
         <div className="mt-12 pt-8 border-t border-border text-center text-sm text-muted-foreground">
           <p>© 2026 Astrolábio Mágico Investimentos, Lda. Todos os direitos reservados.</p>
+          <p className="mt-1">Estrada da Malveira da Serra, 920, Aldeia de Juso, 2750-834 Cascais</p>
         </div>
       </div>
     </div>
