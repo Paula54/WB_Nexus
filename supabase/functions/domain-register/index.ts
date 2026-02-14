@@ -71,7 +71,10 @@ Deno.serve(async (req) => {
       reference_id: domain,
     });
 
-    // Save domain registration (mock)
+    // Save domain registration (mock) — 1 year expiry
+    const expiryDate = new Date();
+    expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+
     await adminClient.from("domain_registrations").insert({
       user_id: user.id,
       domain_name: domain,
@@ -80,6 +83,7 @@ Deno.serve(async (req) => {
       cost_price: costPrice,
       porkbun_id: `mock-${Date.now()}`,
       nameservers: ["ns1.porkbun.com", "ns2.porkbun.com"],
+      expiry_date: expiryDate.toISOString(),
     });
 
     return new Response(
