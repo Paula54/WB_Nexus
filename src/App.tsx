@@ -81,8 +81,10 @@ function AppRoutes() {
         <Route path="settings/subscription" element={<Subscription />} />
       </Route>
       {/* Legal Routes (Public) */}
-      <Route path="/privacidade" element={<Privacidade />} />
-      <Route path="/termos" element={<Termos />} />
+      <Route path="/privacy" element={<Privacidade />} />
+      <Route path="/privacidade" element={<Navigate to="/privacy" replace />} />
+      <Route path="/terms" element={<Termos />} />
+      <Route path="/termos" element={<Navigate to="/terms" replace />} />
       <Route path="/devolucoes" element={<Devolucoes />} />
       <Route path="/contacto" element={<Contacto />} />
 
