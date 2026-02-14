@@ -60,8 +60,26 @@ serve(async (req) => {
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session;
-        const projectId = session.metadata?.project_id;
         const userId = session.metadata?.user_id;
+
+        // Handle wallet top-up (one-time payment)
+        if (session.metadata?.type === 'wallet_topup' && userId) {
+          const amount = parseFloat(session.metadata.amount || '0');
+          if (amount > 0) {
+            await supabase.from('wallet_transactions').insert({
+              user_id: userId,
+              amount,
+              type: 'deposit',
+              description: `Carregamento via Stripe`,
+              reference_id: session.id,
+            });
+            console.log(`Wallet topped up: user=${userId}, amount=${amount}`);
+          }
+          break;
+        }
+
+        // Handle subscription checkout
+        const projectId = session.metadata?.project_id;
         const planType = session.metadata?.plan_type || 'START';
 
         if (!projectId || !userId) {

@@ -3,14 +3,21 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
-  Globe, Search, Wallet, Plus, ArrowUpRight, ArrowDownLeft,
+  Globe, Search, Wallet, Plus, ArrowDownLeft,
   CheckCircle2, XCircle, Loader2, ShoppingCart, CreditCard, Sparkles
 } from "lucide-react";
+
+interface SuggestionItem {
+  domain: string;
+  tld: string;
+  costPrice: number;
+  finalPrice: number;
+  available?: boolean;
+}
 
 interface DomainResult {
   domain: string;
@@ -18,7 +25,7 @@ interface DomainResult {
   costPrice: number;
   finalPrice: number;
   tld: string;
-  suggestions: Array<{ domain: string; tld: string; costPrice: number; finalPrice: number }>;
+  suggestions: SuggestionItem[];
 }
 
 interface Transaction {
@@ -48,10 +55,23 @@ export default function Domains() {
   const [purchasing, setPurchasing] = useState<string | null>(null);
   const [loadingWallet, setLoadingWallet] = useState(true);
   const [depositAmount, setDepositAmount] = useState("");
+  const [depositLoading, setDepositLoading] = useState(false);
 
   useEffect(() => {
     if (user) fetchWalletData();
   }, [user]);
+
+  // Handle Stripe redirect
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("topup") === "success") {
+      toast.success("Pagamento processado! O saldo será atualizado em breve.");
+      window.history.replaceState({}, "", window.location.pathname);
+    } else if (params.get("topup") === "cancel") {
+      toast.info("Carregamento cancelado.");
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, []);
 
   async function fetchWalletData() {
     if (!user) return;
@@ -90,6 +110,10 @@ export default function Domains() {
       return;
     }
     setPurchasing(domain);
+
+    // 3-second simulated animation
+    await new Promise((r) => setTimeout(r, 3000));
+
     try {
       const { data, error } = await supabase.functions.invoke("domain-register", {
         body: { domain, finalPrice, costPrice },
@@ -99,7 +123,7 @@ export default function Domains() {
         toast.error(data.error);
         return;
       }
-      toast.success(`🎉 ${domain} registado com sucesso!`);
+      toast.success(`🎉 [DEMO] ${domain} registado com sucesso!`);
       setResult(null);
       setSearchQuery("");
       fetchWalletData();
@@ -112,25 +136,30 @@ export default function Domains() {
 
   async function handleDeposit() {
     const amount = parseFloat(depositAmount);
-    if (!amount || amount <= 0) {
-      toast.error("Insere um valor válido");
+    if (!amount || amount < 1) {
+      toast.error("Valor mínimo: 1€");
       return;
     }
-    // Simulated deposit — in production this would go through Stripe
-    if (!user) return;
-    const { error } = await supabase.from("wallet_transactions").insert({
-      user_id: user.id,
-      amount,
-      type: "deposit",
-      description: `Carregamento de saldo`,
-    });
-    if (error) {
-      toast.error("Erro ao processar depósito");
-      return;
+    setDepositLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("wallet-topup", {
+        body: {
+          amount,
+          successUrl: `${window.location.origin}/domains?topup=success`,
+          cancelUrl: `${window.location.origin}/domains?topup=cancel`,
+        },
+      });
+      if (error) throw error;
+      if (data?.url) {
+        window.location.href = data.url;
+      } else {
+        toast.error("Erro ao criar sessão de pagamento");
+      }
+    } catch (e: any) {
+      toast.error("Erro: " + (e.message || "Tenta novamente"));
+    } finally {
+      setDepositLoading(false);
     }
-    toast.success(`+${amount.toFixed(2)} € adicionados à Wallet`);
-    setDepositAmount("");
-    fetchWalletData();
   }
 
   const typeIcon = (type: string) => {
@@ -153,7 +182,6 @@ export default function Domains() {
 
   return (
     <div className="space-y-8">
-      {/* Header */}
       <div>
         <h1 className="text-3xl font-display font-bold text-foreground flex items-center gap-3">
           <Globe className="h-8 w-8 text-primary" />
@@ -165,7 +193,6 @@ export default function Domains() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left: Domain Search */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Search Bar */}
           <Card className="glass">
             <CardContent className="p-6">
               <div className="flex gap-3">
@@ -189,21 +216,14 @@ export default function Domains() {
           {/* Search Results */}
           {result && (
             <div className="space-y-4 animate-fade-in">
-              {/* Main result */}
               <Card className={`glass border ${result.available ? "border-neon-green/30" : "border-destructive/30"}`}>
                 <CardContent className="p-5">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      {result.available ? (
-                        <CheckCircle2 className="h-6 w-6 text-neon-green" />
-                      ) : (
-                        <XCircle className="h-6 w-6 text-destructive" />
-                      )}
+                      {result.available ? <CheckCircle2 className="h-6 w-6 text-neon-green" /> : <XCircle className="h-6 w-6 text-destructive" />}
                       <div>
                         <p className="font-semibold text-lg text-foreground">{result.domain}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {result.available ? "Disponível para registo" : "Indisponível"}
-                        </p>
+                        <p className="text-sm text-muted-foreground">{result.available ? "Disponível para registo" : "Indisponível"}</p>
                       </div>
                     </div>
                     {result.available && (
@@ -218,11 +238,16 @@ export default function Domains() {
                           className="gap-2"
                         >
                           {purchasing === result.domain ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
+                            <>
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              A registar...
+                            </>
                           ) : (
-                            <ShoppingCart className="h-4 w-4" />
+                            <>
+                              <ShoppingCart className="h-4 w-4" />
+                              Comprar
+                            </>
                           )}
-                          Comprar
                         </Button>
                       </div>
                     )}
@@ -230,7 +255,7 @@ export default function Domains() {
                 </CardContent>
               </Card>
 
-              {/* Suggestions */}
+              {/* Suggestions with real-time availability */}
               {result.suggestions.length > 0 && (
                 <Card className="glass">
                   <CardHeader className="pb-3">
@@ -238,24 +263,30 @@ export default function Domains() {
                   </CardHeader>
                   <CardContent className="space-y-2">
                     {result.suggestions.map((s) => (
-                      <div key={s.domain} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
+                      <div key={s.domain} className={`flex items-center justify-between p-3 rounded-lg transition-colors ${s.available ? "bg-muted/30 hover:bg-muted/50" : "bg-muted/10 opacity-60"}`}>
                         <div className="flex items-center gap-2">
+                          {s.available ? (
+                            <CheckCircle2 className="h-4 w-4 text-neon-green" />
+                          ) : (
+                            <XCircle className="h-4 w-4 text-destructive/60" />
+                          )}
                           <Badge variant="outline" className="text-xs">.{s.tld}</Badge>
                           <span className="text-sm font-medium text-foreground">{s.domain}</span>
                         </div>
                         <div className="flex items-center gap-3">
                           <span className="text-sm font-semibold">{s.finalPrice.toFixed(2)} €</span>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => {
-                              setSearchQuery(s.domain);
-                              setResult(null);
-                              setTimeout(handleSearch, 100);
-                            }}
-                          >
-                            Verificar
-                          </Button>
+                          {s.available ? (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handlePurchase(s.domain, s.finalPrice, s.costPrice)}
+                              disabled={purchasing === s.domain || balance < s.finalPrice}
+                            >
+                              {purchasing === s.domain ? <Loader2 className="h-3 w-3 animate-spin" /> : "Comprar"}
+                            </Button>
+                          ) : (
+                            <Badge variant="secondary" className="text-xs">Indisponível</Badge>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -293,7 +324,6 @@ export default function Domains() {
 
         {/* Right: Wallet */}
         <div className="space-y-6">
-          {/* Balance */}
           <Card className="glass border-primary/20">
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-lg">
@@ -316,12 +346,12 @@ export default function Domains() {
                   min="1"
                   step="0.01"
                 />
-                <Button onClick={handleDeposit} className="gap-1.5 shrink-0">
-                  <Plus className="h-4 w-4" />
+                <Button onClick={handleDeposit} disabled={depositLoading} className="gap-1.5 shrink-0">
+                  {depositLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                   Carregar
                 </Button>
               </div>
-              <p className="text-xs text-muted-foreground mt-2">Simulação — integração Stripe em breve</p>
+              <p className="text-xs text-muted-foreground mt-2">Stripe Test Mode — usa o cartão 4242 4242 4242 4242</p>
             </CardContent>
           </Card>
 
