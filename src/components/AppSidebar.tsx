@@ -12,6 +12,7 @@ import {
   Users,
   Megaphone,
   CreditCard,
+  Wallet,
 } from "lucide-react";
 import {
   Sidebar,
@@ -37,6 +38,7 @@ const menuItems = [
   { title: "Anúncios", url: "/ads", icon: Megaphone },
   { title: "Visibilidade no Google", url: "/seo", icon: Search, type: PageType.SEO },
   { title: "WhatsApp Inbox", url: "/whatsapp", icon: MessageCircle, type: PageType.WHATSAPP },
+  { title: "Domínios & Wallet", url: "/domains", icon: Wallet },
 ];
 
 const bottomItems = [
