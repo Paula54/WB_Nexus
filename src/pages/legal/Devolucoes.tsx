@@ -90,7 +90,7 @@ export default function Devolucoes() {
         </div>
 
         <div className="mt-12 pt-8 border-t border-border text-center text-sm text-muted-foreground">
-          <p>© 2026 Astrolábio Mágico Investimentos, Lda. Todos os direitos reservados.</p>
+          <p>Nexus © 2026 | Powered by <a href="https://web-business.pt" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Web Business</a> – Um produto Astrolábio Mágico Investimentos LDA.</p>
           <p className="mt-1">Estrada da Malveira da Serra, 920, Aldeia de Juso, 2750-834 Cascais</p>
         </div>
       </div>
