@@ -337,6 +337,48 @@ export type Database = {
           },
         ]
       }
+      domain_registrations: {
+        Row: {
+          cost_price: number
+          created_at: string
+          domain_name: string
+          expiry_date: string | null
+          id: string
+          nameservers: string[] | null
+          porkbun_id: string | null
+          purchase_price: number
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cost_price: number
+          created_at?: string
+          domain_name: string
+          expiry_date?: string | null
+          id?: string
+          nameservers?: string[] | null
+          porkbun_id?: string | null
+          purchase_price: number
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cost_price?: number
+          created_at?: string
+          domain_name?: string
+          expiry_date?: string | null
+          id?: string
+          nameservers?: string[] | null
+          porkbun_id?: string | null
+          purchase_price?: number
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       google_ads_accounts: {
         Row: {
           created_at: string
@@ -698,6 +740,36 @@ export type Database = {
           project_type?: string
           tags?: string[] | null
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      wallet_transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          description: string
+          id: string
+          reference_id: string | null
+          type: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          description: string
+          id?: string
+          reference_id?: string | null
+          type: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          description?: string
+          id?: string
+          reference_id?: string | null
+          type?: string
           user_id?: string
         }
         Relationships: []

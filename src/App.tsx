@@ -23,6 +23,7 @@ import SEO from "@/pages/SEO";
 import NotesReminders from "@/pages/NotesReminders";
 import Ads from "@/pages/Ads";
 import Subscription from "@/pages/Subscription";
+import Domains from "@/pages/Domains";
 
 // Legal Pages
 import Privacidade from "@/pages/legal/Privacidade";
@@ -79,6 +80,7 @@ function AppRoutes() {
         <Route path="whatsapp" element={<WhatsAppInbox />} />
         <Route path="settings" element={<Settings />} />
         <Route path="settings/subscription" element={<Subscription />} />
+        <Route path="domains" element={<Domains />} />
       </Route>
       {/* Legal Routes (Public) */}
       <Route path="/privacy" element={<Privacidade />} />

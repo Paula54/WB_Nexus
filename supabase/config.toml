@@ -59,3 +59,9 @@ verify_jwt = false
 
 [functions.subscribe-whatsapp-webhook]
 verify_jwt = false
+
+[functions.domain-search]
+verify_jwt = false
+
+[functions.domain-register]
+verify_jwt = false
