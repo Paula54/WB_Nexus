@@ -32,7 +32,7 @@ export function OnboardingDashboard() {
   return (
     <div className="space-y-8 max-w-4xl mx-auto">
       {/* Header */}
-      <div className="text-center">
+      <div className="text-center animate-fade-in">
         <h1 className="text-3xl sm:text-4xl font-display font-bold text-foreground">
           Centro de Configuração ⚡
         </h1>
@@ -42,40 +42,50 @@ export function OnboardingDashboard() {
       </div>
 
       {/* Progress Bar */}
-      <ProgressBar progress={progress} />
+      <div className="animate-fade-in" style={{ animationDelay: "150ms", animationFillMode: "both" }}>
+        <ProgressBar progress={progress} />
+      </div>
 
       {/* 3 Setup Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <SetupCard
-          icon={<Facebook className="h-8 w-8 text-neon-blue" />}
-          title="Ligar Redes Sociais"
-          description="Conecta o Facebook e Instagram para publicar automaticamente."
-          connected={socialConnected}
-          neonColor="blue"
-          onAction={() => setSocialFlowOpen(true)}
-        />
-        <SetupCard
-          icon={<MessageCircle className="h-8 w-8 text-neon-green" />}
-          title="Ativar WhatsApp"
-          description="Recebe e responde a clientes automaticamente via WhatsApp."
-          connected={whatsappConnected}
-          neonColor="green"
-          onAction={handleWhatsAppSetup}
-        />
-        <SetupCard
-          icon={<Megaphone className="h-8 w-8 text-neon-purple" />}
-          title="Lançar Campanha"
-          description="Cria e publica o teu primeiro anúncio gerado por IA."
-          connected={firstCampaignLaunched}
-          locked={campaignLocked}
-          lockedMessage="Completa os passos anteriores"
-          neonColor="purple"
-          onAction={() => {}} // handled by AdLab below
-        />
+        <div className="animate-fade-in" style={{ animationDelay: "300ms", animationFillMode: "both" }}>
+          <SetupCard
+            icon={<Facebook className="h-8 w-8 text-neon-blue" />}
+            title="Ligar Redes Sociais"
+            description="Conecta o Facebook e Instagram para publicar automaticamente."
+            connected={socialConnected}
+            neonColor="blue"
+            onAction={() => setSocialFlowOpen(true)}
+          />
+        </div>
+        <div className="animate-fade-in" style={{ animationDelay: "450ms", animationFillMode: "both" }}>
+          <SetupCard
+            icon={<MessageCircle className="h-8 w-8 text-neon-green" />}
+            title="Ativar WhatsApp"
+            description="Recebe e responde a clientes automaticamente via WhatsApp."
+            connected={whatsappConnected}
+            neonColor="green"
+            onAction={handleWhatsAppSetup}
+          />
+        </div>
+        <div className="animate-fade-in" style={{ animationDelay: "600ms", animationFillMode: "both" }}>
+          <SetupCard
+            icon={<Megaphone className="h-8 w-8 text-neon-purple" />}
+            title="Lançar Campanha"
+            description="Cria e publica o teu primeiro anúncio gerado por IA."
+            connected={firstCampaignLaunched}
+            locked={campaignLocked}
+            lockedMessage="Completa os passos anteriores"
+            neonColor="purple"
+            onAction={() => {}}
+          />
+        </div>
       </div>
 
       {/* Ad Lab */}
-      <AdLab locked={campaignLocked} onCampaignLaunched={refetch} />
+      <div className="animate-fade-in" style={{ animationDelay: "750ms", animationFillMode: "both" }}>
+        <AdLab locked={campaignLocked} onCampaignLaunched={refetch} />
+      </div>
 
       {/* Dialogs */}
       <SocialSetupFlow
