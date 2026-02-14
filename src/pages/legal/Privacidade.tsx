@@ -31,17 +31,26 @@ export default function Privacidade() {
               é a entidade responsável pelo tratamento dos dados pessoais recolhidos através da plataforma <strong>Nexus AI-OS</strong>.
             </p>
             <p>
-              Contacto: <a href="mailto:paula1silvasantos@gmail.com" className="text-primary underline">paula1silvasantos@gmail.com</a>
+              Contacto:{" "}
+              <a href="mailto:info@astrolabio-magico-invest.pt" className="text-primary underline">
+                info@astrolabio-magico-invest.pt
+              </a>
             </p>
           </section>
 
           <section className="space-y-4">
             <h2 className="text-xl font-semibold">2. O que é o Nexus AI-OS</h2>
             <p>
-              O Nexus é um <strong>Sistema Operativo de Inteligência Artificial (AI-OS)</strong> destinado à gestão de investimentos
-              e automação de marketing. A plataforma processa dados para otimização de campanhas publicitárias,
-              análise de métricas de investimento e automação de redes sociais.
+              O Nexus é um <strong>AI-OS (Sistema Operativo de Inteligência Artificial)</strong> concebido
+              para marketing digital e automação de negócios. As suas funções principais incluem:
             </p>
+            <ul className="list-disc pl-6 space-y-2">
+              <li>Automação de publicações em redes sociais (Instagram e Facebook)</li>
+              <li>Gestão de campanhas de anúncios através da Marketing API</li>
+              <li>Análise de métricas de performance e Business Intelligence</li>
+              <li>Gestão de relacionamento com clientes (CRM)</li>
+              <li>Geração de estratégias e conteúdo assistido por IA</li>
+            </ul>
           </section>
 
           <section className="space-y-4">
@@ -52,59 +61,94 @@ export default function Privacidade() {
               <li>Dados de contacto (telefone, empresa)</li>
               <li>Dados de utilização da plataforma e métricas de campanhas</li>
               <li>Dados de leads e contactos comerciais inseridos pelo utilizador</li>
+              <li>Dados obtidos através da integração com a <strong>Meta Graph API</strong> (páginas do Facebook, contas de Instagram, métricas de publicações e campanhas publicitárias)</li>
               <li>Dados de integração com plataformas de publicidade (Meta Ads, Google Ads)</li>
-              <li>Dados de redes sociais conectadas pelo utilizador</li>
             </ul>
           </section>
 
           <section className="space-y-4">
             <h2 className="text-xl font-semibold">4. Finalidade do Tratamento</h2>
-            <p>Os dados são tratados para:</p>
+            <p>Os dados são tratados exclusivamente para as seguintes finalidades:</p>
             <ul className="list-disc pl-6 space-y-2">
-              <li>Processamento e otimização de campanhas publicitárias</li>
-              <li>Análise de métricas de investimento e performance</li>
-              <li>Automação de publicações em redes sociais</li>
-              <li>Gestão de relacionamento com clientes (CRM)</li>
-              <li>Geração de estratégias e conteúdo assistido por IA</li>
+              <li>Automação e agendamento de publicações em redes sociais do utilizador</li>
+              <li>Criação, gestão e otimização de campanhas publicitárias (Marketing API)</li>
+              <li>Análise de métricas de performance e geração de relatórios de Business Intelligence</li>
+              <li>Gestão de relacionamento com clientes e leads (CRM)</li>
+              <li>Geração de estratégias de marketing e conteúdo assistido por IA</li>
               <li>Comunicações de serviço e suporte técnico</li>
             </ul>
           </section>
 
           <section className="space-y-4">
-            <h2 className="text-xl font-semibold">5. Base Legal</h2>
+            <h2 className="text-xl font-semibold">5. Utilização de Dados da Meta Graph API</h2>
             <p>
-              O tratamento é realizado com base no consentimento do titular, na execução de contrato
-              e no cumprimento de obrigações legais (RGPD, Art. 6.º).
+              O Nexus AI-OS utiliza a <strong>Meta Graph API</strong> para aceder a dados das contas de
+              Facebook e Instagram do utilizador. Declaramos que:
+            </p>
+            <ul className="list-disc pl-6 space-y-2">
+              <li>Os dados recolhidos via Meta Graph API são utilizados <strong>exclusivamente</strong> para fins de marketing digital e gestão de negócio do próprio utilizador</li>
+              <li>Não vendemos, partilhamos ou transferimos dados obtidos da Meta a terceiros</li>
+              <li>Os dados são processados de forma segura pela infraestrutura do Nexus, com encriptação em trânsito e em repouso</li>
+              <li>O utilizador pode revogar o acesso à sua conta Meta a qualquer momento através das definições da plataforma</li>
+              <li>Os tokens de acesso são armazenados de forma encriptada e utilizados apenas para as operações autorizadas pelo utilizador</li>
+            </ul>
+          </section>
+
+          <section className="space-y-4">
+            <h2 className="text-xl font-semibold">6. Base Legal</h2>
+            <p>
+              O tratamento de dados é realizado com base no <strong>consentimento explícito</strong> do titular,
+              na execução de contrato de prestação de serviços e no cumprimento de obrigações legais,
+              em conformidade com o <strong>Regulamento Geral de Proteção de Dados (RGPD — Regulamento UE 2016/679)</strong>,
+              Art. 6.º, n.º 1, alíneas a), b) e c).
             </p>
           </section>
 
           <section className="space-y-4">
-            <h2 className="text-xl font-semibold">6. Direitos dos Titulares</h2>
+            <h2 className="text-xl font-semibold">7. Direitos dos Titulares</h2>
             <p>
               Nos termos do RGPD, tem direito a aceder, retificar, apagar, limitar o tratamento,
-              portabilidade e oposição ao tratamento dos seus dados. Para exercer estes direitos,
+              portabilidade e oposição ao tratamento dos seus dados pessoais. Para exercer estes direitos,
               contacte-nos através do email{" "}
-              <a href="mailto:paula1silvasantos@gmail.com" className="text-primary underline">paula1silvasantos@gmail.com</a>.
+              <a href="mailto:info@astrolabio-magico-invest.pt" className="text-primary underline">
+                info@astrolabio-magico-invest.pt
+              </a>.
             </p>
             <p>
-              Pode ainda apresentar reclamação à <strong>CNPD — Comissão Nacional de Proteção de Dados</strong>.
-            </p>
-          </section>
-
-          <section className="space-y-4">
-            <h2 className="text-xl font-semibold">7. Segurança</h2>
-            <p>
-              Implementamos medidas técnicas e organizativas adequadas para proteger os dados contra
-              acessos não autorizados, incluindo encriptação, controlo de acessos e registos de auditoria.
+              Pode ainda apresentar reclamação à <strong>CNPD — Comissão Nacional de Proteção de Dados</strong>{" "}
+              (<a href="https://www.cnpd.pt" target="_blank" rel="noopener noreferrer" className="text-primary underline">www.cnpd.pt</a>).
             </p>
           </section>
 
           <section className="space-y-4">
-            <h2 className="text-xl font-semibold">8. Retenção de Dados</h2>
+            <h2 className="text-xl font-semibold">8. Segurança dos Dados</h2>
             <p>
-              Os dados são conservados pelo período necessário à prestação dos serviços e cumprimento
-              de obrigações legais. Os registos de auditoria são mantidos por 90 dias (365 dias para
-              logs de segurança).
+              Implementamos medidas técnicas e organizativas adequadas para proteger os dados pessoais contra
+              acessos não autorizados, perda ou destruição, incluindo:
+            </p>
+            <ul className="list-disc pl-6 space-y-2">
+              <li>Encriptação de dados em trânsito (TLS/SSL) e em repouso</li>
+              <li>Controlo de acessos baseado em funções (RBAC)</li>
+              <li>Registos de auditoria e monitorização contínua</li>
+              <li>Armazenamento seguro de tokens e credenciais de API</li>
+            </ul>
+          </section>
+
+          <section className="space-y-4">
+            <h2 className="text-xl font-semibold">9. Retenção de Dados</h2>
+            <p>
+              Os dados são conservados pelo período estritamente necessário à prestação dos serviços contratados
+              e ao cumprimento de obrigações legais. Após o término da relação contratual, os dados são eliminados
+              no prazo máximo de 90 dias, salvo obrigação legal de conservação mais prolongada.
+            </p>
+          </section>
+
+          <section className="space-y-4">
+            <h2 className="text-xl font-semibold">10. Transferências Internacionais</h2>
+            <p>
+              Os dados podem ser processados em servidores localizados no Espaço Económico Europeu (EEE).
+              Caso sejam necessárias transferências para fora do EEE, estas serão realizadas com base em
+              mecanismos de proteção adequados, conforme o Capítulo V do RGPD.
             </p>
           </section>
         </div>
