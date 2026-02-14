@@ -170,7 +170,33 @@ Deno.serve(async (req) => {
 
     const creationId = containerData.id;
 
-    // Step 2: Publish the container
+    // Step 2: Poll container status until ready (max 30 seconds)
+    const maxAttempts = 15;
+    for (let i = 0; i < maxAttempts; i++) {
+      const statusRes = await fetch(
+        `https://graph.facebook.com/v21.0/${creationId}?fields=status_code&access_token=${accessToken}`
+      );
+      const statusData = await statusRes.json();
+      console.log(`Container status (attempt ${i + 1}):`, statusData.status_code);
+
+      if (statusData.status_code === "FINISHED") break;
+      if (statusData.status_code === "ERROR") {
+        await adminClient.from("social_posts").update({
+          status: "failed",
+          error_log: `Container processing failed: ${JSON.stringify(statusData)}`,
+          webhook_response: statusData,
+        }).eq("id", postId);
+
+        return new Response(
+          JSON.stringify({ success: false, error: "Instagram media processing failed" }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+    }
+
+    // Step 3: Publish the container
     const publishRes = await fetch(
       `https://graph.facebook.com/v21.0/${igAccountId}/media_publish`,
       {
