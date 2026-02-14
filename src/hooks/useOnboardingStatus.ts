@@ -21,6 +21,13 @@ export function useOnboardingStatus(): OnboardingStatus {
   async function fetchStatus() {
     if (!user) { setLoading(false); return; }
 
+    // TODO: TEMPORARY DEMO MODE — force all steps as incomplete. Remove this block to restore.
+    setSocialConnected(false);
+    setWhatsappConnected(false);
+    setFirstCampaignLaunched(false);
+    setLoading(false);
+    return;
+
     const [projectRes, whatsappRes, campaignRes] = await Promise.all([
       supabase.from("projects").select("meta_access_token, meta_ads_account_id").eq("user_id", user.id).limit(1).maybeSingle(),
       supabase.from("whatsapp_accounts").select("id").eq("user_id", user.id).eq("is_active", true).limit(1).maybeSingle(),
