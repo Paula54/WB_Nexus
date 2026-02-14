@@ -30,6 +30,11 @@
     --nexus-cyan: 190 100% 50%;
     --nexus-gold: 45 100% 51%;
 
+    /* Neon Accent Colors */
+    --neon-green: 142 76% 50%;
+    --neon-blue: 217 91% 60%;
+    --neon-purple: 271 81% 56%;
+
     /* Sidebar */
     --sidebar-background: 222 47% 8%;
     --sidebar-foreground: 210 40% 98%;
