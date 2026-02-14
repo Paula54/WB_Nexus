@@ -50,3 +50,12 @@ verify_jwt = false
 
 [functions.generate-ad-creatives]
 verify_jwt = false
+
+[functions.meta-ads-auth]
+verify_jwt = false
+
+[functions.meta-ads-callback]
+verify_jwt = false
+
+[functions.subscribe-whatsapp-webhook]
+verify_jwt = false
