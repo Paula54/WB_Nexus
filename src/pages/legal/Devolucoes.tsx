@@ -31,7 +31,7 @@ export default function Devolucoes() {
               Por natureza, os serviços digitais não são elegíveis para devolução física, mas oferecemos garantias de satisfação.
             </p>
             <p>
-              Contacto: <a href="mailto:paula1silvasantos@gmail.com" className="text-primary underline">paula1silvasantos@gmail.com</a>
+              Contacto: <a href="mailto:info@astrolabio-magico-invest.pt" className="text-primary underline">info@astrolabio-magico-invest.pt</a>
             </p>
           </section>
 

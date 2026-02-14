@@ -65,7 +65,7 @@ export default function Contacto() {
                 <div className="flex items-start gap-2">
                   <Mail className="h-4 w-4 mt-1 text-muted-foreground" />
                   <p className="text-sm text-muted-foreground">
-                    <a href="mailto:paula1silvasantos@gmail.com" className="text-primary underline">paula1silvasantos@gmail.com</a>
+                    <a href="mailto:info@astrolabio-magico-invest.pt" className="text-primary underline">info@astrolabio-magico-invest.pt</a>
                   </p>
                 </div>
                 <div className="flex items-start gap-2">
