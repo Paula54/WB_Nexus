@@ -325,9 +325,25 @@ export default function SocialMedia() {
       });
       return;
     }
+
+    // Pre-flight: check if post has an image
+    const post = posts.find(p => p.id === postId);
+    if (post && !post.image_url) {
+      const requiresImage = post.platform.toLowerCase() === "instagram";
+      if (requiresImage) {
+        toast.error("Imagem obrigatória", {
+          description: "O Instagram requer uma imagem. Edita o post e adiciona uma imagem antes de publicar."
+        });
+        return;
+      }
+      // Warn for other platforms but allow
+      toast.warning("Post sem imagem", {
+        description: "O post será publicado apenas com texto. Adiciona uma imagem para maior alcance."
+      });
+    }
+
     const scheduledDateTime = getScheduledDateTime(postId);
     
-    // If there's a scheduled date, save it to the database first
     if (scheduledDateTime) {
       const { error: updateError } = await supabase
         .from("social_posts")
@@ -350,11 +366,16 @@ export default function SocialMedia() {
       if (error) throw error;
 
       if (data?.error) {
-        toast.error("Falha na publicação", {
-          description: data.details?.errors?.[0]?.message || "Não foi possível publicar o post."
-        });
+        const errorMsg = data.error === "IMAGE_MISSING"
+          ? data.message
+          : (data.details?.errors?.[0]?.message || data.message || "Não foi possível publicar o post.");
+        toast.error("Falha na publicação", { description: errorMsg });
         fetchPosts();
         return;
+      }
+
+      if (data?.image_warning) {
+        toast.warning(data.image_warning);
       }
 
       if (scheduledDateTime) {
