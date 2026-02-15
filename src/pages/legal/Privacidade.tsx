@@ -32,7 +32,7 @@ export default function Privacidade() {
             </p>
             <p>
               A Astrolábio Mágico Investimentos, Lda. é a entidade legalmente responsável pelo tratamento dos dados pessoais
-              recolhidos através da plataforma <strong>Nexus AI-OS</strong>, parte integrante do ecossistema tecnológico da Web Business.
+              recolhidos através da plataforma <strong>Nexus Machine</strong>, parte integrante do ecossistema tecnológico da Web Business.
             </p>
             <p>
               Contacto oficial de suporte:{" "}
@@ -43,7 +43,7 @@ export default function Privacidade() {
           </section>
 
           <section className="space-y-4">
-            <h2 className="text-xl font-semibold">2. O que é o Nexus AI-OS</h2>
+            <h2 className="text-xl font-semibold">2. O que é o Nexus Machine</h2>
             <p>
               O Nexus é um <strong>AI-OS (Sistema Operativo de Inteligência Artificial)</strong> desenvolvido pela
               Web Business para marketing digital e automação de negócios, desenhado para qualquer setor de atividade.
@@ -88,7 +88,7 @@ export default function Privacidade() {
           <section className="space-y-4">
             <h2 className="text-xl font-semibold">5. Utilização de Dados da Meta Graph API</h2>
             <p>
-              O Nexus AI-OS utiliza a <strong>Meta Graph API</strong> para aceder a dados das contas de
+              O Nexus Machine utiliza a <strong>Meta Graph API</strong> para aceder a dados das contas de
               Facebook e Instagram do utilizador. Declaramos que:
             </p>
             <ul className="list-disc pl-6 space-y-2">

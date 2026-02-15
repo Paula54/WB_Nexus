@@ -106,16 +106,31 @@ export default function Domains() {
     }
   }
 
+  async function handleSavePending(domain: string, finalPrice: number) {
+    if (!user) return;
+    try {
+      const { error } = await supabase.from("domain_registrations").insert({
+        user_id: user.id,
+        domain_name: domain,
+        purchase_price: finalPrice,
+        cost_price: 0,
+        status: "pending",
+      });
+      if (error) throw error;
+      toast.success(`${domain} guardado como pendente!`);
+      fetchWalletData();
+    } catch (e: any) {
+      toast.error("Erro ao guardar: " + (e.message || "Tenta novamente"));
+    }
+  }
+
   async function handlePurchase(domain: string, finalPrice: number, costPrice: number) {
     if (balance < finalPrice) {
       toast.error("Saldo insuficiente. Carrega a tua Wallet primeiro.");
       return;
     }
     setPurchasing(domain);
-
-    // 3-second simulated animation
     await new Promise((r) => setTimeout(r, 3000));
-
     try {
       const { data, error } = await supabase.functions.invoke("domain-register", {
         body: { domain, finalPrice, costPrice },
@@ -125,7 +140,7 @@ export default function Domains() {
         toast.error(data.error);
         return;
       }
-      toast.success(`🎉 [DEMO] ${domain} registado com sucesso!`);
+      toast.success(`🎉 ${domain} registado com sucesso!`);
       setResult(null);
       setSearchQuery("");
       fetchWalletData();
@@ -187,7 +202,7 @@ export default function Domains() {
       <div>
         <h1 className="text-3xl font-display font-bold text-foreground flex items-center gap-3">
           <Globe className="h-8 w-8 text-primary" />
-          O Teu Lugar na Internet
+          Nexus Machine — Domínios
         </h1>
         <p className="text-muted-foreground mt-1">Pesquisa, compra e configura o teu domínio em segundos.</p>
       </div>
@@ -250,6 +265,14 @@ export default function Domains() {
                               Comprar
                             </>
                           )}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          onClick={() => handleSavePending(result.domain, result.finalPrice)}
+                          className="gap-2"
+                        >
+                          <Plus className="h-4 w-4" />
+                          Guardar
                         </Button>
                       </div>
                     )}

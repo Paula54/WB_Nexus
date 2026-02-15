@@ -67,7 +67,7 @@ export function AppSidebar() {
           {!collapsed && (
             <div>
               <h2 className="font-display font-bold text-lg text-sidebar-primary">
-                NEXUS<span className="text-sidebar-foreground">AI</span>
+                NEXUS<span className="text-sidebar-foreground">Machine</span>
               </h2>
               <p className="text-xs text-sidebar-foreground/60">Centro de Comando</p>
             </div>
