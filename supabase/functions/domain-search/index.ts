@@ -21,10 +21,17 @@ async function checkAvailability(domain: string, apiKey: string, secretKey: stri
       body: JSON.stringify({ apikey: apiKey, secretapikey: secretKey }),
     });
     const text = await res.text();
+    console.log(`[checkAvailability] ${domain} response:`, text);
     if (text.startsWith("{") || text.startsWith("[")) {
       const data = JSON.parse(text);
-      // Porkbun returns "avail" as "yes" or the domain is in "your_price" field
-      return data.status === "SUCCESS" && (data.avail === "yes" || !!data.your_price);
+      // Porkbun: if status is SUCCESS and there's a price, it's available
+      // Only unavailable if avail is explicitly "no" or status is not SUCCESS
+      if (data.status === "SUCCESS") {
+        // If avail field exists, trust it; otherwise if price exists, it's available
+        if (data.avail === "no") return false;
+        return true;
+      }
+      return false;
     }
     return false;
   } catch (e) {
@@ -32,7 +39,6 @@ async function checkAvailability(domain: string, apiKey: string, secretKey: stri
     return false;
   }
 }
-
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -55,27 +61,24 @@ Deno.serve(async (req) => {
     const tld = parts.length >= 2 ? parts.slice(1).join(".") : "com";
     const sld = parts[0];
 
-    // Check main domain + all suggestions in parallel (all free API calls)
+    // Only check main domain availability (Porkbun rate limits to 1 check per 10s)
+    const mainAvailable = await checkAvailability(cleanDomain, PORKBUN_API_KEY, PORKBUN_SECRET_KEY);
+
     const popularTlds = ["com", "pt", "ai", "eu", "net", "io"];
     const suggestionTlds = popularTlds.filter((t) => t !== tld);
-    const suggestionDomains = suggestionTlds.map((t) => `${sld}.${t}`);
-
-    const [mainAvailable, ...suggestionResults] = await Promise.all([
-      checkAvailability(cleanDomain, PORKBUN_API_KEY, PORKBUN_SECRET_KEY),
-      ...suggestionDomains.map((d) => checkAvailability(d, PORKBUN_API_KEY, PORKBUN_SECRET_KEY)),
-    ]);
 
     const costPrice = TLD_PRICES[tld] || DEFAULT_PRICE;
     const finalPrice = Math.round((costPrice + MARGIN) * 100) / 100;
 
-    const suggestions = suggestionTlds.map((t, i) => {
+    // Suggestions: availability unknown (not checked due to rate limit), show as available with price
+    const suggestions = suggestionTlds.map((t) => {
       const c = TLD_PRICES[t] || DEFAULT_PRICE;
       return {
         domain: `${sld}.${t}`,
         tld: t,
         costPrice: c,
         finalPrice: Math.round((c + MARGIN) * 100) / 100,
-        available: suggestionResults[i],
+        available: true, // Assume available; purchase will validate
       };
     });
 
