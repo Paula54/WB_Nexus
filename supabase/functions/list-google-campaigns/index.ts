@@ -138,6 +138,8 @@ Deno.serve(async (req) => {
         diagnosticMsg = "NOT_ADS_USER — A conta Google autenticada não tem acesso ao Google Ads.";
       } else if (rawBody.includes("USER_PERMISSION_DENIED")) {
         diagnosticMsg = "USER_PERMISSION_DENIED — O utilizador não tem permissão. Verifica se o login-customer-id (MCC) está correto e se a conta tem acesso à subconta.";
+      } else if (rawBody.includes("CUSTOMER_NOT_ENABLED")) {
+        diagnosticMsg = "CUSTOMER_NOT_ENABLED — A conta Google Ads ainda não está ativa ou foi desativada. Acede ao Google Ads (ads.google.com) e ativa a conta antes de sincronizar.";
       }
 
       return new Response(

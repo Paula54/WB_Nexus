@@ -93,7 +93,20 @@ export default function GoogleCampaignList({
         ) : error ? (
           <div className="text-center py-12 text-muted-foreground">
             <AlertCircle className="h-12 w-12 mx-auto mb-4 text-destructive opacity-70" />
-            <p className="text-sm text-destructive font-medium">{error}</p>
+            <p className="text-sm text-destructive font-medium">
+              {error.includes("CUSTOMER_NOT_ENABLED")
+                ? "A conta Google Ads ainda não está ativa"
+                : error.includes("DEVELOPER_TOKEN")
+                ? "O Developer Token não tem permissão"
+                : error.includes("UNAUTHENTICATED")
+                ? "Sessão expirada — reconecta a conta"
+                : error}
+            </p>
+            {error.includes("CUSTOMER_NOT_ENABLED") && (
+              <p className="text-xs mt-2 max-w-md mx-auto">
+                Acede a <a href="https://ads.google.com" target="_blank" rel="noopener noreferrer" className="text-primary underline">ads.google.com</a> e ativa a tua conta antes de sincronizar campanhas.
+              </p>
+            )}
             <Button variant="outline" size="sm" className="mt-4 gap-2" onClick={onSync}>
               <RefreshCw className="h-4 w-4" />
               Tentar novamente
