@@ -86,13 +86,24 @@ Deno.serve(async (req) => {
       expiry_date: expiryDate.toISOString(),
     });
 
+    // Cashback: credit 15€ back to user wallet
+    const CASHBACK_AMOUNT = 15.0;
+    await adminClient.from("wallet_transactions").insert({
+      user_id: user.id,
+      amount: CASHBACK_AMOUNT,
+      type: "cashback",
+      description: `Cashback pelo registo de ${domain}`,
+      reference_id: domain,
+    });
+
     return new Response(
       JSON.stringify({
         success: true,
         domain,
         mock: true,
-        message: `[DEMO] Domínio ${domain} registado com sucesso!`,
-        newBalance: balance - finalPrice,
+        message: `[DEMO] Domínio ${domain} registado com sucesso! +${CASHBACK_AMOUNT}€ cashback.`,
+        newBalance: balance - finalPrice + CASHBACK_AMOUNT,
+        cashback: CASHBACK_AMOUNT,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

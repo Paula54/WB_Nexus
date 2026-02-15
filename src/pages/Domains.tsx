@@ -151,8 +151,8 @@ export default function Domains() {
     }
   }
 
-  async function handleDeposit() {
-    const amount = parseFloat(depositAmount);
+  async function handleDeposit(overrideAmount?: number) {
+    const amount = overrideAmount ?? parseFloat(depositAmount);
     if (!amount || amount < 1) {
       toast.error("Valor mínimo: 1€");
       return;
@@ -383,6 +383,25 @@ export default function Domains() {
               <p className="text-4xl font-bold text-foreground mb-4">
                 {loadingWallet ? "—" : `${balance.toFixed(2)} €`}
               </p>
+              {/* Quick recharge buttons */}
+              <div className="flex gap-2 mb-3">
+                <Button
+                  variant="outline"
+                  className="flex-1 font-semibold"
+                  onClick={() => handleDeposit(29)}
+                  disabled={depositLoading}
+                >
+                  +29 €
+                </Button>
+                <Button
+                  variant="outline"
+                  className="flex-1 font-semibold"
+                  onClick={() => handleDeposit(99)}
+                  disabled={depositLoading}
+                >
+                  +99 €
+                </Button>
+              </div>
               <div className="flex gap-2">
                 <Input
                   type="number"

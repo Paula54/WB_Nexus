@@ -558,7 +558,11 @@ export type Database = {
       }
       profiles: {
         Row: {
+          ai_credits_limit: number
+          ai_credits_used: number
           ai_custom_instructions: string | null
+          ai_images_limit: number
+          ai_images_used: number
           avatar_url: string | null
           business_sector: string | null
           company_name: string | null
@@ -571,7 +575,11 @@ export type Database = {
           whatsapp_usage_count: number
         }
         Insert: {
+          ai_credits_limit?: number
+          ai_credits_used?: number
           ai_custom_instructions?: string | null
+          ai_images_limit?: number
+          ai_images_used?: number
           avatar_url?: string | null
           business_sector?: string | null
           company_name?: string | null
@@ -584,7 +592,11 @@ export type Database = {
           whatsapp_usage_count?: number
         }
         Update: {
+          ai_credits_limit?: number
+          ai_credits_used?: number
           ai_custom_instructions?: string | null
+          ai_images_limit?: number
+          ai_images_used?: number
           avatar_url?: string | null
           business_sector?: string | null
           company_name?: string | null
