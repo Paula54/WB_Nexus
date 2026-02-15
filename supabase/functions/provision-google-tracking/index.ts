@@ -219,7 +219,7 @@ Deno.serve(async (req) => {
   try {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
+    if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -227,14 +227,18 @@ Deno.serve(async (req) => {
     }
 
     // Validate user
-    const anonClient = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY")!);
-    const { data: { user } } = await anonClient.auth.getUser(authHeader.replace("Bearer ", ""));
-    if (!user) {
+    const supabaseClient = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY")!, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+    if (userError || !user) {
+      console.error("Auth error:", userError);
       return new Response(JSON.stringify({ error: "Invalid token" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    const userId = user.id;
 
     const { projectId, siteName, websiteUrl } = await req.json();
 
@@ -283,13 +287,13 @@ Deno.serve(async (req) => {
         gtm_container_id: gtmContainerId || null,
       })
       .eq("id", projectId)
-      .eq("user_id", user.id);
+      .eq("user_id", userId);
 
     // Also store the GA4 property ID in connections for data fetching
     const { data: existingConn } = await adminClient
       .from("google_analytics_connections")
       .select("id")
-      .eq("user_id", user.id)
+      .eq("user_id", userId)
       .eq("is_active", true)
       .maybeSingle();
 
