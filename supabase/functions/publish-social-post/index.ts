@@ -53,6 +53,30 @@ serve(async (req) => {
       );
     }
 
+    // Verify image exists if platform requires it (Instagram always needs media)
+    const requiresImage = ["instagram"].includes(post.platform.toLowerCase());
+    
+    if (!post.image_url && requiresImage) {
+      await supabase
+        .from("social_posts")
+        .update({
+          status: "failed",
+          error_log: JSON.stringify({ error: "IMAGE_MISSING", message: "O Instagram requer uma imagem. Adiciona uma imagem antes de publicar." }),
+        })
+        .eq("id", postId);
+
+      return new Response(
+        JSON.stringify({
+          error: "IMAGE_MISSING",
+          message: "O Instagram requer uma imagem. Adiciona uma imagem antes de publicar.",
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Warn if no image (non-blocking for platforms that support text-only)
+    const imageWarning = !post.image_url ? "Post publicado sem imagem." : null;
+
     // Map platform names to Ayrshare format
     const platformMap: Record<string, string> = {
       instagram: "instagram",
@@ -158,6 +182,7 @@ serve(async (req) => {
         success: true, 
         message: successMessage,
         scheduled: isScheduled,
+        image_warning: imageWarning,
         ayrshare_response: ayrshareData 
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
