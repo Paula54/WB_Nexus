@@ -19,6 +19,7 @@ interface GoogleAdsResult {
   customer_id?: string;
   campaigns?: GoogleCampaign[];
   error?: string;
+  message?: string;
 }
 
 interface GoogleAdsAccount {
@@ -79,7 +80,8 @@ export function useGoogleAdsCampaigns() {
           });
         }
       } else {
-        setError(result.error || "Erro desconhecido");
+        const errorMsg = result.message || result.error || "Erro desconhecido";
+        setError(errorMsg);
         if (showToast) {
           toast({
             variant: "destructive",
