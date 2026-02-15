@@ -130,7 +130,7 @@ export default function BusinessProfileTab() {
             </div>
             <div className="space-y-2">
               <Label>Nome Comercial</Label>
-              <Input value={profile.trade_name} onChange={update("trade_name")} placeholder="Ex: Nexus AI" />
+              <Input value={profile.trade_name} onChange={update("trade_name")} placeholder="Ex: Nexus Machine" />
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

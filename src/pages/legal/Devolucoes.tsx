@@ -26,7 +26,7 @@ export default function Devolucoes() {
           <section className="space-y-4">
             <h2 className="text-xl font-semibold">1. Serviços Digitais</h2>
             <p>
-              O <strong>Nexus AI-OS</strong> é um serviço digital de subscrição operado pela{" "}
+              O <strong>Nexus Machine</strong> é um serviço digital de subscrição operado pela{" "}
               <strong>Astrolábio Mágico Investimentos, Lda.</strong> (NIF: 515346969).
               Por natureza, os serviços digitais não são elegíveis para devolução física, mas oferecemos garantias de satisfação.
             </p>

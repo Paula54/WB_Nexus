@@ -26,7 +26,7 @@ export default function Termos() {
           <section className="space-y-4">
             <h2 className="text-xl font-semibold">1. Identificação do Prestador</h2>
             <p>
-              A plataforma <strong>Nexus AI-OS</strong> é operada pela <strong>Web Business</strong> (<a href="https://web-business.pt" target="_blank" rel="noopener noreferrer" className="text-primary underline">web-business.pt</a>),
+              A plataforma <strong>Nexus Machine</strong> é operada pela <strong>Web Business</strong> (<a href="https://web-business.pt" target="_blank" rel="noopener noreferrer" className="text-primary underline">web-business.pt</a>),
               marca ativa desde 2013 no setor digital, pertencente à <strong>Astrolábio Mágico Investimentos, Lda.</strong>
               {" "}(NIF: 515346969), com sede na Estrada da Malveira da Serra, 920, Aldeia de Juso, 2750-834 Cascais, Portugal.
             </p>
@@ -44,7 +44,7 @@ export default function Termos() {
           <section className="space-y-4">
             <h2 className="text-xl font-semibold">2. Objeto do Serviço</h2>
             <p>
-              O Nexus AI-OS é um <strong>Sistema Operativo de Inteligência Artificial (AI-OS)</strong> desenvolvido pela
+              O Nexus Machine é um <strong>Sistema Operativo de Inteligência Artificial (AI-OS)</strong> desenvolvido pela
               Web Business para marketing digital e automação de negócios, desenhado para qualquer setor de atividade.
               O Nexus faz parte do ecossistema tecnológico da Web Business, ativa desde 2013, garantindo conformidade
               com o RGPD. A plataforma oferece as seguintes funcionalidades:
@@ -61,7 +61,7 @@ export default function Termos() {
           <section className="space-y-4">
             <h2 className="text-xl font-semibold">3. Utilização de APIs de Terceiros</h2>
             <p>
-              O Nexus AI-OS integra-se com serviços de terceiros, nomeadamente a <strong>Meta Graph API</strong> e a
+              O Nexus Machine integra-se com serviços de terceiros, nomeadamente a <strong>Meta Graph API</strong> e a
               <strong> Google Ads API</strong>, para fornecer funcionalidades de automação e análise. O utilizador
               autoriza expressamente a plataforma a aceder aos dados das suas contas conectadas,
               exclusivamente para as finalidades descritas nestes termos.
@@ -71,7 +71,7 @@ export default function Termos() {
           <section className="space-y-4">
             <h2 className="text-xl font-semibold">4. Isenção de Responsabilidade</h2>
             <p className="font-medium text-destructive">
-              IMPORTANTE: O Nexus AI-OS é uma ferramenta tecnológica. O utilizador é o único responsável
+              IMPORTANTE: O Nexus Machine é uma ferramenta tecnológica. O utilizador é o único responsável
               pela conformidade legal do conteúdo que publica e dos dados que processa através da plataforma.
             </p>
             <p>
@@ -103,7 +103,7 @@ export default function Termos() {
             <h2 className="text-xl font-semibold">6. Propriedade Intelectual</h2>
             <p>
               Todo o conteúdo gerado através da plataforma pertence ao utilizador. A tecnologia,
-              design, algoritmos e código da plataforma Nexus AI-OS são propriedade exclusiva da
+              design, algoritmos e código da plataforma Nexus Machine são propriedade exclusiva da
               Astrolábio Mágico Investimentos, Lda.
             </p>
           </section>

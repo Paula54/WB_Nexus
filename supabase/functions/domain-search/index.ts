@@ -8,6 +8,7 @@ const TLD_PRICES: Record<string, number> = {
   com: 11.08, net: 12.52, org: 11.08, pt: 15.00, eu: 5.46,
   io: 28.12, co: 9.58, dev: 13.52, app: 14.52, me: 5.08,
   xyz: 1.08, info: 2.58, biz: 2.58, tech: 3.08, site: 1.08,
+  ai: 55.00,
 };
 const DEFAULT_PRICE = 12.00;
 const MARGIN = 15;
@@ -22,10 +23,12 @@ async function checkAvailability(domain: string, apiKey: string, secretKey: stri
     const text = await res.text();
     if (text.startsWith("{") || text.startsWith("[")) {
       const data = JSON.parse(text);
-      return data.status === "SUCCESS" && data.avail === "yes";
+      // Porkbun returns "avail" as "yes" or the domain is in "your_price" field
+      return data.status === "SUCCESS" && (data.avail === "yes" || !!data.your_price);
     }
     return false;
-  } catch {
+  } catch (e) {
+    console.error(`[checkAvailability] ${domain} error:`, e);
     return false;
   }
 }
@@ -53,7 +56,7 @@ Deno.serve(async (req) => {
     const sld = parts[0];
 
     // Check main domain + all suggestions in parallel (all free API calls)
-    const popularTlds = ["com", "pt", "eu", "net", "io", "co"];
+    const popularTlds = ["com", "pt", "ai", "eu", "net", "io"];
     const suggestionTlds = popularTlds.filter((t) => t !== tld);
     const suggestionDomains = suggestionTlds.map((t) => `${sld}.${t}`);
 

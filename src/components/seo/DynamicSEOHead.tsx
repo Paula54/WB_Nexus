@@ -15,7 +15,7 @@ const SECTOR_KEYWORDS: Record<string, string> = {
 export function DynamicSEOHead() {
   const { project, profile } = useProjectData();
 
-  const companyName = profile?.company_name || "Nexus AI";
+  const companyName = profile?.company_name || "Nexus Machine";
   const sector = profile?.business_sector || "";
   const domain = project?.domain || "";
 

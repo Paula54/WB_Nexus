@@ -45,7 +45,7 @@ export default function Login() {
             </div>
             <div>
               <h1 className="font-display font-bold text-2xl text-primary">
-                NEXUS<span className="text-foreground">AI</span>
+                NEXUS<span className="text-foreground">Machine</span>
               </h1>
               <p className="text-xs text-muted-foreground">Motor de Marketing Elite</p>
             </div>
