@@ -2,19 +2,15 @@ name: Supabase Keep-Alive Pulse
 
 on:
   schedule:
-    # Executa às 00:00 de 6 em 6 dias (a pausa ocorre aos 7)
     - cron: '0 0 */6 * *'
-  workflow_dispatch: # Permite-te carregar num botão para testar agora
+  workflow_dispatch:
 
 jobs:
-  ping_db:
+  ping_supabase:
     runs-on: ubuntu-latest
     steps:
-      - name: Instalar cliente PostgreSQL
-        run: sudo apt-get install -y postgresql-client
-
-      - name: Enviar Pulso para a Base de Dados
-        env:
-          DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      - name: Enviar Pulso via API
         run: |
-          psql "$DB_URL" -c "SELECT 1;"
+          curl -X GET "${{ secrets.SUPABASE_URL }}/rest/v1/" \
+          -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
+          -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}"
