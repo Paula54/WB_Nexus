@@ -264,7 +264,8 @@ function parseNaturalDate(dateStr: string): string | null {
 }
 
 // Tool handlers
-async function handleCreateLead(supabase: ReturnType<typeof createClient>, userId: string, args: Record<string, unknown>) {
+// deno-lint-ignore no-explicit-any
+async function handleCreateLead(supabase: any, userId: string, args: Record<string, unknown>) {
   const { name, email, phone, notes } = args as { name: string; email?: string; phone?: string; notes?: string };
   const { error } = await supabase.from("leads").insert({
     name, email: email || null, phone: phone || null, notes: notes || null,
@@ -275,7 +276,8 @@ async function handleCreateLead(supabase: ReturnType<typeof createClient>, userI
     : { success: true, message: `Lead "${name}" criado com sucesso!` };
 }
 
-async function handleAddNoteToLead(supabase: ReturnType<typeof createClient>, userId: string, args: Record<string, unknown>) {
+// deno-lint-ignore no-explicit-any
+async function handleAddNoteToLead(supabase: any, userId: string, args: Record<string, unknown>) {
   const { lead_name, note } = args as { lead_name: string; note: string };
   const { data: leads } = await supabase
     .from("leads").select("id, notes").eq("user_id", userId)
@@ -294,7 +296,8 @@ async function handleAddNoteToLead(supabase: ReturnType<typeof createClient>, us
   return { success: false, message: `Lead "${lead_name}" não encontrado` };
 }
 
-async function handleAddNote(supabase: ReturnType<typeof createClient>, userId: string, args: Record<string, unknown>) {
+// deno-lint-ignore no-explicit-any
+async function handleAddNote(supabase: any, userId: string, args: Record<string, unknown>) {
   const { content } = args as { content: string };
   const { error } = await supabase.from("notes_reminders").insert({
     user_id: userId, type: "note", content,
@@ -304,7 +307,8 @@ async function handleAddNote(supabase: ReturnType<typeof createClient>, userId: 
     : { success: true, message: `Nota guardada: "${content.substring(0, 50)}${content.length > 50 ? '...' : ''}"` };
 }
 
-async function handleSetReminder(supabase: ReturnType<typeof createClient>, userId: string, args: Record<string, unknown>) {
+// deno-lint-ignore no-explicit-any
+async function handleSetReminder(supabase: any, userId: string, args: Record<string, unknown>) {
   const { lead_name, task, due_date } = args as { lead_name?: string; task: string; due_date: string };
   const parsedDate = parseNaturalDate(due_date) || due_date;
 
@@ -335,7 +339,8 @@ async function handleSetReminder(supabase: ReturnType<typeof createClient>, user
     : { success: true, message: `Lembrete criado para ${new Date(parsedDate).toLocaleString("pt-PT")}: "${task}"` };
 }
 
-async function handleSaveSiteProgress(supabase: ReturnType<typeof createClient>, userId: string, args: Record<string, unknown>) {
+// deno-lint-ignore no-explicit-any
+async function handleSaveSiteProgress(supabase: any, userId: string, args: Record<string, unknown>) {
   const { project_name, sections } = args as { project_name: string; sections: string };
   const { data: existingProject } = await supabase
     .from("projects").select("id").eq("user_id", userId)
@@ -366,7 +371,8 @@ async function handleSaveSiteProgress(supabase: ReturnType<typeof createClient>,
     : { success: true, message: `Projeto "${project_name}" criado e guardado!` };
 }
 
-async function handleSchedulePost(supabase: ReturnType<typeof createClient>, userId: string, args: Record<string, unknown>, supabaseUrl: string, serviceRoleKey: string) {
+// deno-lint-ignore no-explicit-any
+async function handleSchedulePost(supabase: any, userId: string, args: Record<string, unknown>, supabaseUrl: string, serviceRoleKey: string) {
   const { post_search, platform, scheduled_date } = args as { post_search?: string; platform?: string; scheduled_date: string };
   const parsedDate = parseNaturalDate(scheduled_date);
 
@@ -418,8 +424,9 @@ async function handleSchedulePost(supabase: ReturnType<typeof createClient>, use
   return { success: false, message: `Erro ao agendar via Ayrshare: ${publishResult.error || "Erro desconhecido"}` };
 }
 
+// deno-lint-ignore no-explicit-any
 async function handleGenerateInstagramDraft(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   userId: string,
   args: Record<string, unknown>,
   apiKey: string
@@ -486,7 +493,7 @@ Retorna um array JSON com os posts. Apenas o JSON, sem markdown.`;
     }
 
     // Save each post as a draft in social_posts
-    const savedPosts = [];
+    const savedPosts: Array<{ id: string; caption: string; platform: string }> = [];
     for (const post of posts) {
       const { data, error } = await supabase.from("social_posts").insert({
         user_id: userId,
