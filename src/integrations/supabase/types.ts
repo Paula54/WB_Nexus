@@ -523,6 +523,53 @@ export type Database = {
         }
         Relationships: []
       }
+      meta_connections: {
+        Row: {
+          ad_account_id: string | null
+          connection_type: string
+          created_at: string
+          id: string
+          instagram_business_id: string | null
+          is_active: boolean
+          project_id: string
+          updated_at: string
+          user_id: string
+          whatsapp_account_id: string | null
+        }
+        Insert: {
+          ad_account_id?: string | null
+          connection_type?: string
+          created_at?: string
+          id?: string
+          instagram_business_id?: string | null
+          is_active?: boolean
+          project_id: string
+          updated_at?: string
+          user_id: string
+          whatsapp_account_id?: string | null
+        }
+        Update: {
+          ad_account_id?: string | null
+          connection_type?: string
+          created_at?: string
+          id?: string
+          instagram_business_id?: string | null
+          is_active?: boolean
+          project_id?: string
+          updated_at?: string
+          user_id?: string
+          whatsapp_account_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meta_connections_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notes_reminders: {
         Row: {
           content: string
