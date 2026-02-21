@@ -63,7 +63,7 @@ Responde APENAS com JSON válido neste formato:
     });
   } catch (error) {
     console.error("Error:", error);
-    return new Response(JSON.stringify({ error: error.message, ads: [] }), {
+    return new Response(JSON.stringify({ error: (error as Error).message, ads: [] }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

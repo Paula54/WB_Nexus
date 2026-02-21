@@ -93,7 +93,7 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error("list-meta-campaigns error:", error);
     return new Response(
-      JSON.stringify({ success: false, error: error.message, campaigns: [] }),
+      JSON.stringify({ success: false, error: (error as Error).message, campaigns: [] }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
