@@ -83,3 +83,6 @@ verify_jwt = false
 
 [functions.provision-google-tracking]
 verify_jwt = false
+
+[functions.connect-meta]
+verify_jwt = false

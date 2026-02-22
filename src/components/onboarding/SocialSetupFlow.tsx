@@ -10,8 +10,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ExternalLink, Copy, Check, ArrowRight, Facebook, Sparkles } from "lucide-react";
+import { ExternalLink, Copy, Check, Facebook, Sparkles, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 interface SocialSetupFlowProps {
   open: boolean;
@@ -28,6 +29,7 @@ export function SocialSetupFlow({ open, onOpenChange, onHasPage }: SocialSetupFl
   const [description, setDescription] = useState("");
   const [generatedBio, setGeneratedBio] = useState("");
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [connecting, setConnecting] = useState(false);
 
   const copyText = (text: string, field: string) => {
     navigator.clipboard.writeText(text);
@@ -55,6 +57,34 @@ export function SocialSetupFlow({ open, onOpenChange, onHasPage }: SocialSetupFl
     onOpenChange(false);
   };
 
+  const connectMeta = async (connectionType: "imported" | "created_by_nexus") => {
+    setConnecting(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error("Sessão inválida");
+
+      const { data, error } = await supabase.functions.invoke("connect-meta", {
+        body: { connection_type: connectionType },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      toast.success("✅ Meta conectado!", {
+        description: `Conta de anúncios ${data.ad_account_id || ""} ligada com sucesso.`,
+      });
+      handleClose();
+      onHasPage();
+    } catch (err: any) {
+      console.error("Connect Meta error:", err);
+      toast.error("Erro ao conectar Meta", {
+        description: err.message || "Tenta novamente.",
+      });
+    } finally {
+      setConnecting(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[520px]">
@@ -73,17 +103,24 @@ export function SocialSetupFlow({ open, onOpenChange, onHasPage }: SocialSetupFl
               <Button
                 variant="outline"
                 className="h-auto p-5 flex flex-col items-start gap-2 border-neon-blue/30 hover:border-neon-blue/60 hover:bg-neon-blue/5"
-                onClick={() => {
-                  handleClose();
-                  onHasPage();
-                }}
+                disabled={connecting}
+                onClick={() => connectMeta("imported")}
               >
-                <span className="text-base font-semibold text-foreground">✅ Já tenho uma Página</span>
-                <span className="text-sm text-muted-foreground text-left">Vou ligar a minha página do Facebook/Instagram existente.</span>
+                {connecting ? (
+                  <span className="flex items-center gap-2 text-base font-semibold text-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" /> A conectar...
+                  </span>
+                ) : (
+                  <>
+                    <span className="text-base font-semibold text-foreground">✅ Já tenho uma Página</span>
+                    <span className="text-sm text-muted-foreground text-left">Vou ligar a minha página do Facebook/Instagram existente.</span>
+                  </>
+                )}
               </Button>
               <Button
                 variant="outline"
                 className="h-auto p-5 flex flex-col items-start gap-2 border-neon-purple/30 hover:border-neon-purple/60 hover:bg-neon-purple/5"
+                disabled={connecting}
                 onClick={() => setStep("create-form")}
               >
                 <span className="text-base font-semibold text-foreground">🆕 Não tenho — Quero criar</span>
@@ -132,7 +169,6 @@ export function SocialSetupFlow({ open, onOpenChange, onHasPage }: SocialSetupFl
               <DialogDescription>Segue estes passos simples e volta aqui quando terminares.</DialogDescription>
             </DialogHeader>
             <div className="space-y-5 mt-4">
-              {/* Generated Bio */}
               {generatedBio && (
                 <div className="p-3 rounded-lg border border-neon-purple/30 bg-neon-purple/5">
                   <div className="flex justify-between items-start mb-1">
@@ -145,7 +181,6 @@ export function SocialSetupFlow({ open, onOpenChange, onHasPage }: SocialSetupFl
                 </div>
               )}
 
-              {/* Steps */}
               {[
                 { num: 1, text: "Abre a página de criação do Facebook", copyVal: businessName, copyLabel: "nome" },
                 { num: 2, text: "Preenche o Nome e a Categoria (cola os dados abaixo)", copyVal: category, copyLabel: "categoria" },
@@ -167,7 +202,6 @@ export function SocialSetupFlow({ open, onOpenChange, onHasPage }: SocialSetupFl
                 </div>
               ))}
 
-              {/* Open Facebook Button */}
               <Button
                 variant="outline"
                 className="w-full gap-2 border-neon-blue/40 text-neon-blue hover:bg-neon-blue/10"
@@ -177,17 +211,23 @@ export function SocialSetupFlow({ open, onOpenChange, onHasPage }: SocialSetupFl
                 Abrir Facebook — Criar Página
               </Button>
 
-              {/* Confirmation Button */}
               <Button
                 className="w-full gap-2 bg-neon-green hover:bg-neon-green/90 text-background font-bold"
                 size="lg"
-                onClick={() => {
-                  handleClose();
-                  onHasPage();
-                }}
+                disabled={connecting}
+                onClick={() => connectMeta("created_by_nexus")}
               >
-                <Check className="h-5 w-5" />
-                Já criei! Vamos ligar agora.
+                {connecting ? (
+                  <>
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    A conectar...
+                  </>
+                ) : (
+                  <>
+                    <Check className="h-5 w-5" />
+                    Já criei! Vamos ligar agora.
+                  </>
+                )}
               </Button>
             </div>
           </>
