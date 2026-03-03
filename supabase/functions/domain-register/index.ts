@@ -6,6 +6,8 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const HOSTINGER_API_BASE = "https://developers.hostinger.com";
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -14,6 +16,11 @@ Deno.serve(async (req) => {
   try {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const HOSTINGER_API_TOKEN = Deno.env.get("HOSTINGER_API_TOKEN");
+
+    if (!HOSTINGER_API_TOKEN) {
+      throw new Error("HOSTINGER_API_TOKEN not configured");
+    }
 
     const authHeader = req.headers.get("authorization");
     if (!authHeader) {
@@ -34,9 +41,9 @@ Deno.serve(async (req) => {
     }
 
     const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-    const { domain, finalPrice, costPrice } = await req.json();
+    const { domain, price } = await req.json();
 
-    if (!domain || !finalPrice || !costPrice) {
+    if (!domain || !price) {
       return new Response(
         JSON.stringify({ error: "Dados em falta" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -51,27 +58,45 @@ Deno.serve(async (req) => {
 
     const balance = (transactions || []).reduce((sum: number, t: { amount: number }) => sum + t.amount, 0);
 
-    if (balance < finalPrice) {
+    if (balance < price) {
       return new Response(
-        JSON.stringify({ error: "Saldo insuficiente na Wallet", balance, required: finalPrice }),
+        JSON.stringify({ error: "Saldo insuficiente na Wallet", balance, required: price }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // ========== MOCK MODE ==========
-    // No real Porkbun registration — simulates success
-    console.log(`[MOCK] Domain registration simulated for: ${domain}`);
+    // Register domain via Hostinger API
+    const registerRes = await fetch(`${HOSTINGER_API_BASE}/api/domains/v1/portfolio`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${HOSTINGER_API_TOKEN}`,
+      },
+      body: JSON.stringify({
+        domain,
+        payment_method_id: null, // Uses default payment method on Hostinger account
+      }),
+    });
+
+    if (!registerRes.ok) {
+      const errorText = await registerRes.text();
+      console.error(`Hostinger register error [${registerRes.status}]:`, errorText);
+      throw new Error(`Erro ao registar domínio na Hostinger: ${registerRes.status}`);
+    }
+
+    const registerData = await registerRes.json();
+    console.log("Hostinger register response:", JSON.stringify(registerData));
 
     // Debit wallet
     await adminClient.from("wallet_transactions").insert({
       user_id: user.id,
-      amount: -finalPrice,
+      amount: -price,
       type: "domain_purchase",
       description: `Registo de domínio: ${domain}`,
       reference_id: domain,
     });
 
-    // Save domain registration (mock) — 1 year expiry
+    // Save domain registration — 1 year expiry
     const expiryDate = new Date();
     expiryDate.setFullYear(expiryDate.getFullYear() + 1);
 
@@ -79,31 +104,19 @@ Deno.serve(async (req) => {
       user_id: user.id,
       domain_name: domain,
       status: "active",
-      purchase_price: finalPrice,
-      cost_price: costPrice,
-      porkbun_id: `mock-${Date.now()}`,
-      nameservers: ["ns1.porkbun.com", "ns2.porkbun.com"],
-      expiry_date: expiryDate.toISOString(),
-    });
-
-    // Cashback: credit 15€ back to user wallet
-    const CASHBACK_AMOUNT = 15.0;
-    await adminClient.from("wallet_transactions").insert({
-      user_id: user.id,
-      amount: CASHBACK_AMOUNT,
-      type: "cashback",
-      description: `Cashback pelo registo de ${domain}`,
-      reference_id: domain,
+      purchase_price: price,
+      cost_price: price,
+      porkbun_id: registerData.id || `hostinger-${Date.now()}`,
+      nameservers: registerData.nameservers || ["ns1.hostinger.com", "ns2.hostinger.com"],
+      expiry_date: registerData.expiry_date || expiryDate.toISOString(),
     });
 
     return new Response(
       JSON.stringify({
         success: true,
         domain,
-        mock: true,
-        message: `[DEMO] Domínio ${domain} registado com sucesso! +${CASHBACK_AMOUNT}€ cashback.`,
-        newBalance: balance - finalPrice + CASHBACK_AMOUNT,
-        cashback: CASHBACK_AMOUNT,
+        message: `Domínio ${domain} registado com sucesso!`,
+        newBalance: balance - price,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

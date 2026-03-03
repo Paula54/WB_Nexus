@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useSearchParams } from "react-router-dom";
 import {
   Globe, Search, Wallet, Plus, ArrowDownLeft,
   CheckCircle2, XCircle, Loader2, ShoppingCart, CreditCard, Sparkles,
@@ -15,16 +16,14 @@ import {
 interface SuggestionItem {
   domain: string;
   tld: string;
-  costPrice: number;
-  finalPrice: number;
-  available?: boolean;
+  price: number;
+  available: boolean;
 }
 
 interface DomainResult {
   domain: string;
   available: boolean;
-  costPrice: number;
-  finalPrice: number;
+  price: number;
   tld: string;
   suggestions: SuggestionItem[];
 }
@@ -48,6 +47,7 @@ interface DomainRegistration {
 
 export default function Domains() {
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState("");
   const [searching, setSearching] = useState(false);
   const [result, setResult] = useState<DomainResult | null>(null);
@@ -63,15 +63,29 @@ export default function Domains() {
     if (user) fetchWalletData();
   }, [user]);
 
+  // Handle ?search= parameter from external site
+  useEffect(() => {
+    const searchParam = searchParams.get("search");
+    if (searchParam && searchParam.trim()) {
+      setSearchQuery(searchParam);
+      // Auto-search after a short delay
+      const timer = setTimeout(() => {
+        performSearch(searchParam);
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
   // Handle Stripe redirect
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("topup") === "success") {
+    if (searchParams.get("topup") === "success") {
       toast.success("Pagamento processado! O saldo será atualizado em breve.");
-      window.history.replaceState({}, "", window.location.pathname);
-    } else if (params.get("topup") === "cancel") {
+      searchParams.delete("topup");
+      setSearchParams(searchParams, { replace: true });
+    } else if (searchParams.get("topup") === "cancel") {
       toast.info("Carregamento cancelado.");
-      window.history.replaceState({}, "", window.location.pathname);
+      searchParams.delete("topup");
+      setSearchParams(searchParams, { replace: true });
     }
   }, []);
 
@@ -89,13 +103,13 @@ export default function Domains() {
     setLoadingWallet(false);
   }
 
-  async function handleSearch() {
-    if (!searchQuery.trim()) return;
+  async function performSearch(query: string) {
+    if (!query.trim()) return;
     setSearching(true);
     setResult(null);
     try {
       const { data, error } = await supabase.functions.invoke("domain-search", {
-        body: { domain: searchQuery.includes(".") ? searchQuery : `${searchQuery}.com` },
+        body: { domain: query.includes(".") ? query : `${query}.com` },
       });
       if (error) throw error;
       setResult(data);
@@ -106,14 +120,18 @@ export default function Domains() {
     }
   }
 
-  async function handleSavePending(domain: string, finalPrice: number) {
+  function handleSearch() {
+    performSearch(searchQuery);
+  }
+
+  async function handleSavePending(domain: string, price: number) {
     if (!user) return;
     try {
       const { error } = await supabase.from("domain_registrations").insert({
         user_id: user.id,
         domain_name: domain,
-        purchase_price: finalPrice,
-        cost_price: 0,
+        purchase_price: price,
+        cost_price: price,
         status: "pending",
       });
       if (error) throw error;
@@ -124,16 +142,15 @@ export default function Domains() {
     }
   }
 
-  async function handlePurchase(domain: string, finalPrice: number, costPrice: number) {
-    if (balance < finalPrice) {
+  async function handlePurchase(domain: string, price: number) {
+    if (balance < price) {
       toast.error("Saldo insuficiente. Carrega a tua Wallet primeiro.");
       return;
     }
     setPurchasing(domain);
-    await new Promise((r) => setTimeout(r, 3000));
     try {
       const { data, error } = await supabase.functions.invoke("domain-register", {
-        body: { domain, finalPrice, costPrice },
+        body: { domain, price },
       });
       if (error) throw error;
       if (data.error) {
@@ -246,12 +263,12 @@ export default function Domains() {
                     {result.available && (
                       <div className="flex items-center gap-4">
                         <div className="text-right">
-                          <p className="text-2xl font-bold text-foreground">{result.finalPrice.toFixed(2)} €</p>
+                          <p className="text-2xl font-bold text-foreground">{result.price.toFixed(2)} €</p>
                           <p className="text-xs text-muted-foreground">/ano</p>
                         </div>
                         <Button
-                          onClick={() => handlePurchase(result.domain, result.finalPrice, result.costPrice)}
-                          disabled={purchasing === result.domain || balance < result.finalPrice}
+                          onClick={() => handlePurchase(result.domain, result.price)}
+                          disabled={purchasing === result.domain || balance < result.price}
                           className="gap-2"
                         >
                           {purchasing === result.domain ? (
@@ -268,7 +285,7 @@ export default function Domains() {
                         </Button>
                         <Button
                           variant="outline"
-                          onClick={() => handleSavePending(result.domain, result.finalPrice)}
+                          onClick={() => handleSavePending(result.domain, result.price)}
                           className="gap-2"
                         >
                           <Plus className="h-4 w-4" />
@@ -280,7 +297,7 @@ export default function Domains() {
                 </CardContent>
               </Card>
 
-              {/* Suggestions with real-time availability */}
+              {/* Suggestions */}
               {result.suggestions.length > 0 && (
                 <Card className="glass">
                   <CardHeader className="pb-3">
@@ -288,30 +305,22 @@ export default function Domains() {
                   </CardHeader>
                   <CardContent className="space-y-2">
                     {result.suggestions.map((s) => (
-                      <div key={s.domain} className={`flex items-center justify-between p-3 rounded-lg transition-colors ${s.available ? "bg-muted/30 hover:bg-muted/50" : "bg-muted/10 opacity-60"}`}>
+                      <div key={s.domain} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
                         <div className="flex items-center gap-2">
-                          {s.available ? (
-                            <CheckCircle2 className="h-4 w-4 text-neon-green" />
-                          ) : (
-                            <XCircle className="h-4 w-4 text-destructive/60" />
-                          )}
+                          <CheckCircle2 className="h-4 w-4 text-neon-green" />
                           <Badge variant="outline" className="text-xs">.{s.tld}</Badge>
                           <span className="text-sm font-medium text-foreground">{s.domain}</span>
                         </div>
                         <div className="flex items-center gap-3">
-                          <span className="text-sm font-semibold">{s.finalPrice.toFixed(2)} €</span>
-                          {s.available ? (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => handlePurchase(s.domain, s.finalPrice, s.costPrice)}
-                              disabled={purchasing === s.domain || balance < s.finalPrice}
-                            >
-                              {purchasing === s.domain ? <Loader2 className="h-3 w-3 animate-spin" /> : "Comprar"}
-                            </Button>
-                          ) : (
-                            <Badge variant="secondary" className="text-xs">Indisponível</Badge>
-                          )}
+                          <span className="text-sm font-semibold">{s.price.toFixed(2)} €</span>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handlePurchase(s.domain, s.price)}
+                            disabled={purchasing === s.domain || balance < s.price}
+                          >
+                            {purchasing === s.domain ? <Loader2 className="h-3 w-3 animate-spin" /> : "Comprar"}
+                          </Button>
                         </div>
                       </div>
                     ))}
@@ -383,36 +392,13 @@ export default function Domains() {
               <p className="text-4xl font-bold text-foreground mb-4">
                 {loadingWallet ? "—" : `${balance.toFixed(2)} €`}
               </p>
-              {/* Quick recharge buttons */}
               <div className="flex gap-2 mb-3">
-                <Button
-                  variant="outline"
-                  className="flex-1 font-semibold"
-                  onClick={() => handleDeposit(29)}
-                  disabled={depositLoading}
-                >
-                  +29 €
-                </Button>
-                <Button
-                  variant="outline"
-                  className="flex-1 font-semibold"
-                  onClick={() => handleDeposit(99)}
-                  disabled={depositLoading}
-                >
-                  +99 €
-                </Button>
+                <Button variant="outline" className="flex-1 font-semibold" onClick={() => handleDeposit(29)} disabled={depositLoading}>+29 €</Button>
+                <Button variant="outline" className="flex-1 font-semibold" onClick={() => handleDeposit(99)} disabled={depositLoading}>+99 €</Button>
               </div>
               <div className="flex gap-2">
-                <Input
-                  type="number"
-                  placeholder="50.00"
-                  value={depositAmount}
-                  onChange={(e) => setDepositAmount(e.target.value)}
-                  className="flex-1"
-                  min="1"
-                  step="0.01"
-                />
-                <Button onClick={handleDeposit} disabled={depositLoading} className="gap-1.5 shrink-0">
+                <Input type="number" placeholder="50.00" value={depositAmount} onChange={(e) => setDepositAmount(e.target.value)} className="flex-1" min="1" step="0.01" />
+                <Button onClick={() => handleDeposit()} disabled={depositLoading} className="gap-1.5 shrink-0">
                   {depositLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                   Carregar
                 </Button>
@@ -433,17 +419,22 @@ export default function Domains() {
               {transactions.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-4">Sem transações</p>
               ) : (
-                <div className="space-y-3 max-h-[400px] overflow-y-auto">
-                  {transactions.map((tx) => (
-                    <div key={tx.id} className="flex items-center gap-3 p-2.5 rounded-lg bg-muted/30">
-                      {typeIcon(tx.type)}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-foreground truncate">{tx.description}</p>
-                        <p className="text-xs text-muted-foreground">{typeLabel(tx.type)} · {new Date(tx.created_at).toLocaleDateString("pt-PT")}</p>
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {transactions.slice(0, 20).map((t) => (
+                    <div key={t.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/20 text-sm">
+                      <div className="flex items-center gap-2">
+                        {typeIcon(t.type)}
+                        <div>
+                          <p className="font-medium text-foreground">{typeLabel(t.type)}</p>
+                          <p className="text-xs text-muted-foreground">{t.description}</p>
+                        </div>
                       </div>
-                      <span className={`text-sm font-semibold ${tx.amount > 0 ? "text-neon-green" : "text-destructive"}`}>
-                        {tx.amount > 0 ? "+" : ""}{tx.amount.toFixed(2)} €
-                      </span>
+                      <div className="text-right">
+                        <p className={`font-semibold ${t.amount >= 0 ? "text-neon-green" : "text-destructive"}`}>
+                          {t.amount >= 0 ? "+" : ""}{t.amount.toFixed(2)} €
+                        </p>
+                        <p className="text-xs text-muted-foreground">{new Date(t.created_at).toLocaleDateString("pt-PT")}</p>
+                      </div>
                     </div>
                   ))}
                 </div>
