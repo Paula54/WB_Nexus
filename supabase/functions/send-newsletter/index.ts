@@ -51,15 +51,15 @@ serve(async (req) => {
         method: "POST",
         headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          from: `${campaign.from_name} <${campaign.from_email}>`,
+          from: "Nexus Machine <newsletter@send.web-business.pt>",
           to: [test_email],
           subject: `[TESTE] ${campaign.subject}`,
           html: campaign.content,
         }),
       });
       const resendData = await resendRes.json();
+      console.log("Resend test response:", JSON.stringify(resendData), "status:", resendRes.status);
       if (!resendRes.ok) {
-        console.error("Resend error:", resendData);
         return new Response(JSON.stringify({ error: "Erro ao enviar teste", details: resendData }), {
           status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -111,7 +111,7 @@ serve(async (req) => {
         method: "POST",
         headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          from: `${campaign.from_name} <${campaign.from_email}>`,
+          from: "Nexus Machine <newsletter@send.web-business.pt>",
           to: emails,
           subject: campaign.subject,
           html: campaign.content,
