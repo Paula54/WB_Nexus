@@ -22,6 +22,7 @@ import Strategy from "@/pages/Strategy";
 import SEO from "@/pages/SEO";
 import NotesReminders from "@/pages/NotesReminders";
 import Ads from "@/pages/Ads";
+import Marketing from "@/pages/Marketing";
 import Subscription from "@/pages/Subscription";
 import Domains from "@/pages/Domains";
 import Performance from "@/pages/Performance";
@@ -77,6 +78,7 @@ function AppRoutes() {
         <Route path="notes" element={<NotesReminders />} />
         <Route path="social-media" element={<SocialMedia />} />
         <Route path="ads" element={<Ads />} />
+        <Route path="marketing" element={<Marketing />} />
         <Route path="seo" element={<SEO />} />
         <Route path="whatsapp" element={<WhatsAppInbox />} />
         <Route path="settings" element={<Settings />} />
