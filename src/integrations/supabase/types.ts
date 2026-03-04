@@ -379,6 +379,51 @@ export type Database = {
         }
         Relationships: []
       }
+      email_campaigns: {
+        Row: {
+          content: string
+          created_at: string
+          from_email: string | null
+          from_name: string | null
+          id: string
+          scheduled_at: string | null
+          sent_at: string | null
+          sent_count: number | null
+          status: string
+          subject: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          from_email?: string | null
+          from_name?: string | null
+          id?: string
+          scheduled_at?: string | null
+          sent_at?: string | null
+          sent_count?: number | null
+          status?: string
+          subject: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          from_email?: string | null
+          from_name?: string | null
+          id?: string
+          scheduled_at?: string | null
+          sent_at?: string | null
+          sent_count?: number | null
+          status?: string
+          subject?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       google_ads_accounts: {
         Row: {
           created_at: string
@@ -615,6 +660,8 @@ export type Database = {
           company_name: string | null
           contact_email: string | null
           created_at: string
+          email_sends_limit: number
+          email_sends_used: number
           full_name: string | null
           id: string
           updated_at: string
@@ -632,6 +679,8 @@ export type Database = {
           company_name?: string | null
           contact_email?: string | null
           created_at?: string
+          email_sends_limit?: number
+          email_sends_used?: number
           full_name?: string | null
           id?: string
           updated_at?: string
@@ -649,6 +698,8 @@ export type Database = {
           company_name?: string | null
           contact_email?: string | null
           created_at?: string
+          email_sends_limit?: number
+          email_sends_used?: number
           full_name?: string | null
           id?: string
           updated_at?: string
@@ -759,6 +810,42 @@ export type Database = {
           user_id?: string
           webhook_response?: Json | null
           webhook_url?: string | null
+        }
+        Relationships: []
+      }
+      subscribers: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          name: string | null
+          source: string | null
+          status: string
+          tags: string[] | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          name?: string | null
+          source?: string | null
+          status?: string
+          tags?: string[] | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          name?: string | null
+          source?: string | null
+          status?: string
+          tags?: string[] | null
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
