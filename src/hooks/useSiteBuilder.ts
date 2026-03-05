@@ -133,23 +133,30 @@ export function useSiteBuilder() {
       debounceRef.current = setTimeout(async () => {
         setSaving(true);
         try {
-          // Delete existing and re-insert (simpler than upsert with ordering)
-          await supabase
+          // Remove sections that were deleted
+          const currentIds = updatedSections.map((s) => s.id);
+          const { error: deleteError } = await supabase
             .from("page_sections")
             .delete()
-            .eq("landing_page_id", landingPage.id);
+            .eq("landing_page_id", landingPage.id)
+            .not("id", "in", `(${currentIds.join(",")})`);
 
-          const inserts = updatedSections.map((s, i) => ({
-            id: s.id,
-            landing_page_id: landingPage.id,
-            user_id: user.id,
-            type: s.type,
-            sort_order: i,
-            content: s.content,
-          }));
+          if (deleteError) throw deleteError;
 
-          if (inserts.length > 0) {
-            const { error } = await supabase.from("page_sections").insert(inserts);
+          // Upsert remaining sections
+          if (updatedSections.length > 0) {
+            const rows = updatedSections.map((s, i) => ({
+              id: s.id,
+              landing_page_id: landingPage.id,
+              user_id: user.id,
+              type: s.type,
+              sort_order: i,
+              content: s.content,
+            }));
+
+            const { error } = await supabase
+              .from("page_sections")
+              .upsert(rows, { onConflict: "id" });
             if (error) throw error;
           }
         } catch (err) {
