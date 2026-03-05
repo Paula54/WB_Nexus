@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { useProjectData } from "@/hooks/useProjectData";
 import { toast } from "sonner";
 import type { WebsiteSection } from "@/types/nexus";
 
@@ -15,7 +14,6 @@ interface LandingPage {
 
 export function useSiteBuilder() {
   const { user } = useAuth();
-  const { project } = useProjectData();
   const [landingPage, setLandingPage] = useState<LandingPage | null>(null);
   const [sections, setSections] = useState<WebsiteSection[]>([]);
   const [loading, setLoading] = useState(true);
@@ -24,30 +22,47 @@ export function useSiteBuilder() {
 
   // Load or create landing page + sections
   useEffect(() => {
-    if (!user || !project) return;
+    if (!user) return;
 
     async function load() {
       setLoading(true);
+
+      // Find the first available project for this user
+      const { data: projectRow, error: projErr } = await supabase
+        .from("projects")
+        .select("id")
+        .eq("user_id", user!.id)
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (projErr || !projectRow) {
+        console.error("No project found for user:", projErr);
+        setLoading(false);
+        return;
+      }
+
+      const projectId = projectRow.id;
 
       // Try to find existing landing page
       const { data: pages } = await supabase
         .from("landing_pages")
         .select("*")
-        .eq("project_id", project!.id)
+        .eq("project_id", projectId)
         .limit(1);
 
       let page = pages?.[0] as LandingPage | undefined;
 
       // Create default if none exists
       if (!page) {
-        const { data: newPage, error } = await supabase
-          .from("landing_pages")
-          .insert({
-            project_id: project!.id,
-            user_id: user!.id,
-            name: "Página Principal",
-            slug: "index",
-          })
+          const { data: newPage, error } = await supabase
+            .from("landing_pages")
+            .insert({
+              project_id: projectId,
+              user_id: user!.id,
+              name: "Página Principal",
+              slug: "index",
+            })
           .select()
           .single();
 
@@ -121,7 +136,7 @@ export function useSiteBuilder() {
     }
 
     load();
-  }, [user, project]);
+  }, [user]);
 
   // Auto-save with debounce
   const persistSections = useCallback(
