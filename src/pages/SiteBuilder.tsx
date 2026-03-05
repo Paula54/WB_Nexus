@@ -16,8 +16,11 @@ import {
   Phone,
   Trash2,
   GripVertical,
-  Sparkles
+  Sparkles,
+  Loader2,
+  Check
 } from "lucide-react";
+import { useSiteBuilder } from "@/hooks/useSiteBuilder";
 import type { WebsiteSection } from "@/types/nexus";
 
 const sectionTypes = [
@@ -29,39 +32,14 @@ const sectionTypes = [
   { type: 'custom_html', label: 'HTML Personalizado', icon: Code },
 ] as const;
 
-const defaultSections: WebsiteSection[] = [
-  {
-    id: '1',
-    type: 'hero',
-    content: {
-      title: 'Bem-vindo ao Seu Negócio',
-      subtitle: 'Transforme a sua presença digital com soluções inovadoras',
-      buttonText: 'Começar Agora',
-      backgroundImage: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?w=1920'
-    }
-  },
-  {
-    id: '2',
-    type: 'features',
-    content: {
-      title: 'As Nossas Funcionalidades',
-      items: [
-        { title: 'Rapidez', desc: 'Sites ultra-rápidos otimizados para performance' },
-        { title: 'Segurança', desc: 'Proteção de dados de última geração' },
-        { title: 'Suporte 24/7', desc: 'Equipa sempre disponível para ajudar' },
-      ]
-    }
-  },
-];
-
 export default function SiteBuilder() {
-  const [sections, setSections] = useState<WebsiteSection[]>(defaultSections);
+  const { sections, updateSections, loading, saving } = useSiteBuilder();
   const [selectedSection, setSelectedSection] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'edit' | 'preview'>('edit');
 
   const addSection = (type: WebsiteSection['type']) => {
     const newSection: WebsiteSection = {
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
       type,
       content: {
         title: `Nova Secção ${type.charAt(0).toUpperCase() + type.slice(1)}`,
@@ -71,22 +49,30 @@ export default function SiteBuilder() {
         html: type === 'custom_html' ? '<div class="p-8 text-center">HTML Personalizado</div>' : undefined,
       }
     };
-    setSections([...sections, newSection]);
+    updateSections([...sections, newSection]);
     setSelectedSection(newSection.id);
   };
 
   const updateSection = (id: string, updates: Partial<WebsiteSection['content']>) => {
-    setSections(sections.map(s => 
+    updateSections(sections.map(s => 
       s.id === id ? { ...s, content: { ...s.content, ...updates } } : s
     ));
   };
 
   const deleteSection = (id: string) => {
-    setSections(sections.filter(s => s.id !== id));
+    updateSections(sections.filter(s => s.id !== id));
     if (selectedSection === id) setSelectedSection(null);
   };
 
   const selectedSectionData = sections.find(s => s.id === selectedSection);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   const renderPreview = () => {
     return (
@@ -207,9 +193,17 @@ export default function SiteBuilder() {
             Construa o seu website arrastando e configurando secções
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button 
-            variant={viewMode === 'edit' ? 'default' : 'outline'}
+        <div className="flex items-center gap-3">
+          {saving ? (
+            <span className="flex items-center gap-1 text-xs text-muted-foreground">
+              <Loader2 className="h-3 w-3 animate-spin" /> A guardar…
+            </span>
+          ) : (
+            <span className="flex items-center gap-1 text-xs text-muted-foreground">
+              <Check className="h-3 w-3" /> Guardado
+            </span>
+          )}
+          <Button
             onClick={() => setViewMode('edit')}
           >
             <Code className="h-4 w-4 mr-2" />
