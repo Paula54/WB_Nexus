@@ -27,7 +27,9 @@ export function useSiteBuilder() {
     async function load() {
       setLoading(true);
 
-      // Find the first available project for this user
+      // Find or auto-create project for this user
+      let projectId: string;
+
       const { data: projectRow, error: projErr } = await supabase
         .from("projects")
         .select("id")
@@ -36,13 +38,35 @@ export function useSiteBuilder() {
         .limit(1)
         .maybeSingle();
 
-      if (projErr || !projectRow) {
-        console.error("No project found for user:", projErr);
+      if (projErr) {
+        console.error("Error fetching project:", projErr);
         setLoading(false);
         return;
       }
 
-      const projectId = projectRow.id;
+      if (projectRow) {
+        projectId = projectRow.id;
+        console.log("[SiteBuilder] Projeto encontrado:", projectId);
+      } else {
+        // Auto-create a default project
+        const { data: newProject, error: createErr } = await supabase
+          .from("projects")
+          .insert({
+            user_id: user!.id,
+            name: "Meu Projeto",
+            project_type: "marketing",
+          })
+          .select("id")
+          .single();
+
+        if (createErr || !newProject) {
+          console.error("Error creating project:", createErr);
+          setLoading(false);
+          return;
+        }
+        projectId = newProject.id;
+        console.log("[SiteBuilder] Projeto criado automaticamente:", projectId);
+      }
 
       // Try to find existing landing page
       const { data: pages } = await supabase
@@ -128,7 +152,12 @@ export function useSiteBuilder() {
           content: s.content,
         }));
 
-        await supabase.from("page_sections").insert(inserts);
+        const { error: insertErr } = await supabase.from("page_sections").insert(inserts);
+        if (insertErr) {
+          console.error("[SiteBuilder] Erro ao gravar secções iniciais:", insertErr);
+        } else {
+          console.log("[SiteBuilder] ✅ Secções iniciais gravadas com sucesso:", inserts.length, "secções");
+        }
         setSections(defaults);
       }
 
