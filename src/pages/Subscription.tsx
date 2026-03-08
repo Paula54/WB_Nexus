@@ -83,7 +83,7 @@ export default function Subscription() {
             ) : (
               <>
                 <CreditCard className="h-5 w-5 mr-2" />
-                Ativar Plano {selectedPlan === "NEXUS_OS" ? "Elite" : selectedPlan} — 14 dias grátis
+                Ativar Plano {selectedPlan === "NEXUS_OS" ? "Nexus OS" : selectedPlan === "GROWTH" ? "Growth" : "Start"} — 14 dias grátis
               </>
             )}
           </Button>
