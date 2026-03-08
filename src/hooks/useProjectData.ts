@@ -40,7 +40,7 @@ export function useProjectData() {
           .maybeSingle(),
         supabase
           .from("profiles")
-          .select("company_name, full_name")
+          .select("company_name, full_name, business_sector")
           .eq("user_id", user!.id)
           .maybeSingle(),
       ]);

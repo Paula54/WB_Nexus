@@ -31,7 +31,7 @@ export function DynamicSEOHead() {
         name="description"
         content={description.length > 160 ? description.slice(0, 157) + "..." : description}
       />
-      
+      {sectorKeywords && <meta name="keywords" content={sectorKeywords} />}
 
       {/* Open Graph / Facebook */}
       <meta property="og:type" content="website" />
