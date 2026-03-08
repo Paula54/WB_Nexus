@@ -65,9 +65,9 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { meta_ads_account_id, meta_access_token } = project;
+    const { meta_ads_account_id } = project;
 
-    if (!meta_ads_account_id || !meta_access_token) {
+    if (!meta_ads_account_id || !project.meta_access_token) {
       return new Response(
         JSON.stringify({
           success: false,
