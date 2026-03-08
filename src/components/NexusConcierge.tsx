@@ -279,20 +279,26 @@ export function NexusConcierge() {
     setIsLoading(true);
 
     try {
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        setMessages(prev => [...prev, { role: "assistant", content: "Sessão expirada. Faz login novamente." }]);
+        setIsLoading(false);
+        return;
+      }
+
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/nexus-concierge`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            Authorization: `Bearer ${accessToken}`,
           },
           body: JSON.stringify({
             messages: updatedMessages.filter(m => m.role !== "tool_result").map(m => ({
               role: m.role === "tool_result" ? "assistant" : m.role,
               content: m.content
             })),
-            user_id: user?.id,
           }),
         }
       );
