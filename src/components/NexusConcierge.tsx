@@ -171,23 +171,30 @@ export function NexusConcierge() {
     }
   };
 
+  const getAccessToken = async (): Promise<string | null> => {
+    const { data: { session } } = await supabase.auth.getSession();
+    return session?.access_token || null;
+  };
+
   const executeTool = async (toolName: string, toolArgs: Record<string, unknown>): Promise<ToolExecutionResult> => {
     if (!user) return { success: false, message: "Utilizador não autenticado" };
 
     try {
+      const accessToken = await getAccessToken();
+      if (!accessToken) return { success: false, message: "Sessão expirada. Faz login novamente." };
+
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/nexus-concierge`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            Authorization: `Bearer ${accessToken}`,
           },
           body: JSON.stringify({
             execute_tool: true,
             tool_name: toolName,
             tool_args: toolArgs,
-            user_id: user.id,
           }),
         }
       );
@@ -272,20 +279,26 @@ export function NexusConcierge() {
     setIsLoading(true);
 
     try {
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        setMessages(prev => [...prev, { role: "assistant", content: "Sessão expirada. Faz login novamente." }]);
+        setIsLoading(false);
+        return;
+      }
+
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/nexus-concierge`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            Authorization: `Bearer ${accessToken}`,
           },
           body: JSON.stringify({
             messages: updatedMessages.filter(m => m.role !== "tool_result").map(m => ({
               role: m.role === "tool_result" ? "assistant" : m.role,
               content: m.content
             })),
-            user_id: user?.id,
           }),
         }
       );
@@ -384,20 +397,20 @@ export function NexusConcierge() {
                 { role: "assistant" as const, content: `Executei ${tc.function.name} com resultado: ${result.message}` }
               ];
 
+              const followUpToken = await getAccessToken();
               const followUpResponse = await fetch(
                 `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/nexus-concierge`,
                 {
                   method: "POST",
                   headers: {
                     "Content-Type": "application/json",
-                    Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+                    Authorization: `Bearer ${followUpToken}`,
                   },
                   body: JSON.stringify({
                     messages: followUpMessages.map(m => ({
                       role: m.role,
                       content: m.content
                     })),
-                    user_id: user?.id,
                   }),
                 }
               );

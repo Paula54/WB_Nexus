@@ -18,6 +18,7 @@ serve(async (req) => {
     const AYRSHARE_API_KEY = Deno.env.get("AYRSHARE_API_KEY");
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY");
 
     if (!AYRSHARE_API_KEY) {
       throw new Error("AYRSHARE_API_KEY is not configured");
@@ -25,6 +26,34 @@ serve(async (req) => {
 
     if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
       throw new Error("Supabase credentials not configured");
+    }
+
+    // Authenticate user via JWT
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    
+    // Allow service role key for internal server-to-server calls
+    let userId: string | null = null;
+    if (token === SUPABASE_SERVICE_ROLE_KEY) {
+      // Internal call (e.g., from nexus-concierge) - userId will be extracted from postId lookup
+      userId = null;
+    } else {
+      const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY!);
+      const { data: claimsData, error: claimsError } = await userClient.auth.getClaims(token);
+      if (claimsError || !claimsData?.claims?.sub) {
+        return new Response(
+          JSON.stringify({ error: "Invalid token" }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      userId = claimsData.claims.sub as string;
     }
 
     const { postId } = await req.json();
@@ -38,12 +67,17 @@ serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Fetch the post from the database
-    const { data: post, error: fetchError } = await supabase
+    // Fetch the post from the database, verifying ownership if user-initiated
+    let query = supabase
       .from("social_posts")
       .select("*")
-      .eq("id", postId)
-      .single();
+      .eq("id", postId);
+    
+    if (userId) {
+      query = query.eq("user_id", userId);
+    }
+
+    const { data: post, error: fetchError } = await query.single();
 
     if (fetchError || !post) {
       console.error("Error fetching post:", fetchError);
