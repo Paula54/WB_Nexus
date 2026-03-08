@@ -19,6 +19,8 @@ import {
 
 export default function MainLayout() {
   const { signOut, user } = useAuth();
+  const { profile } = useProfile();
+  const navigate = useNavigate();
 
   return (
     <SidebarProvider>
