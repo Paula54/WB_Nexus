@@ -26,10 +26,10 @@ export default function Subscription() {
 
   // Pre-select the current plan when loaded
   useEffect(() => {
-    if (subscription?.plan_type) {
-      setSelectedPlan(subscription.plan_type as PlanType);
+    if (subscription?.plan_name) {
+      setSelectedPlan(subscription.plan_name as PlanType);
     }
-  }, [subscription?.plan_type]);
+  }, [subscription?.plan_name]);
 
   useEffect(() => {
     const checkoutStatus = searchParams.get("checkout");
