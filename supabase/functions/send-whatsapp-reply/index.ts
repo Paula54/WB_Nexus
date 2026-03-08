@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -12,6 +13,32 @@ serve(async (req) => {
   }
 
   try {
+    // Authenticate user via JWT
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims) {
+      return new Response(
+        JSON.stringify({ error: "Invalid token" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const userId = claimsData.claims.sub as string;
+
     const { leadId, message, phone } = await req.json();
 
     if (!message || !phone) {
@@ -19,6 +46,23 @@ serve(async (req) => {
         JSON.stringify({ error: "Message and phone are required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // Verify lead belongs to authenticated user
+    if (leadId) {
+      const { data: lead, error: leadError } = await supabase
+        .from("leads")
+        .select("id")
+        .eq("id", leadId)
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (leadError || !lead) {
+        return new Response(
+          JSON.stringify({ error: "Lead not found or access denied" }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
     const WHATSAPP_ACCESS_TOKEN = Deno.env.get("WHATSAPP_ACCESS_TOKEN");
@@ -38,13 +82,6 @@ serve(async (req) => {
     if (!phoneNumberId) {
       console.log("Discovering Phone Number ID from Meta API...");
       
-      // First, get the WABA ID from shared phone numbers
-      const wabaDiscovery = await fetch(
-        `https://graph.facebook.com/v21.0/debug_token?input_token=${WHATSAPP_ACCESS_TOKEN}`,
-        { headers: { "Authorization": `Bearer ${WHATSAPP_ACCESS_TOKEN}` } }
-      );
-      
-      // Try to get WABA directly from business account
       const businessRes = await fetch(
         `https://graph.facebook.com/v21.0/me/businesses`,
         { headers: { "Authorization": `Bearer ${WHATSAPP_ACCESS_TOKEN}` } }
@@ -52,7 +89,6 @@ serve(async (req) => {
       const businessData = await businessRes.json();
       console.log("Business accounts:", JSON.stringify(businessData));
 
-      // Try finding WABA through the business
       if (businessData.data && businessData.data.length > 0) {
         const businessId = businessData.data[0].id;
         const wabaRes = await fetch(
@@ -65,7 +101,6 @@ serve(async (req) => {
         if (wabaData.data && wabaData.data.length > 0) {
           const wabaId = wabaData.data[0].id;
           
-          // Get phone numbers from WABA
           const phonesRes = await fetch(
             `https://graph.facebook.com/v21.0/${wabaId}/phone_numbers`,
             { headers: { "Authorization": `Bearer ${WHATSAPP_ACCESS_TOKEN}` } }
@@ -98,9 +133,8 @@ serve(async (req) => {
       cleanPhone = "351" + cleanPhone;
     }
 
-    console.log(`Sending WhatsApp message to ${cleanPhone} via Meta Cloud API (Phone ID: ${phoneNumberId})`);
+    console.log(`Sending WhatsApp message to ${cleanPhone} via Meta Cloud API (Phone ID: ${phoneNumberId}) by user ${userId}`);
 
-    // Send via Meta WhatsApp Cloud API
     const metaResponse = await fetch(
       `https://graph.facebook.com/v21.0/${phoneNumberId}/messages`,
       {
