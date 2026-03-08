@@ -90,41 +90,22 @@ export function NexusConcierge() {
     setHasLoadedProactive(true);
 
     try {
-      const [hotLeadsRes, draftsRes, projectsRes, profileRes] = await Promise.all([
-        supabase.from("leads").select("name", { count: "exact" }).eq("ai_classification", "hot").limit(5),
-        supabase.from("social_posts").select("id", { count: "exact", head: true }).eq("status", "draft"),
-        supabase.from("projects").select("id", { count: "exact", head: true }),
-        supabase.from("profiles").select("full_name, company_name").eq("user_id", user.id).maybeSingle(),
-      ]);
-
-      const hotLeads = hotLeadsRes.data || [];
-      const hotCount = hotLeadsRes.count ?? 0;
-      const draftCount = draftsRes.count ?? 0;
+      // Query projects (exists on external DB) — other tables may not exist
+      const projectsRes = await supabase.from("projects").select("id", { count: "exact", head: true });
       const projectCount = projectsRes.count ?? 0;
-      const name = profileRes.data?.full_name?.split(" ")[0] || "";
-      const company = profileRes.data?.company_name || "";
 
       let proactiveMessage = "";
-      const greeting = name ? `**${name}**, ` : "";
 
-      if (hotCount > 0) {
-        const leadNames = hotLeads.map(l => l.name).slice(0, 2).join(" e ");
-        proactiveMessage = `${greeting}detetei **${hotCount} cliente${hotCount > 1 ? "s" : ""} quente${hotCount > 1 ? "s" : ""}** (${leadNames}) que ainda não receberam resposta. 🔥\n\nQueres que eu prepare uma proposta para ${hotCount > 1 ? "eles" : "este contacto"}?\n\n[ACTION:Responder Agora:navigate:/whatsapp]\n[ACTION:Agendar Lembrete:set_reminder:default]`;
-      } else if (draftCount > 0 && draftCount > 2) {
-        proactiveMessage = `${greeting}tens **${draftCount} posts** prontos mas não publicados. A consistência nas redes sociais é chave para o crescimento.\n\nQueres que eu publique os mais recentes agora?\n\n[ACTION:Ver Posts:navigate:/social-media]\n[ACTION:Gerar Mais Posts:generate_draft:instagram]`;
-      } else if (projectCount === 0) {
-        proactiveMessage = `${greeting}bem-vindo ao Nexus! 🚀\n\nDiz-me o **setor do teu negócio** (ex: Cafetaria, Imobiliária, Salão de Beleza) e eu crio imediatamente:\n\n- ✅ Um rascunho de Landing Page\n- ✅ 3 posts de Instagram\n- ✅ Estratégia de comunicação\n\nVamos começar?`;
-      } else if (company) {
-        proactiveMessage = `${greeting}tudo pronto na **${company}**. Há alguma ação que queiras executar?\n\n[ACTION:Gerar Post Agora:generate_draft:instagram]\n[ACTION:Registar Cliente:create_lead:default]\n[ACTION:Ver Estratégia:navigate:/strategy]`;
+      if (projectCount === 0) {
+        proactiveMessage = `Bem-vindo ao WB Nexus! 🚀\n\nSou o teu **Success Concierge** — o teu mentor estratégico.\n\nDiz-me o **setor do teu negócio** (ex: Cafetaria, Imobiliária, Salão de Beleza) e eu ajudo-te a começar!\n\nVamos começar?`;
       } else {
-        proactiveMessage = `${greeting}olá! Estou pronto para te ajudar. O que precisas? 🎯\n\n[ACTION:Criar Conteúdo:generate_draft:instagram]\n[ACTION:Registar Cliente:create_lead:default]\n[ACTION:Ver Estratégia:navigate:/strategy]`;
+        proactiveMessage = `Olá! 👋 Sou o teu **Success Concierge**. Estou pronto para te ajudar a crescer o teu negócio.\n\nO que precisas hoje? 🎯\n\n[ACTION:Criar Conteúdo:generate_draft:instagram]\n[ACTION:Registar Cliente:create_lead:default]\n[ACTION:Ver Estratégia:navigate:/strategy]`;
       }
 
-      if (proactiveMessage) {
-        setMessages([{ role: "assistant", content: proactiveMessage }]);
-      }
+      setMessages([{ role: "assistant", content: proactiveMessage }]);
     } catch (error) {
       console.error("Error generating proactive insight:", error);
+      setMessages([{ role: "assistant", content: "Olá! 👋 Sou o teu **Success Concierge**. Como posso ajudar-te hoje?" }]);
     }
   }, [user, hasLoadedProactive]);
 
