@@ -62,6 +62,12 @@ export default function Settings() {
           <SecurityComplianceTab />
         </TabsContent>
       </Tabs>
+
+      {isAdmin && (
+        <div className="mt-6">
+          <TaskAssignment />
+        </div>
+      )}
     </div>
   );
 }
