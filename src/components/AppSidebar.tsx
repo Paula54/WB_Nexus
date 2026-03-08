@@ -109,7 +109,7 @@ export function AppSidebar() {
           )}
         </div>
 
-        {sidebarGroups.map((group) => {
+        {dynamicGroups.map((group) => {
           const hasActive = group.items.some((item) => location.pathname === item.url);
           return (
             <SidebarGroup key={group.label} className="mt-2" defaultOpen={hasActive || group.label === "Operações"}>
