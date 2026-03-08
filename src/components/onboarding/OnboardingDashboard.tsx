@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Facebook, MessageCircle, Megaphone } from "lucide-react";
+import { Share2, MessageCircle, Megaphone } from "lucide-react";
 import { ProgressBar } from "./ProgressBar";
 import { SetupCard } from "./SetupCard";
 import { SocialSetupFlow } from "./SocialSetupFlow";
