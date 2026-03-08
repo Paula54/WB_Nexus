@@ -10,6 +10,7 @@ import { useStripeCheckout } from "@/hooks/useStripeCheckout";
 import { useSubscription } from "@/hooks/useSubscription";
 import { PlanSelector } from "@/components/strategy/PlanSelector";
 import { CurrentPlanCard } from "@/components/subscription/CurrentPlanCard";
+import { InvoiceHistory } from "@/components/subscription/InvoiceHistory";
 import type { PlanType } from "@/types/nexus";
 
 const PLAN_RANK: Record<string, number> = { START: 1, GROWTH: 2, NEXUS_OS: 3 };
@@ -102,6 +103,8 @@ export default function Subscription() {
       )}
 
       <PlanSelector selected={selectedPlan} onSelect={setSelectedPlan} />
+
+      <InvoiceHistory />
 
       <Card className="glass">
         <CardHeader>
