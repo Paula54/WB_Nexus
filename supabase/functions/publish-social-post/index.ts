@@ -38,15 +38,23 @@ serve(async (req) => {
     }
 
     const token = authHeader.replace("Bearer ", "");
-    const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY!);
-    const { data: claimsData, error: claimsError } = await userClient.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims?.sub) {
-      return new Response(
-        JSON.stringify({ error: "Invalid token" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    
+    // Allow service role key for internal server-to-server calls
+    let userId: string | null = null;
+    if (token === SUPABASE_SERVICE_ROLE_KEY) {
+      // Internal call (e.g., from nexus-concierge) - userId will be extracted from postId lookup
+      userId = null;
+    } else {
+      const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY!);
+      const { data: claimsData, error: claimsError } = await userClient.auth.getClaims(token);
+      if (claimsError || !claimsData?.claims?.sub) {
+        return new Response(
+          JSON.stringify({ error: "Invalid token" }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      userId = claimsData.claims.sub as string;
     }
-    const userId = claimsData.claims.sub as string;
 
     const { postId } = await req.json();
 
