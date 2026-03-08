@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { encryptToken } from "../_shared/crypto.ts";
 
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v2/userinfo";
@@ -47,7 +48,6 @@ Deno.serve(async (req) => {
 
     const redirectUri = `${SUPABASE_URL}/functions/v1/google-analytics-callback`;
 
-    // Exchange code for tokens
     const tokenResponse = await fetch(GOOGLE_TOKEN_URL, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -74,7 +74,6 @@ Deno.serve(async (req) => {
       return Response.redirect(`${returnUrl}?google_analytics_error=${encodeURIComponent("Nenhum refresh_token recebido. Revoga o acesso em myaccount.google.com e tenta novamente.")}`, 302);
     }
 
-    // Get email
     let googleEmail = "";
     try {
       const userInfoRes = await fetch(GOOGLE_USERINFO_URL, {
@@ -88,9 +87,12 @@ Deno.serve(async (req) => {
 
     const tokenExpiresAt = new Date(Date.now() + (expires_in || 3600) * 1000).toISOString();
 
+    // Encrypt tokens before storing
+    const encryptedRefreshToken = await encryptToken(refresh_token);
+    const encryptedAccessToken = await encryptToken(access_token);
+
     const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Upsert connection
     const { data: existing } = await adminClient
       .from("google_analytics_connections")
       .select("id")
@@ -99,8 +101,8 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     const connectionData = {
-      google_refresh_token: refresh_token,
-      google_access_token: access_token,
+      google_refresh_token: encryptedRefreshToken,
+      google_access_token: encryptedAccessToken,
       google_email: googleEmail,
       token_expires_at: tokenExpiresAt,
       scopes: ["webmasters.readonly", "analytics.readonly"],

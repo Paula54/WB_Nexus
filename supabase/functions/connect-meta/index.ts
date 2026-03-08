@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { encryptToken } from "../_shared/crypto.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -12,7 +13,6 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Authenticate user
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Missing auth" }), {
@@ -25,7 +25,6 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Verify the user token
     const anonClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!);
     const { data: { user }, error: authError } = await anonClient.auth.getUser(
       authHeader.replace("Bearer ", "")
@@ -40,11 +39,9 @@ Deno.serve(async (req) => {
 
     const { connection_type } = await req.json();
 
-    // Read secrets
     const metaAccessToken = Deno.env.get("META_ACCESS_TOKEN");
     const adAccountId = Deno.env.get("META_AD_ACCOUNT_ID");
     const whatsappBusinessAccountId = Deno.env.get("META_WHATSAPP_BUSINESS_ACCOUNT_ID");
-    const whatsappPhoneNumberId = Deno.env.get("WHATSAPP_PHONE_NUMBER_ID");
 
     if (!metaAccessToken) {
       return new Response(
@@ -53,7 +50,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Get or create user's project
     const { data: project, error: projectError } = await supabase
       .from("projects")
       .select("id")
@@ -76,7 +72,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Upsert meta_connections — deactivate old ones first, then insert new
     await supabase
       .from("meta_connections")
       .update({ is_active: false })
@@ -101,11 +96,13 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Sync meta_access_token and meta_ads_account_id to projects table
+    // Encrypt the Meta access token before storing in projects table
+    const encryptedToken = await encryptToken(metaAccessToken);
+
     const { error: updateError } = await supabase
       .from("projects")
       .update({
-        meta_access_token: metaAccessToken,
+        meta_access_token: encryptedToken,
         meta_ads_account_id: adAccountId || null,
       })
       .eq("id", project.id);

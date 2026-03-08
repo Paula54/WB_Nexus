@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { decryptToken } from "../_shared/crypto.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -64,9 +65,9 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { meta_ads_account_id, meta_access_token } = project;
+    const { meta_ads_account_id } = project;
 
-    if (!meta_ads_account_id || !meta_access_token) {
+    if (!meta_ads_account_id || !project.meta_access_token) {
       return new Response(
         JSON.stringify({
           success: false,
@@ -75,6 +76,9 @@ Deno.serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    // Decrypt the Meta access token
+    const meta_access_token = await decryptToken(project.meta_access_token);
 
     const accountId = meta_ads_account_id.startsWith("act_")
       ? meta_ads_account_id

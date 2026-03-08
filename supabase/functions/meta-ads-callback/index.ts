@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { encryptToken } from "../_shared/crypto.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -21,7 +22,6 @@ Deno.serve(async (req) => {
     const state = url.searchParams.get("state");
     const error = url.searchParams.get("error");
 
-    // Parse state: "user_id|return_origin"
     let userId = "";
     let returnOrigin = "";
     if (state) {
@@ -77,7 +77,9 @@ Deno.serve(async (req) => {
       status: a.account_status,
     }));
 
-    // Step 4: Store token temporarily and redirect with ad accounts info
+    // Encrypt the token before storing
+    const encryptedToken = await encryptToken(longLivedToken);
+
     const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     // If only one ad account, auto-select it
@@ -85,7 +87,7 @@ Deno.serve(async (req) => {
       await adminClient
         .from("projects")
         .update({
-          meta_access_token: longLivedToken,
+          meta_access_token: encryptedToken,
           meta_ads_account_id: adAccounts[0].id,
         })
         .eq("user_id", userId);
@@ -98,8 +100,8 @@ Deno.serve(async (req) => {
     await adminClient
       .from("projects")
       .update({
-        meta_access_token: longLivedToken,
-        meta_ads_account_id: null, // will be set after user picks
+        meta_access_token: encryptedToken,
+        meta_ads_account_id: null,
       })
       .eq("user_id", userId);
 
