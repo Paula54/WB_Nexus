@@ -18,6 +18,7 @@ import {
   CalendarDays,
   Briefcase,
   UserCheck,
+  BookOpen,
 } from "lucide-react";
 import { useUserRole } from "@/hooks/useUserRole";
 import {
