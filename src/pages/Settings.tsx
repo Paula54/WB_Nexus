@@ -53,6 +53,10 @@ export default function Settings() {
         <TabsContent value="media">
           <AssetLibraryTab />
         </TabsContent>
+
+        <TabsContent value="security">
+          <SecurityComplianceTab />
+        </TabsContent>
       </Tabs>
     </div>
   );
