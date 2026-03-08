@@ -53,7 +53,7 @@ export function useTrialStatus(): TrialStatus {
     isExpired,
     noPlan: false,
     daysRemaining,
-    plan: null,
+    plan: project.selected_plan || null,
     loading: false,
   };
 }

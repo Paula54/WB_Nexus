@@ -52,6 +52,7 @@ export function useProjectData() {
           domain: (d.domain as string) || null,
           google_analytics_id: (d.google_analytics_id as string) || null,
           trial_expires_at: (d.trial_expires_at as string) || null,
+          selected_plan: (d.selected_plan as string) || null,
         });
       }
 
