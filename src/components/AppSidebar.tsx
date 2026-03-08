@@ -94,7 +94,7 @@ export function AppSidebar() {
         },
         ...sidebarGroups.filter((g) => g.label === "Conta"),
       ]
-    : sidebarGroups;
+    : sidebarGroups.filter((g) => !(g as any).adminOnly || isAdmin);
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
