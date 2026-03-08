@@ -787,6 +787,53 @@ export type Database = {
           },
         ]
       }
+      performance_scans: {
+        Row: {
+          accessibility_score: number
+          best_practices_score: number
+          created_at: string
+          id: string
+          notes: string | null
+          performance_score: number
+          project_id: string
+          scan_type: string
+          scanned_by: string
+          seo_score: number
+        }
+        Insert: {
+          accessibility_score?: number
+          best_practices_score?: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          performance_score?: number
+          project_id: string
+          scan_type?: string
+          scanned_by: string
+          seo_score?: number
+        }
+        Update: {
+          accessibility_score?: number
+          best_practices_score?: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          performance_score?: number
+          project_id?: string
+          scan_type?: string
+          scanned_by?: string
+          seo_score?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "performance_scans_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           ai_credits_limit: number

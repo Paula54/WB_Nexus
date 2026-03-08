@@ -6,8 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Briefcase, Clock, CheckCircle2, AlertCircle, MessageSquare } from "lucide-react";
+import { Briefcase, Clock, CheckCircle2, AlertCircle, MessageSquare, Gauge } from "lucide-react";
 import { toast } from "sonner";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ProjectPerformanceTab } from "@/components/performance/ProjectPerformanceTab";
 
 interface Task {
   id: string;
@@ -129,6 +131,15 @@ export default function FreelancerDashboard() {
   const inProgress = tasks.filter((t) => t.status === "in_progress");
   const completed = tasks.filter((t) => t.status === "completed");
 
+  // Group tasks by project
+  const projectGroups = tasks.reduce<Record<string, { name: string; tasks: Task[] }>>((acc, task) => {
+    if (!acc[task.project_id]) {
+      acc[task.project_id] = { name: task.project_name || "Projeto", tasks: [] };
+    }
+    acc[task.project_id].tasks.push(task);
+    return acc;
+  }, {});
+
   return (
     <div className="space-y-6">
       <div>
@@ -182,96 +193,110 @@ export default function FreelancerDashboard() {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-4">
-          {tasks.map((task) => {
-            const config = statusConfig[task.status] || statusConfig.pending;
-            const StatusIcon = config.icon;
-            return (
-              <Card key={task.id} className="border-border">
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="space-y-1">
-                      <CardTitle className="text-lg">{task.title}</CardTitle>
-                      <p className="text-sm text-muted-foreground">
-                        Projeto: <span className="font-medium text-foreground">{task.project_name}</span>
-                      </p>
+        <div className="space-y-6">
+          {Object.entries(projectGroups).map(([projectId, group]) => (
+            <Card key={projectId}>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg">{group.name}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Tabs defaultValue="tasks">
+                  <TabsList className="mb-4">
+                    <TabsTrigger value="tasks">
+                      <Briefcase className="w-4 h-4 mr-1" /> Tarefas
+                    </TabsTrigger>
+                    <TabsTrigger value="performance">
+                      <Gauge className="w-4 h-4 mr-1" /> Performance
+                    </TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="tasks">
+                    <div className="space-y-3">
+                      {group.tasks.map((task) => {
+                        const config = statusConfig[task.status] || statusConfig.pending;
+                        const StatusIcon = config.icon;
+                        return (
+                          <div key={task.id} className="border border-border rounded-lg p-4 space-y-3">
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="space-y-1">
+                                <p className="font-medium text-foreground">{task.title}</p>
+                                {task.description && (
+                                  <p className="text-sm text-muted-foreground">{task.description}</p>
+                                )}
+                                {task.due_date && (
+                                  <p className="text-xs text-muted-foreground">
+                                    Prazo: {new Date(task.due_date).toLocaleDateString("pt-PT")}
+                                  </p>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2 shrink-0">
+                                <Badge variant="outline" className={priorityColors[task.priority]}>
+                                  {task.priority === "high" ? "Alta" : task.priority === "medium" ? "Média" : "Baixa"}
+                                </Badge>
+                                <Badge variant="outline" className={config.color}>
+                                  <StatusIcon className="w-3 h-3 mr-1" />
+                                  {config.label}
+                                </Badge>
+                              </div>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              {task.status !== "pending" && (
+                                <Button size="sm" variant="outline" onClick={() => updateStatus(task.id, "pending")}>
+                                  Marcar Pendente
+                                </Button>
+                              )}
+                              {task.status !== "in_progress" && (
+                                <Button size="sm" variant="outline" onClick={() => updateStatus(task.id, "in_progress")}>
+                                  Em Progresso
+                                </Button>
+                              )}
+                              {task.status !== "completed" && (
+                                <Button size="sm" variant="default" onClick={() => updateStatus(task.id, "completed")}>
+                                  <CheckCircle2 className="w-4 h-4 mr-1" /> Concluir
+                                </Button>
+                              )}
+                            </div>
+                            <div className="border-t border-border pt-3">
+                              <div className="flex items-center gap-2 mb-2">
+                                <MessageSquare className="w-4 h-4 text-muted-foreground" />
+                                <span className="text-sm font-medium">Notas do Freelancer</span>
+                              </div>
+                              {editingNotes === task.id ? (
+                                <div className="space-y-2">
+                                  <Textarea
+                                    value={noteText}
+                                    onChange={(e) => setNoteText(e.target.value)}
+                                    placeholder="Descreve o que foi feito, problemas encontrados, etc."
+                                    rows={3}
+                                  />
+                                  <div className="flex gap-2">
+                                    <Button size="sm" onClick={() => saveNotes(task.id)}>Guardar</Button>
+                                    <Button size="sm" variant="ghost" onClick={() => setEditingNotes(null)}>Cancelar</Button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div
+                                  className="cursor-pointer p-3 rounded-lg bg-muted/50 text-sm text-muted-foreground hover:bg-muted transition-colors min-h-[40px]"
+                                  onClick={() => {
+                                    setEditingNotes(task.id);
+                                    setNoteText(task.freelancer_notes || "");
+                                  }}
+                                >
+                                  {task.freelancer_notes || "Clica para adicionar notas..."}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <Badge variant="outline" className={priorityColors[task.priority]}>
-                        {task.priority === "high" ? "Alta" : task.priority === "medium" ? "Média" : "Baixa"}
-                      </Badge>
-                      <Badge variant="outline" className={config.color}>
-                        <StatusIcon className="w-3 h-3 mr-1" />
-                        {config.label}
-                      </Badge>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {task.description && (
-                    <p className="text-sm text-muted-foreground">{task.description}</p>
-                  )}
-
-                  {task.due_date && (
-                    <p className="text-xs text-muted-foreground">
-                      Prazo: {new Date(task.due_date).toLocaleDateString("pt-PT")}
-                    </p>
-                  )}
-
-                  {/* Status Actions */}
-                  <div className="flex flex-wrap gap-2">
-                    {task.status !== "pending" && (
-                      <Button size="sm" variant="outline" onClick={() => updateStatus(task.id, "pending")}>
-                        Marcar Pendente
-                      </Button>
-                    )}
-                    {task.status !== "in_progress" && (
-                      <Button size="sm" variant="outline" onClick={() => updateStatus(task.id, "in_progress")}>
-                        Em Progresso
-                      </Button>
-                    )}
-                    {task.status !== "completed" && (
-                      <Button size="sm" variant="default" onClick={() => updateStatus(task.id, "completed")}>
-                        <CheckCircle2 className="w-4 h-4 mr-1" /> Concluir
-                      </Button>
-                    )}
-                  </div>
-
-                  {/* Freelancer Notes */}
-                  <div className="border-t border-border pt-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <MessageSquare className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-sm font-medium">Notas do Freelancer</span>
-                    </div>
-                    {editingNotes === task.id ? (
-                      <div className="space-y-2">
-                        <Textarea
-                          value={noteText}
-                          onChange={(e) => setNoteText(e.target.value)}
-                          placeholder="Descreve o que foi feito, problemas encontrados, etc."
-                          rows={3}
-                        />
-                        <div className="flex gap-2">
-                          <Button size="sm" onClick={() => saveNotes(task.id)}>Guardar</Button>
-                          <Button size="sm" variant="ghost" onClick={() => setEditingNotes(null)}>Cancelar</Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div
-                        className="cursor-pointer p-3 rounded-lg bg-muted/50 text-sm text-muted-foreground hover:bg-muted transition-colors min-h-[40px]"
-                        onClick={() => {
-                          setEditingNotes(task.id);
-                          setNoteText(task.freelancer_notes || "");
-                        }}
-                      >
-                        {task.freelancer_notes || "Clica para adicionar notas..."}
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
+                  </TabsContent>
+                  <TabsContent value="performance">
+                    <ProjectPerformanceTab projectId={projectId} projectName={group.name} />
+                  </TabsContent>
+                </Tabs>
+              </CardContent>
+            </Card>
+          ))}
         </div>
       )}
     </div>
