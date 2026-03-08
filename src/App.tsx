@@ -26,6 +26,7 @@ import Marketing from "@/pages/Marketing";
 import Subscription from "@/pages/Subscription";
 import Domains from "@/pages/Domains";
 import Performance from "@/pages/Performance";
+import ProfilePage from "@/pages/Profile";
 
 // Legal Pages
 import Privacidade from "@/pages/legal/Privacidade";
