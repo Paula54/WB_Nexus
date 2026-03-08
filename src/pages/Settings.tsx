@@ -19,7 +19,7 @@ export default function Settings() {
       </div>
 
       <Tabs defaultValue="business" className="w-full">
-        <TabsList className="w-full grid grid-cols-3">
+        <TabsList className="w-full grid grid-cols-4">
           <TabsTrigger value="business" className="gap-2">
             <Building2 className="h-4 w-4" />
             <span className="hidden sm:inline">Dados da Empresa</span>
