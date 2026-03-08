@@ -88,6 +88,11 @@ export function OnboardingDashboard() {
         <AdLab locked={campaignLocked} onCampaignLaunched={refetch} />
       </div>
 
+      {/* Quotas */}
+      <div className="animate-fade-in" style={{ animationDelay: "900ms", animationFillMode: "both" }}>
+        <MyUsage />
+      </div>
+
       {/* Dialogs */}
       <SocialSetupFlow
         open={socialFlowOpen}
