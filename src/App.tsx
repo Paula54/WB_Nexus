@@ -28,6 +28,7 @@ import Domains from "@/pages/Domains";
 import Performance from "@/pages/Performance";
 import ProfilePage from "@/pages/Profile";
 import FreelancerDashboard from "@/pages/FreelancerDashboard";
+import Admin from "@/pages/Admin";
 
 // Legal Pages
 import Privacidade from "@/pages/legal/Privacidade";
