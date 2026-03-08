@@ -39,8 +39,8 @@ export function useStripeCheckout() {
           body: JSON.stringify({
             planType,
             projectId,
-            successUrl: `${window.location.origin}/strategy?checkout=success`,
-            cancelUrl: `${window.location.origin}/strategy?checkout=cancel`,
+            successUrl: `https://marketing-ai-core.lovable.app/dashboard?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+            cancelUrl: `https://marketing-ai-core.lovable.app/strategy?checkout=cancel`,
           }),
         }
       );
