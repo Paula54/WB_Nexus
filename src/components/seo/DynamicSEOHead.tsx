@@ -18,9 +18,8 @@ export function DynamicSEOHead() {
   const companyName = profile?.company_name || "Nexus Machine";
   const domain = project?.domain || "";
 
-  const sectorKeywords = SECTOR_KEYWORDS[sector] || "";
-  const title = `${companyName} — ${sector ? sectorKeywords.split(",")[0].trim() : "O Teu Negócio Online"}`;
-  const description = `${companyName}: A melhor experiência em ${sectorKeywords.split(",")[0]?.trim() || "serviços"}. Descobre o que temos para ti e contacta-nos hoje.`;
+  const title = `${companyName} — O Teu Negócio Online`;
+  const description = `${companyName}: Descobre o que temos para ti e contacta-nos hoje.`;
 
   return (
     <Helmet>
