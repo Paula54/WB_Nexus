@@ -397,20 +397,20 @@ export function NexusConcierge() {
                 { role: "assistant" as const, content: `Executei ${tc.function.name} com resultado: ${result.message}` }
               ];
 
+              const followUpToken = await getAccessToken();
               const followUpResponse = await fetch(
                 `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/nexus-concierge`,
                 {
                   method: "POST",
                   headers: {
                     "Content-Type": "application/json",
-                    Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+                    Authorization: `Bearer ${followUpToken}`,
                   },
                   body: JSON.stringify({
                     messages: followUpMessages.map(m => ({
                       role: m.role,
                       content: m.content
                     })),
-                    user_id: user?.id,
                   }),
                 }
               );
