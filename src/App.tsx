@@ -28,6 +28,7 @@ import Domains from "@/pages/Domains";
 import Performance from "@/pages/Performance";
 import ProfilePage from "@/pages/Profile";
 import FreelancerDashboard from "@/pages/FreelancerDashboard";
+import Admin from "@/pages/Admin";
 
 // Legal Pages
 import Privacidade from "@/pages/legal/Privacidade";
@@ -89,6 +90,7 @@ function AppRoutes() {
         <Route path="performance" element={<Performance />} />
         <Route path="profile" element={<ProfilePage />} />
         <Route path="freelancer-dashboard" element={<FreelancerDashboard />} />
+        <Route path="admin" element={<Admin />} />
       </Route>
       {/* Legal Routes (Public) */}
       <Route path="/privacy" element={<Privacidade />} />

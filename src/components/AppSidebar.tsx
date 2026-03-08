@@ -17,6 +17,7 @@ import {
   Users,
   CalendarDays,
   Briefcase,
+  UserCheck,
 } from "lucide-react";
 import { useUserRole } from "@/hooks/useUserRole";
 import {
@@ -67,6 +68,13 @@ const sidebarGroups = [
       { title: "Perfil da Empresa", url: "/settings", icon: Building2 },
     ],
   },
+  {
+    label: "Administração",
+    items: [
+      { title: "Gestão de Tarefas", url: "/admin", icon: UserCheck },
+    ],
+    adminOnly: true,
+  },
 ];
 
 export function AppSidebar() {
@@ -86,7 +94,7 @@ export function AppSidebar() {
         },
         ...sidebarGroups.filter((g) => g.label === "Conta"),
       ]
-    : sidebarGroups;
+    : sidebarGroups.filter((g) => !(g as any).adminOnly || isAdmin);
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
