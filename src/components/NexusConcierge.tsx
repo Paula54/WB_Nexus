@@ -135,7 +135,7 @@ export function NexusConcierge() {
       .from("concierge_conversations")
       .select("messages")
       .eq("user_id", user.id)
-      .order("updated_at", { ascending: false })
+      .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
 

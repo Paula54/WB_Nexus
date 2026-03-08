@@ -66,11 +66,11 @@ export default function Profile() {
 
     const { error } = await supabase
       .from("profiles")
-      .upsert({
-        user_id: user.id,
+      .update({
         full_name: fullName || null,
         company_name: companyName || null,
-      }, { onConflict: "user_id" });
+      })
+      .eq("user_id", user.id);
 
     setSaving(false);
 

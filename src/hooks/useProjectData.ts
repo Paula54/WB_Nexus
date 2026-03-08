@@ -57,7 +57,6 @@ export function useProjectData() {
       if (profileRes.data) {
         setProfile({
           company_name: profileRes.data.company_name,
-          business_sector: profileRes.data.business_sector,
           full_name: profileRes.data.full_name,
         });
       }
