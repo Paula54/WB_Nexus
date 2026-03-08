@@ -103,7 +103,6 @@ export function NexusConcierge() {
       const projectCount = projectsRes.count ?? 0;
       const name = profileRes.data?.full_name?.split(" ")[0] || "";
       const company = profileRes.data?.company_name || "";
-      const sector = profileRes.data?.business_sector || "";
 
       let proactiveMessage = "";
       const greeting = name ? `**${name}**, ` : "";
