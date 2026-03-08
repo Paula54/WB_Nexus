@@ -112,17 +112,22 @@ export function NexusConcierge() {
   const loadConversationHistory = async () => {
     if (!user) return;
 
-    const { data } = await supabase
-      .from("concierge_conversations")
-      .select("messages")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    try {
+      const { data, error } = await supabase
+        .from("concierge_conversations" as string)
+        .select("messages")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-    if (data?.messages && (data.messages as Message[]).length > 0) {
-      setMessages(data.messages as Message[]);
-    } else {
+      if (!error && data?.messages && (data.messages as Message[]).length > 0) {
+        setMessages(data.messages as Message[]);
+      } else {
+        generateProactiveInsight();
+      }
+    } catch {
+      // Table may not exist on external DB — fall back to proactive insight
       generateProactiveInsight();
     }
   };
@@ -130,22 +135,26 @@ export function NexusConcierge() {
   const saveConversationHistory = async (newMessages: Message[]) => {
     if (!user) return;
 
-    const { data: existing } = await supabase
-      .from("concierge_conversations")
-      .select("id")
-      .eq("user_id", user.id)
-      .limit(1)
-      .maybeSingle();
+    try {
+      const { data: existing } = await supabase
+        .from("concierge_conversations" as string)
+        .select("id")
+        .eq("user_id", user.id)
+        .limit(1)
+        .maybeSingle();
 
-    if (existing) {
-      await supabase
-        .from("concierge_conversations")
-        .update({ messages: newMessages, updated_at: new Date().toISOString() })
-        .eq("id", existing.id);
-    } else {
-      await supabase
-        .from("concierge_conversations")
-        .insert({ user_id: user.id, messages: newMessages });
+      if (existing) {
+        await supabase
+          .from("concierge_conversations" as string)
+          .update({ messages: newMessages, updated_at: new Date().toISOString() } as Record<string, unknown>)
+          .eq("id", (existing as Record<string, unknown>).id);
+      } else {
+        await supabase
+          .from("concierge_conversations" as string)
+          .insert({ user_id: user.id, messages: newMessages } as Record<string, unknown>);
+      }
+    } catch {
+      // Silently fail if table doesn't exist
     }
   };
 
