@@ -16,7 +16,9 @@ import {
   ChevronDown,
   Users,
   CalendarDays,
+  Briefcase,
 } from "lucide-react";
+import { useUserRole } from "@/hooks/useUserRole";
 import {
   Sidebar,
   SidebarContent,
