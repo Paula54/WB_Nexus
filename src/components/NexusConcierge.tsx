@@ -114,8 +114,6 @@ export function NexusConcierge() {
         proactiveMessage = `${greeting}tens **${draftCount} posts** prontos mas não publicados. A consistência nas redes sociais é chave para o crescimento.\n\nQueres que eu publique os mais recentes agora?\n\n[ACTION:Ver Posts:navigate:/social-media]\n[ACTION:Gerar Mais Posts:generate_draft:instagram]`;
       } else if (projectCount === 0) {
         proactiveMessage = `${greeting}bem-vindo ao Nexus! 🚀\n\nDiz-me o **setor do teu negócio** (ex: Cafetaria, Imobiliária, Salão de Beleza) e eu crio imediatamente:\n\n- ✅ Um rascunho de Landing Page\n- ✅ 3 posts de Instagram\n- ✅ Estratégia de comunicação\n\nVamos começar?`;
-      } else if (sector && company) {
-        proactiveMessage = `${greeting}tudo pronto na **${company}**. O que queres fazer hoje? 💡\n\n[ACTION:Gerar Post ${sector === "cafetaria" ? "Menu do Dia" : "Novo"}:generate_draft:instagram]\n[ACTION:Ver Clientes:navigate:/crm]\n[ACTION:Analisar Google:navigate:/seo]`;
       } else if (company) {
         proactiveMessage = `${greeting}tudo pronto na **${company}**. Há alguma ação que queiras executar?\n\n[ACTION:Gerar Post Agora:generate_draft:instagram]\n[ACTION:Registar Cliente:create_lead:default]\n[ACTION:Ver Estratégia:navigate:/strategy]`;
       } else {
