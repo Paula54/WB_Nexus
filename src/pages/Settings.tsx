@@ -1,8 +1,9 @@
-import { Building2, FileText, Image, Palette } from "lucide-react";
+import { Building2, FileText, Image, Palette, ShieldCheck } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import BusinessProfileTab from "@/components/settings/BusinessProfileTab";
 import LegalPagesTab from "@/components/settings/LegalPagesTab";
 import AssetLibraryTab from "@/components/settings/AssetLibraryTab";
+import SecurityComplianceTab from "@/components/settings/SecurityComplianceTab";
 
 export default function Settings() {
   return (
@@ -18,7 +19,7 @@ export default function Settings() {
       </div>
 
       <Tabs defaultValue="business" className="w-full">
-        <TabsList className="w-full grid grid-cols-3">
+        <TabsList className="w-full grid grid-cols-4">
           <TabsTrigger value="business" className="gap-2">
             <Building2 className="h-4 w-4" />
             <span className="hidden sm:inline">Dados da Empresa</span>
@@ -34,6 +35,11 @@ export default function Settings() {
             <span className="hidden sm:inline">Biblioteca Multimédia</span>
             <span className="sm:hidden">Média</span>
           </TabsTrigger>
+          <TabsTrigger value="security" className="gap-2">
+            <ShieldCheck className="h-4 w-4" />
+            <span className="hidden sm:inline">Segurança & Conformidade</span>
+            <span className="sm:hidden">Segurança</span>
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="business">
@@ -46,6 +52,10 @@ export default function Settings() {
 
         <TabsContent value="media">
           <AssetLibraryTab />
+        </TabsContent>
+
+        <TabsContent value="security">
+          <SecurityComplianceTab />
         </TabsContent>
       </Tabs>
     </div>
