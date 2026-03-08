@@ -141,8 +141,8 @@ serve(async (req) => {
         user_id: userId,
         plan_type: planType,
       },
-      success_url: successUrl || `${req.headers.get('origin') || 'https://marketing-ai-core.lovable.app'}/strategy?checkout=success`,
-      cancel_url: cancelUrl || `${req.headers.get('origin') || 'https://marketing-ai-core.lovable.app'}/strategy?checkout=cancel`,
+      success_url: successUrl || 'https://marketing-ai-core.lovable.app/dashboard?checkout=success&session_id={CHECKOUT_SESSION_ID}',
+      cancel_url: cancelUrl || 'https://marketing-ai-core.lovable.app/strategy?checkout=cancel',
       allow_promotion_codes: true,
     });
 
