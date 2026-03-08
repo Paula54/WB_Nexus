@@ -4,7 +4,7 @@
  import { Label } from "@/components/ui/label";
  import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
  import { Upload, Link, Loader2, X, Image as ImageIcon } from "lucide-react";
- import { supabase } from "@/integrations/supabase/client";
+ import { supabase } from "@/lib/supabaseCustom";
  import { toast } from "sonner";
  import { cn } from "@/lib/utils";
  
