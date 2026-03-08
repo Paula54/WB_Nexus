@@ -47,7 +47,7 @@ export function CurrentPlanCard({ subscription }: CurrentPlanCardProps) {
         <div className="flex items-center gap-3">
           <div className={cn(
             "h-12 w-12 rounded-xl flex items-center justify-center",
-            subscription.plan_type === "NEXUS_OS" ? "bg-nexus-gold/15" : "bg-primary/15"
+            subscription.plan_name === "NEXUS_OS" ? "bg-nexus-gold/15" : "bg-primary/15"
           )}>
             <span className={plan.color}>{plan.icon}</span>
           </div>
