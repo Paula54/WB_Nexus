@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Sparkles, Loader2, Building2, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabaseCustom";
 import { useProjectData } from "@/hooks/useProjectData";
 import { StrategyResults } from "@/components/strategy/StrategyResults";
 import type { MarketingStrategyInput, MarketingStrategyResult } from "@/types/nexus";
