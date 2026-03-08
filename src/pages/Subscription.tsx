@@ -49,7 +49,7 @@ export default function Subscription() {
     }
   }, [searchParams, setSearchParams, toast]);
 
-  const currentRank = subscription ? (PLAN_RANK[subscription.plan_type] ?? 0) : 0;
+  const currentRank = subscription ? (PLAN_RANK[subscription.plan_name] ?? 0) : 0;
   const selectedRank = PLAN_RANK[selectedPlan] ?? 0;
   const isUpgrade = selectedRank > currentRank;
   const isDowngrade = selectedRank < currentRank;
