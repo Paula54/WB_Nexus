@@ -67,6 +67,13 @@ const sidebarGroups = [
       { title: "Perfil da Empresa", url: "/settings", icon: Building2 },
     ],
   },
+  {
+    label: "Administração",
+    items: [
+      { title: "Gestão de Tarefas", url: "/admin", icon: UserCheck },
+    ],
+    adminOnly: true,
+  },
 ];
 
 export function AppSidebar() {

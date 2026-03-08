@@ -90,6 +90,7 @@ function AppRoutes() {
         <Route path="performance" element={<Performance />} />
         <Route path="profile" element={<ProfilePage />} />
         <Route path="freelancer-dashboard" element={<FreelancerDashboard />} />
+        <Route path="admin" element={<Admin />} />
       </Route>
       {/* Legal Routes (Public) */}
       <Route path="/privacy" element={<Privacidade />} />
