@@ -14,6 +14,7 @@ export interface ProjectData {
 export interface ProfileData {
   company_name: string | null;
   full_name: string | null;
+  business_sector: string | null;
 }
 
 export function useProjectData() {
