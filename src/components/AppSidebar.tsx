@@ -18,6 +18,7 @@ import {
   CalendarDays,
   Briefcase,
   UserCheck,
+  BookOpen,
 } from "lucide-react";
 import { useUserRole } from "@/hooks/useUserRole";
 import {
@@ -49,6 +50,7 @@ const sidebarGroups = [
     items: [
       { title: "Anúncios", url: "/ads", icon: Megaphone },
       { title: "SEO & Google", url: "/seo", icon: Search },
+      { title: "Blog", url: "/blog", icon: BookOpen },
       { title: "Redes Sociais", url: "/social-media", icon: Share2 },
       { title: "Email Marketing", url: "/marketing", icon: Mail },
       { title: "WhatsApp", url: "/whatsapp", icon: MessageCircle },
