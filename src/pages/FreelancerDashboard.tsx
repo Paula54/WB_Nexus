@@ -131,6 +131,15 @@ export default function FreelancerDashboard() {
   const inProgress = tasks.filter((t) => t.status === "in_progress");
   const completed = tasks.filter((t) => t.status === "completed");
 
+  // Group tasks by project
+  const projectGroups = tasks.reduce<Record<string, { name: string; tasks: Task[] }>>((acc, task) => {
+    if (!acc[task.project_id]) {
+      acc[task.project_id] = { name: task.project_name || "Projeto", tasks: [] };
+    }
+    acc[task.project_id].tasks.push(task);
+    return acc;
+  }, {});
+
   return (
     <div className="space-y-6">
       <div>
