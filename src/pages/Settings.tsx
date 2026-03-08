@@ -1,8 +1,9 @@
-import { Building2, FileText, Image, Palette } from "lucide-react";
+import { Building2, FileText, Image, Palette, ShieldCheck } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import BusinessProfileTab from "@/components/settings/BusinessProfileTab";
 import LegalPagesTab from "@/components/settings/LegalPagesTab";
 import AssetLibraryTab from "@/components/settings/AssetLibraryTab";
+import SecurityComplianceTab from "@/components/settings/SecurityComplianceTab";
 
 export default function Settings() {
   return (
