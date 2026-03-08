@@ -14,6 +14,8 @@ import {
   Building2,
   Headphones,
   ChevronDown,
+  Users,
+  CalendarDays,
 } from "lucide-react";
 import {
   Sidebar,
