@@ -695,6 +695,7 @@ export type Database = {
           created_at: string
           id: string
           landing_page_id: string
+          page_id: string | null
           sort_order: number
           type: string
           updated_at: string
@@ -705,6 +706,7 @@ export type Database = {
           created_at?: string
           id?: string
           landing_page_id: string
+          page_id?: string | null
           sort_order?: number
           type: string
           updated_at?: string
@@ -715,6 +717,7 @@ export type Database = {
           created_at?: string
           id?: string
           landing_page_id?: string
+          page_id?: string | null
           sort_order?: number
           type?: string
           updated_at?: string
@@ -726,6 +729,60 @@ export type Database = {
             columns: ["landing_page_id"]
             isOneToOne: false
             referencedRelation: "landing_pages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "page_sections_page_id_fkey"
+            columns: ["page_id"]
+            isOneToOne: false
+            referencedRelation: "pages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pages: {
+        Row: {
+          content: Json
+          created_at: string
+          id: string
+          is_published: boolean
+          project_id: string
+          slug: string
+          sort_order: number
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content?: Json
+          created_at?: string
+          id?: string
+          is_published?: boolean
+          project_id: string
+          slug?: string
+          sort_order?: number
+          title?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: Json
+          created_at?: string
+          id?: string
+          is_published?: boolean
+          project_id?: string
+          slug?: string
+          sort_order?: number
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pages_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
         ]
