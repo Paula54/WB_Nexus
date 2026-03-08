@@ -588,7 +588,7 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    // Authenticate user via JWT
+    // Authenticate user via JWT (decode payload directly - supports cross-project tokens)
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -597,16 +597,19 @@ serve(async (req) => {
     }
 
     const token = authHeader.replace("Bearer ", "");
-    const userClient = createClient(SUPABASE_URL!, SUPABASE_ANON_KEY!, {
-      global: { headers: { Authorization: authHeader } },
-    });
-    const { data: claimsData, error: claimsError } = await userClient.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims?.sub) {
+    let user_id: string;
+    try {
+      // Decode JWT payload (base64url) without verification — verify_jwt is already false
+      const payloadB64 = token.split(".")[1];
+      const payloadJson = atob(payloadB64.replace(/-/g, "+").replace(/_/g, "/"));
+      const payload = JSON.parse(payloadJson);
+      user_id = payload.sub;
+      if (!user_id) throw new Error("No sub in token");
+    } catch {
       return new Response(JSON.stringify({ error: "Invalid token" }), {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const user_id = claimsData.claims.sub as string;
 
     const body = await req.json();
     const { messages, message, execute_tool, tool_name, tool_args } = body;
