@@ -3,7 +3,7 @@ import { MessageCircle, X, Send, Sparkles, Loader2, CheckCircle2, AlertCircle, Z
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabaseCustom";
 import { useAuth } from "@/contexts/AuthContext";
 import ReactMarkdown from "react-markdown";
 import { toast } from "sonner";
