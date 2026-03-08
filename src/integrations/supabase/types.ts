@@ -1079,10 +1079,16 @@ export type Database = {
       }
       subscriptions: {
         Row: {
+          blog_limit: number
+          blog_used: number
+          concierge_limit: number
+          concierge_used: number
           created_at: string
           current_period_end: string | null
           current_period_start: string | null
           id: string
+          perf_scan_limit: number
+          perf_scan_used: number
           plan_type: string
           project_id: string | null
           status: string
@@ -1090,13 +1096,22 @@ export type Database = {
           stripe_subscription_id: string | null
           trial_ends_at: string | null
           updated_at: string
+          usage_reset_at: string
           user_id: string
+          whatsapp_ai_limit: number
+          whatsapp_ai_used: number
         }
         Insert: {
+          blog_limit?: number
+          blog_used?: number
+          concierge_limit?: number
+          concierge_used?: number
           created_at?: string
           current_period_end?: string | null
           current_period_start?: string | null
           id?: string
+          perf_scan_limit?: number
+          perf_scan_used?: number
           plan_type?: string
           project_id?: string | null
           status?: string
@@ -1104,13 +1119,22 @@ export type Database = {
           stripe_subscription_id?: string | null
           trial_ends_at?: string | null
           updated_at?: string
+          usage_reset_at?: string
           user_id: string
+          whatsapp_ai_limit?: number
+          whatsapp_ai_used?: number
         }
         Update: {
+          blog_limit?: number
+          blog_used?: number
+          concierge_limit?: number
+          concierge_used?: number
           created_at?: string
           current_period_end?: string | null
           current_period_start?: string | null
           id?: string
+          perf_scan_limit?: number
+          perf_scan_used?: number
           plan_type?: string
           project_id?: string | null
           status?: string
@@ -1118,7 +1142,10 @@ export type Database = {
           stripe_subscription_id?: string | null
           trial_ends_at?: string | null
           updated_at?: string
+          usage_reset_at?: string
           user_id?: string
+          whatsapp_ai_limit?: number
+          whatsapp_ai_used?: number
         }
         Relationships: [
           {
