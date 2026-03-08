@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { encryptToken } from "../_shared/crypto.ts";
 
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v2/userinfo";
@@ -24,10 +25,8 @@ Deno.serve(async (req) => {
     const state = url.searchParams.get("state");
     const error = url.searchParams.get("error");
 
-    // Parse state: "user_id|return_origin"
     let userId = "";
     let returnOrigin = "";
-
     if (state) {
       const parts = state.split("|");
       userId = parts[0] || "";
@@ -51,7 +50,6 @@ Deno.serve(async (req) => {
 
     const redirectUri = `${SUPABASE_URL}/functions/v1/google-ads-callback`;
 
-    // Exchange authorization code for tokens
     const tokenResponse = await fetch(GOOGLE_TOKEN_URL, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -80,7 +78,6 @@ Deno.serve(async (req) => {
       return Response.redirect(errorUrl, 302);
     }
 
-    // Get Google email for display
     let googleEmail = "";
     try {
       const userInfoRes = await fetch(GOOGLE_USERINFO_URL, {
@@ -92,7 +89,9 @@ Deno.serve(async (req) => {
       console.warn("Could not fetch Google user info:", e);
     }
 
-    // Store in database using service role
+    // Encrypt the refresh token before storing
+    const encryptedRefreshToken = await encryptToken(refresh_token);
+
     const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     const { data: existing } = await adminClient
@@ -106,7 +105,7 @@ Deno.serve(async (req) => {
       await adminClient
         .from("google_ads_accounts")
         .update({
-          google_refresh_token: refresh_token,
+          google_refresh_token: encryptedRefreshToken,
           google_email: googleEmail,
           updated_at: new Date().toISOString(),
         })
@@ -116,7 +115,7 @@ Deno.serve(async (req) => {
         .from("google_ads_accounts")
         .insert({
           user_id: userId,
-          google_refresh_token: refresh_token,
+          google_refresh_token: encryptedRefreshToken,
           google_email: googleEmail,
         });
     }
