@@ -8,6 +8,8 @@ import { TaskAssignment } from "@/components/admin/TaskAssignment";
 import { useUserRole } from "@/hooks/useUserRole";
 
 export default function Settings() {
+  const { isAdmin } = useUserRole();
+
   return (
     <div className="space-y-6">
       <div>
