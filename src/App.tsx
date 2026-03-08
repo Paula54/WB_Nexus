@@ -27,6 +27,7 @@ import Subscription from "@/pages/Subscription";
 import Domains from "@/pages/Domains";
 import Performance from "@/pages/Performance";
 import ProfilePage from "@/pages/Profile";
+import FreelancerDashboard from "@/pages/FreelancerDashboard";
 
 // Legal Pages
 import Privacidade from "@/pages/legal/Privacidade";
