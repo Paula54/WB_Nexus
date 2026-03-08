@@ -12,7 +12,6 @@ export interface ProjectData {
 
 export interface ProfileData {
   company_name: string | null;
-  business_sector: string | null;
   full_name: string | null;
 }
 
