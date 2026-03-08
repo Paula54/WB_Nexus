@@ -298,3 +298,7 @@ export default function FreelancerDashboard() {
             </Card>
           ))}
         </div>
+      )}
+    </div>
+  );
+}
