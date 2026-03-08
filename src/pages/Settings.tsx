@@ -1,11 +1,15 @@
-import { Building2, FileText, Image, Palette, ShieldCheck } from "lucide-react";
+import { Building2, FileText, Image, Palette, ShieldCheck, UserCheck } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import BusinessProfileTab from "@/components/settings/BusinessProfileTab";
 import LegalPagesTab from "@/components/settings/LegalPagesTab";
 import AssetLibraryTab from "@/components/settings/AssetLibraryTab";
 import SecurityComplianceTab from "@/components/settings/SecurityComplianceTab";
+import { TaskAssignment } from "@/components/admin/TaskAssignment";
+import { useUserRole } from "@/hooks/useUserRole";
 
 export default function Settings() {
+  const { isAdmin } = useUserRole();
+
   return (
     <div className="space-y-6">
       <div>
@@ -58,6 +62,12 @@ export default function Settings() {
           <SecurityComplianceTab />
         </TabsContent>
       </Tabs>
+
+      {isAdmin && (
+        <div className="mt-6">
+          <TaskAssignment />
+        </div>
+      )}
     </div>
   );
 }

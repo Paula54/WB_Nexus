@@ -16,7 +16,9 @@ import {
   ChevronDown,
   Users,
   CalendarDays,
+  Briefcase,
 } from "lucide-react";
+import { useUserRole } from "@/hooks/useUserRole";
 import {
   Sidebar,
   SidebarContent,
@@ -71,6 +73,20 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
+  const { isFreelancer, isAdmin } = useUserRole();
+
+  // Build dynamic groups based on role
+  const dynamicGroups = isFreelancer
+    ? [
+        {
+          label: "Freelancer",
+          items: [
+            { title: "Meus Projetos", url: "/freelancer-dashboard", icon: Briefcase },
+          ],
+        },
+        ...sidebarGroups.filter((g) => g.label === "Conta"),
+      ]
+    : sidebarGroups;
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
@@ -93,7 +109,7 @@ export function AppSidebar() {
           )}
         </div>
 
-        {sidebarGroups.map((group) => {
+        {dynamicGroups.map((group) => {
           const hasActive = group.items.some((item) => location.pathname === item.url);
           return (
             <SidebarGroup key={group.label} className="mt-2" defaultOpen={hasActive || group.label === "Operações"}>

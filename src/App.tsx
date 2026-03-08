@@ -27,6 +27,7 @@ import Subscription from "@/pages/Subscription";
 import Domains from "@/pages/Domains";
 import Performance from "@/pages/Performance";
 import ProfilePage from "@/pages/Profile";
+import FreelancerDashboard from "@/pages/FreelancerDashboard";
 
 // Legal Pages
 import Privacidade from "@/pages/legal/Privacidade";
@@ -87,6 +88,7 @@ function AppRoutes() {
         <Route path="domains" element={<Domains />} />
         <Route path="performance" element={<Performance />} />
         <Route path="profile" element={<ProfilePage />} />
+        <Route path="freelancer-dashboard" element={<FreelancerDashboard />} />
       </Route>
       {/* Legal Routes (Public) */}
       <Route path="/privacy" element={<Privacidade />} />
