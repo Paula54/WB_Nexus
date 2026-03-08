@@ -130,6 +130,10 @@ export default function Blog() {
 
   const handleAiGenerate = async () => {
     if (!aiTopic.trim()) return;
+
+    const allowed = await checkAndIncrement("blog");
+    if (!allowed) return;
+
     setAiLoading(true);
     try {
       const { data: session } = await supabase.auth.getSession();
