@@ -68,7 +68,8 @@ Deno.serve(async (req) => {
 
     const { propertyId, startDate, endDate } = await req.json();
 
-    const accessToken = await refreshAccessToken(conn.google_refresh_token);
+    const decryptedRefreshToken = await decryptToken(conn.google_refresh_token);
+    const accessToken = await refreshAccessToken(decryptedRefreshToken);
 
     // Update stored access token
     await adminClient

@@ -77,6 +77,9 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Decrypt the Meta access token
+    const meta_access_token = await decryptToken(project.meta_access_token);
+
     const accountId = meta_ads_account_id.startsWith("act_")
       ? meta_ads_account_id
       : `act_${meta_ads_account_id}`;

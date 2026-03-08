@@ -77,7 +77,7 @@ Deno.serve(async (req) => {
       body: new URLSearchParams({
         client_id: GOOGLE_CLIENT_ID,
         client_secret: GOOGLE_CLIENT_SECRET,
-        refresh_token: account.google_refresh_token,
+        refresh_token: await decryptToken(account.google_refresh_token),
         grant_type: "refresh_token",
       }),
     });

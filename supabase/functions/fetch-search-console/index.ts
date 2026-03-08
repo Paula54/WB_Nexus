@@ -69,7 +69,8 @@ Deno.serve(async (req) => {
     const { siteUrl, startDate, endDate } = await req.json();
 
     // Refresh access token
-    const accessToken = await refreshAccessToken(conn.google_refresh_token);
+    const decryptedRefreshToken = await decryptToken(conn.google_refresh_token);
+    const accessToken = await refreshAccessToken(decryptedRefreshToken);
 
     // Update stored access token
     await adminClient

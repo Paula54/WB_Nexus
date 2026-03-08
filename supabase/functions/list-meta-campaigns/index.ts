@@ -51,10 +51,11 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { meta_ads_account_id, meta_access_token } = project;
+    const { meta_ads_account_id } = project;
+    const decryptedToken = await decryptToken(project.meta_access_token);
 
     // Fetch campaigns from Meta Marketing API
-    const campaignsUrl = `https://graph.facebook.com/v21.0/${meta_ads_account_id}/campaigns?fields=id,name,status,objective,daily_budget,lifetime_budget,start_time,stop_time,insights.date_preset(last_30d){impressions,clicks,spend,ctr,cpc,actions}&access_token=${meta_access_token}`;
+    const campaignsUrl = `https://graph.facebook.com/v21.0/${meta_ads_account_id}/campaigns?fields=id,name,status,objective,daily_budget,lifetime_budget,start_time,stop_time,insights.date_preset(last_30d){impressions,clicks,spend,ctr,cpc,actions}&access_token=${decryptedToken}`;
 
     const campaignsResponse = await fetch(campaignsUrl);
     const campaignsData = await campaignsResponse.json();
