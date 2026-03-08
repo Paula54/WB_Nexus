@@ -1,12 +1,21 @@
-import { Outlet, Link } from "react-router-dom";
+import { Outlet, Link, useNavigate } from "react-router-dom";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { useAuth } from "@/contexts/AuthContext";
-import { LogOut, Menu } from "lucide-react";
+import { useProfile } from "@/hooks/useProfile";
+import { LogOut, Menu, User, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { NexusConcierge } from "@/components/NexusConcierge";
 import { DynamicSEOHead } from "@/components/seo/DynamicSEOHead";
 import { GoogleAnalytics } from "@/components/seo/GoogleAnalytics";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+} from "@/components/ui/dropdown-menu";
 
 export default function MainLayout() {
   const { signOut, user } = useAuth();
