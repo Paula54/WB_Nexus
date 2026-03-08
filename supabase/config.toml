@@ -89,3 +89,6 @@ verify_jwt = false
 
 [functions.encrypt-existing-tokens]
 verify_jwt = false
+
+[functions.sync-stripe-customer]
+verify_jwt = false

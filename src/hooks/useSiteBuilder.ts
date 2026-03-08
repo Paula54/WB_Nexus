@@ -81,7 +81,13 @@ export function useSiteBuilder() {
       let sitePages: SitePage[];
 
       if (existingPages && existingPages.length > 0) {
-        sitePages = existingPages as SitePage[];
+        // Deduplicate pages by slug (keep first occurrence)
+        const seen = new Set<string>();
+        sitePages = (existingPages as SitePage[]).filter((p) => {
+          if (seen.has(p.slug)) return false;
+          seen.add(p.slug);
+          return true;
+        });
       } else {
         // Create default pages
         const inserts = DEFAULT_PAGES.map((p) => ({
