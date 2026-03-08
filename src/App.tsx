@@ -86,6 +86,7 @@ function AppRoutes() {
         <Route path="settings/subscription" element={<Subscription />} />
         <Route path="domains" element={<Domains />} />
         <Route path="performance" element={<Performance />} />
+        <Route path="profile" element={<ProfilePage />} />
       </Route>
       {/* Legal Routes (Public) */}
       <Route path="/privacy" element={<Privacidade />} />
