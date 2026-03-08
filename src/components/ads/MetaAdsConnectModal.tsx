@@ -7,7 +7,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabaseCustom";
 import { toast } from "@/hooks/use-toast";
 import { Facebook, Loader2, CheckCircle2 } from "lucide-react";
 

@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabaseCustom";
 import { toast } from "@/hooks/use-toast";
 import { Megaphone, Play, Pause, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
