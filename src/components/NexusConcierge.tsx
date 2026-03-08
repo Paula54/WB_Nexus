@@ -94,7 +94,7 @@ export function NexusConcierge() {
         supabase.from("leads").select("name", { count: "exact" }).eq("ai_classification", "hot").limit(5),
         supabase.from("social_posts").select("id", { count: "exact", head: true }).eq("status", "draft"),
         supabase.from("projects").select("id", { count: "exact", head: true }),
-        supabase.from("profiles").select("full_name, company_name, business_sector").eq("user_id", user.id).maybeSingle(),
+        supabase.from("profiles").select("full_name, company_name").eq("user_id", user.id).maybeSingle(),
       ]);
 
       const hotLeads = hotLeadsRes.data || [];
@@ -103,7 +103,6 @@ export function NexusConcierge() {
       const projectCount = projectsRes.count ?? 0;
       const name = profileRes.data?.full_name?.split(" ")[0] || "";
       const company = profileRes.data?.company_name || "";
-      const sector = profileRes.data?.business_sector || "";
 
       let proactiveMessage = "";
       const greeting = name ? `**${name}**, ` : "";
@@ -115,8 +114,6 @@ export function NexusConcierge() {
         proactiveMessage = `${greeting}tens **${draftCount} posts** prontos mas não publicados. A consistência nas redes sociais é chave para o crescimento.\n\nQueres que eu publique os mais recentes agora?\n\n[ACTION:Ver Posts:navigate:/social-media]\n[ACTION:Gerar Mais Posts:generate_draft:instagram]`;
       } else if (projectCount === 0) {
         proactiveMessage = `${greeting}bem-vindo ao Nexus! 🚀\n\nDiz-me o **setor do teu negócio** (ex: Cafetaria, Imobiliária, Salão de Beleza) e eu crio imediatamente:\n\n- ✅ Um rascunho de Landing Page\n- ✅ 3 posts de Instagram\n- ✅ Estratégia de comunicação\n\nVamos começar?`;
-      } else if (sector && company) {
-        proactiveMessage = `${greeting}tudo pronto na **${company}**. O que queres fazer hoje? 💡\n\n[ACTION:Gerar Post ${sector === "cafetaria" ? "Menu do Dia" : "Novo"}:generate_draft:instagram]\n[ACTION:Ver Clientes:navigate:/crm]\n[ACTION:Analisar Google:navigate:/seo]`;
       } else if (company) {
         proactiveMessage = `${greeting}tudo pronto na **${company}**. Há alguma ação que queiras executar?\n\n[ACTION:Gerar Post Agora:generate_draft:instagram]\n[ACTION:Registar Cliente:create_lead:default]\n[ACTION:Ver Estratégia:navigate:/strategy]`;
       } else {
@@ -138,7 +135,7 @@ export function NexusConcierge() {
       .from("concierge_conversations")
       .select("messages")
       .eq("user_id", user.id)
-      .order("updated_at", { ascending: false })
+      .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
 

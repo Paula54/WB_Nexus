@@ -28,16 +28,16 @@ export function useTrialStatus(): TrialStatus {
     };
   }
 
-  const { selected_plan, trial_expires_at } = project;
+  const { trial_expires_at } = project;
 
-  // No plan selected yet — no restrictions
-  if (!selected_plan || !trial_expires_at) {
+  // No trial set — no restrictions
+  if (!trial_expires_at) {
     return {
       isActive: false,
       isExpired: false,
       noPlan: true,
       daysRemaining: 0,
-      plan: selected_plan,
+      plan: null,
       loading: false,
     };
   }
@@ -53,7 +53,7 @@ export function useTrialStatus(): TrialStatus {
     isExpired,
     noPlan: false,
     daysRemaining,
-    plan: selected_plan,
+    plan: null,
     loading: false,
   };
 }

@@ -16,12 +16,10 @@ export function DynamicSEOHead() {
   const { project, profile } = useProjectData();
 
   const companyName = profile?.company_name || "Nexus Machine";
-  const sector = profile?.business_sector || "";
   const domain = project?.domain || "";
 
-  const sectorKeywords = SECTOR_KEYWORDS[sector] || "";
-  const title = `${companyName} — ${sector ? sectorKeywords.split(",")[0].trim() : "O Teu Negócio Online"}`;
-  const description = `${companyName}: A melhor experiência em ${sectorKeywords.split(",")[0]?.trim() || "serviços"}. Descobre o que temos para ti e contacta-nos hoje.`;
+  const title = `${companyName} — O Teu Negócio Online`;
+  const description = `${companyName}: Descobre o que temos para ti e contacta-nos hoje.`;
 
   return (
     <Helmet>
@@ -31,7 +29,7 @@ export function DynamicSEOHead() {
         name="description"
         content={description.length > 160 ? description.slice(0, 157) + "..." : description}
       />
-      {sectorKeywords && <meta name="keywords" content={sectorKeywords} />}
+      
 
       {/* Open Graph / Facebook */}
       <meta property="og:type" content="website" />

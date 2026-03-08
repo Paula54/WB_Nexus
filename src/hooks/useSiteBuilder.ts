@@ -43,7 +43,7 @@ export function useSiteBuilder() {
         .from("projects")
         .select("id")
         .eq("user_id", user!.id)
-        .order("updated_at", { ascending: false })
+        .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
 
