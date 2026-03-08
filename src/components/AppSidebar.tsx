@@ -17,6 +17,7 @@ import {
   Users,
   CalendarDays,
   Briefcase,
+  UserCheck,
 } from "lucide-react";
 import { useUserRole } from "@/hooks/useUserRole";
 import {
