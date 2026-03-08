@@ -31,9 +31,9 @@ export function useProjectData() {
       const [projectRes, profileRes] = await Promise.all([
         supabase
           .from("projects")
-          .select("id, name, domain, selected_plan, trial_expires_at, google_analytics_id")
+          .select("id, name, domain, trial_expires_at, google_analytics_id")
           .eq("user_id", user!.id)
-          .order("updated_at", { ascending: false })
+          .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle(),
         supabase
