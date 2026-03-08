@@ -73,6 +73,20 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
+  const { isFreelancer, isAdmin } = useUserRole();
+
+  // Build dynamic groups based on role
+  const dynamicGroups = isFreelancer
+    ? [
+        {
+          label: "Freelancer",
+          items: [
+            { title: "Meus Projetos", url: "/freelancer-dashboard", icon: Briefcase },
+          ],
+        },
+        ...sidebarGroups.filter((g) => g.label === "Conta"),
+      ]
+    : sidebarGroups;
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
