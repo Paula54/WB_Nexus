@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseCustom";
+import { useAuth } from "@/contexts/AuthContext";
 
 export interface StripeInvoice {
   id: string;
@@ -16,42 +17,52 @@ export interface StripeInvoice {
 }
 
 export function useInvoices() {
+  const { user } = useAuth();
   const [invoices, setInvoices] = useState<StripeInvoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchInvoices() {
+      if (!user) {
+        setInvoices([]);
+        setLoading(false);
+        return;
+      }
+
       try {
-        const { data: sessionData } = await supabase.auth.getSession();
-        const accessToken = sessionData?.session?.access_token;
-        if (!accessToken) {
-          setInvoices([]);
-          return;
-        }
+        const { data, error: dbError } = await supabase
+          .from("invoices" as any)
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created", { ascending: false })
+          .limit(24);
 
-        const res = await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/list-invoices`,
-          {
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-              'Content-Type': 'application/json',
-            },
-          }
-        );
+        if (dbError) throw new Error(dbError.message);
 
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Erro ao carregar faturas');
-        setInvoices(data.invoices ?? []);
+        const rows = (data as any[]) ?? [];
+        setInvoices(rows.map((row) => ({
+          id: row.id,
+          number: row.number ?? null,
+          status: row.status ?? null,
+          amount_due: row.amount_due ?? 0,
+          amount_paid: row.amount_paid ?? 0,
+          currency: row.currency ?? "eur",
+          created: row.created ?? 0,
+          period_start: row.period_start ?? 0,
+          period_end: row.period_end ?? 0,
+          hosted_invoice_url: row.hosted_invoice_url ?? null,
+          invoice_pdf: row.invoice_pdf ?? null,
+        })));
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Erro desconhecido');
+        setError(err instanceof Error ? err.message : "Erro desconhecido");
       } finally {
         setLoading(false);
       }
     }
 
     fetchInvoices();
-  }, []);
+  }, [user]);
 
   return { invoices, loading, error };
 }
