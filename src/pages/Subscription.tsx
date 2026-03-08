@@ -26,10 +26,10 @@ export default function Subscription() {
 
   // Pre-select the current plan when loaded
   useEffect(() => {
-    if (subscription?.plan_type) {
-      setSelectedPlan(subscription.plan_type as PlanType);
+    if (subscription?.plan_name) {
+      setSelectedPlan(subscription.plan_name as PlanType);
     }
-  }, [subscription?.plan_type]);
+  }, [subscription?.plan_name]);
 
   useEffect(() => {
     const checkoutStatus = searchParams.get("checkout");
@@ -49,7 +49,7 @@ export default function Subscription() {
     }
   }, [searchParams, setSearchParams, toast]);
 
-  const currentRank = subscription ? (PLAN_RANK[subscription.plan_type] ?? 0) : 0;
+  const currentRank = subscription ? (PLAN_RANK[subscription.plan_name] ?? 0) : 0;
   const selectedRank = PLAN_RANK[selectedPlan] ?? 0;
   const isUpgrade = selectedRank > currentRank;
   const isDowngrade = selectedRank < currentRank;

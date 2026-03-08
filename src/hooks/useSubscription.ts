@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 
 export interface SubscriptionData {
   id: string;
-  plan_type: string;
+  plan_name: string;
   status: string;
   trial_ends_at: string | null;
   current_period_end: string | null;

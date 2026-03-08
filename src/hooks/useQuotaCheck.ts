@@ -15,7 +15,7 @@ interface QuotaData {
   perf_scan_limit: number;
   whatsapp_ai_used: number;
   whatsapp_ai_limit: number;
-  plan_type: string;
+  plan_name: string;
   usage_reset_at: string;
 }
 
@@ -38,7 +38,7 @@ export function useQuotaCheck() {
       const { data, error } = await supabase
         .from("subscriptions")
         .select(
-          "concierge_used, concierge_limit, blog_used, blog_limit, perf_scan_used, perf_scan_limit, whatsapp_ai_used, whatsapp_ai_limit, plan_type, usage_reset_at"
+          "concierge_used, concierge_limit, blog_used, blog_limit, perf_scan_used, perf_scan_limit, whatsapp_ai_used, whatsapp_ai_limit, plan_name, usage_reset_at"
         )
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
