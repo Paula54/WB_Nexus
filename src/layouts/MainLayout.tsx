@@ -1,15 +1,26 @@
-import { Outlet, Link } from "react-router-dom";
+import { Outlet, Link, useNavigate } from "react-router-dom";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { useAuth } from "@/contexts/AuthContext";
-import { LogOut, Menu } from "lucide-react";
+import { useProfile } from "@/hooks/useProfile";
+import { LogOut, Menu, User, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { NexusConcierge } from "@/components/NexusConcierge";
 import { DynamicSEOHead } from "@/components/seo/DynamicSEOHead";
 import { GoogleAnalytics } from "@/components/seo/GoogleAnalytics";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+} from "@/components/ui/dropdown-menu";
 
 export default function MainLayout() {
   const { signOut, user } = useAuth();
+  const { profile } = useProfile();
+  const navigate = useNavigate();
 
   return (
     <SidebarProvider>
@@ -27,19 +38,44 @@ export default function MainLayout() {
                 </h1>
               </div>
             </div>
-            <div className="flex items-center gap-4">
-              <span className="text-sm text-muted-foreground hidden sm:block">
-                {user?.email}
-              </span>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={signOut}
-                className="text-muted-foreground hover:text-destructive"
-              >
-                <LogOut className="h-4 w-4" />
-              </Button>
-            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex items-center gap-2.5 rounded-full px-2 py-1.5 hover:bg-accent transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background">
+                  <div className="h-8 w-8 rounded-full bg-muted border border-border flex items-center justify-center overflow-hidden shrink-0">
+                    {profile?.avatar_url ? (
+                      <img src={profile.avatar_url} alt="Avatar" className="h-full w-full object-cover" />
+                    ) : (
+                      <User className="h-4 w-4 text-muted-foreground" />
+                    )}
+                  </div>
+                  <span className="text-sm font-medium text-foreground hidden sm:block max-w-[140px] truncate">
+                    {profile?.full_name || user?.email?.split("@")[0] || "Perfil"}
+                  </span>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel className="font-normal">
+                  <div className="flex flex-col space-y-1">
+                    <p className="text-sm font-medium">{profile?.full_name || "Sem nome"}</p>
+                    <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => navigate("/profile")} className="cursor-pointer">
+                  <User className="mr-2 h-4 w-4" />
+                  O Meu Perfil
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate("/settings")} className="cursor-pointer">
+                  <Settings className="mr-2 h-4 w-4" />
+                  Configurações
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={signOut} className="cursor-pointer text-destructive focus:text-destructive">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Terminar Sessão
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </header>
           <div className="flex-1 p-6 overflow-auto">
             <Outlet />

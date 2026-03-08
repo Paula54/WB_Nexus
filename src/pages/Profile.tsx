@@ -1,0 +1,215 @@
+import { useEffect, useState, useRef } from "react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { supabase } from "@/lib/supabaseCustom";
+import { useAuth } from "@/contexts/AuthContext";
+import { useProfile } from "@/hooks/useProfile";
+import { toast } from "@/hooks/use-toast";
+import { User, Camera, Save, Loader2, Building2, Mail, Lock } from "lucide-react";
+
+export default function Profile() {
+  const { user } = useAuth();
+  const { profile, loading, refetch } = useProfile();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [fullName, setFullName] = useState("");
+  const [companyName, setCompanyName] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (profile) {
+      setFullName(profile.full_name ?? "");
+      setCompanyName(profile.company_name ?? "");
+      setAvatarUrl(profile.avatar_url);
+    }
+  }, [profile]);
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    setUploading(true);
+    const ext = file.name.split(".").pop();
+    const path = `${user.id}/avatar.${ext}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("assets")
+      .upload(path, file, { upsert: true });
+
+    if (uploadError) {
+      toast({ title: "Erro ao carregar imagem", description: uploadError.message, variant: "destructive" });
+      setUploading(false);
+      return;
+    }
+
+    const { data: urlData } = supabase.storage.from("assets").getPublicUrl(path);
+    const publicUrl = urlData.publicUrl + "?t=" + Date.now();
+
+    await supabase
+      .from("profiles")
+      .update({ avatar_url: publicUrl })
+      .eq("user_id", user.id);
+
+    setAvatarUrl(publicUrl);
+    setUploading(false);
+    refetch();
+    toast({ title: "Avatar atualizado!" });
+  };
+
+  const handleSave = async () => {
+    if (!user) return;
+    setSaving(true);
+
+    const { error } = await supabase
+      .from("profiles")
+      .upsert({
+        user_id: user.id,
+        full_name: fullName || null,
+        company_name: companyName || null,
+      }, { onConflict: "user_id" });
+
+    setSaving(false);
+
+    if (error) {
+      toast({ title: "Erro ao guardar", description: error.message, variant: "destructive" });
+    } else {
+      refetch();
+      toast({ title: "Perfil atualizado com sucesso!" });
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-2xl mx-auto space-y-8">
+      <div>
+        <h1 className="text-3xl font-display font-bold text-foreground flex items-center gap-3">
+          <User className="h-8 w-8 text-primary" />
+          O Meu Perfil
+        </h1>
+        <p className="text-muted-foreground mt-1">
+          Gere a tua informação pessoal e preferências
+        </p>
+      </div>
+
+      {/* Avatar Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Fotografia de Perfil</CardTitle>
+          <CardDescription>Clica na imagem para alterar o teu avatar</CardDescription>
+        </CardHeader>
+        <CardContent className="flex items-center gap-6">
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="relative group rounded-full focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background"
+            disabled={uploading}
+          >
+            <div className="h-24 w-24 rounded-full bg-muted flex items-center justify-center overflow-hidden border-2 border-border group-hover:border-primary transition-colors">
+              {avatarUrl ? (
+                <img src={avatarUrl} alt="Avatar" className="h-full w-full object-cover" />
+              ) : (
+                <User className="h-10 w-10 text-muted-foreground" />
+              )}
+            </div>
+            <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+              {uploading ? (
+                <Loader2 className="h-6 w-6 text-white animate-spin" />
+              ) : (
+                <Camera className="h-6 w-6 text-white" />
+              )}
+            </div>
+          </button>
+          <div className="space-y-1">
+            <p className="text-sm font-medium text-foreground">
+              {fullName || "Sem nome definido"}
+            </p>
+            <p className="text-xs text-muted-foreground">{user?.email}</p>
+            <p className="text-xs text-muted-foreground">
+              Formatos suportados: JPG, PNG. Máx 5MB.
+            </p>
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            onChange={handleAvatarUpload}
+            className="hidden"
+          />
+        </CardContent>
+      </Card>
+
+      {/* Personal Info */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Informações Pessoais</CardTitle>
+          <CardDescription>Estes dados são usados no dashboard e nos relatórios</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div className="space-y-2">
+            <Label htmlFor="fullName" className="flex items-center gap-2">
+              <User className="h-4 w-4 text-muted-foreground" />
+              Nome Completo
+            </Label>
+            <Input
+              id="fullName"
+              placeholder="O teu nome completo"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="companyName" className="flex items-center gap-2">
+              <Building2 className="h-4 w-4 text-muted-foreground" />
+              Nome da Empresa
+            </Label>
+            <Input
+              id="companyName"
+              placeholder="Nome que aparece nos relatórios"
+              value={companyName}
+              onChange={(e) => setCompanyName(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="email" className="flex items-center gap-2">
+              <Mail className="h-4 w-4 text-muted-foreground" />
+              Email
+              <Lock className="h-3 w-3 text-muted-foreground" />
+            </Label>
+            <Input
+              id="email"
+              value={user?.email ?? ""}
+              disabled
+              className="bg-muted/50 cursor-not-allowed"
+            />
+            <p className="text-xs text-muted-foreground">
+              O email não pode ser alterado por segurança.
+            </p>
+          </div>
+
+          <div className="pt-2">
+            <Button onClick={handleSave} disabled={saving} className="w-full sm:w-auto">
+              {saving ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <Save className="h-4 w-4 mr-2" />
+              )}
+              Guardar Alterações
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
