@@ -7,7 +7,6 @@ export interface ProjectData {
   name: string;
   domain: string | null;
   google_analytics_id: string | null;
-  selected_plan: string | null;
   trial_expires_at: string | null;
 }
 
