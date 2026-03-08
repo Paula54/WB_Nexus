@@ -90,7 +90,6 @@ export default function Strategy() {
           await supabase
             .from("projects")
             .update({
-              selected_plan: formData.plan,
               trial_expires_at: trialExpires.toISOString(),
             } as Record<string, unknown>)
             .eq("id", existingProject.id);
@@ -100,7 +99,6 @@ export default function Strategy() {
             .insert({
               user_id: user.id,
               name: formData.clientName,
-              selected_plan: formData.plan,
               trial_expires_at: trialExpires.toISOString(),
             } as Record<string, unknown>);
         }
