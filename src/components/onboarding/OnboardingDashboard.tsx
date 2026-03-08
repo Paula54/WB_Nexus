@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Facebook, MessageCircle, Megaphone } from "lucide-react";
+import { Share2, MessageCircle, Megaphone } from "lucide-react";
 import { ProgressBar } from "./ProgressBar";
 import { SetupCard } from "./SetupCard";
 import { SocialSetupFlow } from "./SocialSetupFlow";
@@ -51,7 +51,7 @@ export function OnboardingDashboard() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="animate-fade-in" style={{ animationDelay: "300ms", animationFillMode: "both" }}>
           <SetupCard
-            icon={<Facebook className="h-8 w-8 text-neon-blue" />}
+            icon={<Share2 className="h-8 w-8 text-neon-blue" />}
             title="Ligar Redes Sociais"
             description="Conecta o Facebook e Instagram para publicar automaticamente."
             connected={socialConnected}
