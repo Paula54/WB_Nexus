@@ -23,7 +23,7 @@ interface CurrentPlanCardProps {
 }
 
 export function CurrentPlanCard({ subscription }: CurrentPlanCardProps) {
-  const plan = PLAN_META[subscription.plan_type] ?? PLAN_META.START;
+  const plan = PLAN_META[subscription.plan_name] ?? PLAN_META.START;
   const status = STATUS_MAP[subscription.status] ?? STATUS_MAP.active;
 
   const trialEnd = subscription.trial_ends_at ? new Date(subscription.trial_ends_at) : null;
