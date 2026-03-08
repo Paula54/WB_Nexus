@@ -17,8 +17,6 @@ export function DynamicSEOHead() {
 
   const companyName = profile?.company_name || "Nexus Machine";
   const domain = project?.domain || "";
-  const sector = profile?.business_sector || "";
-  const sectorKeywords = sector ? SECTOR_KEYWORDS[sector] || "" : "";
 
   const title = `${companyName} — O Teu Negócio Online`;
   const description = `${companyName}: Descobre o que temos para ti e contacta-nos hoje.`;
@@ -31,7 +29,7 @@ export function DynamicSEOHead() {
         name="description"
         content={description.length > 160 ? description.slice(0, 157) + "..." : description}
       />
-      {sectorKeywords && <meta name="keywords" content={sectorKeywords} />}
+      
 
       {/* Open Graph / Facebook */}
       <meta property="og:type" content="website" />

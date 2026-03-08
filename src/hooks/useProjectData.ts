@@ -7,14 +7,11 @@ export interface ProjectData {
   name: string;
   domain: string | null;
   google_analytics_id: string | null;
-  trial_expires_at: string | null;
-  selected_plan: string | null;
 }
 
 export interface ProfileData {
   company_name: string | null;
   full_name: string | null;
-  business_sector: string | null;
 }
 
 export function useProjectData() {
@@ -33,14 +30,14 @@ export function useProjectData() {
       const [projectRes, profileRes] = await Promise.all([
         supabase
           .from("projects")
-          .select("id, name, domain, trial_expires_at, google_analytics_id, selected_plan")
+          .select("id, name, domain, google_analytics_id")
           .eq("user_id", user!.id)
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle(),
         supabase
           .from("profiles")
-          .select("company_name, full_name, business_sector")
+          .select("company_name, full_name")
           .eq("user_id", user!.id)
           .maybeSingle(),
       ]);
@@ -52,8 +49,6 @@ export function useProjectData() {
           name: d.name as string,
           domain: (d.domain as string) || null,
           google_analytics_id: (d.google_analytics_id as string) || null,
-          trial_expires_at: (d.trial_expires_at as string) || null,
-          selected_plan: (d.selected_plan as string) || null,
         });
       }
 
@@ -61,7 +56,6 @@ export function useProjectData() {
         setProfile({
           company_name: profileRes.data.company_name,
           full_name: profileRes.data.full_name,
-          business_sector: profileRes.data.business_sector,
         });
       }
 
