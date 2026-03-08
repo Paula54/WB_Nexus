@@ -15,7 +15,7 @@ interface QuotaData {
   perf_scan_limit: number;
   whatsapp_ai_used: number;
   whatsapp_ai_limit: number;
-  plan_type: string;
+  plan_name: string;
   usage_reset_at: string;
 }
 
