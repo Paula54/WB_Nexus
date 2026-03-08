@@ -10,6 +10,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
 import { PlanUsage } from "@/components/dashboard/PlanUsage";
+import { MyUsage } from "@/components/dashboard/MyUsage";
 
 interface Insight {
   id: string;
@@ -209,7 +210,10 @@ export function RegularDashboard() {
         </div>
       </div>
 
-      <PlanUsage />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <PlanUsage />
+        <MyUsage />
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="glass">
