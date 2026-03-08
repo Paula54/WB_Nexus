@@ -35,6 +35,11 @@ export default function Settings() {
             <span className="hidden sm:inline">Biblioteca Multimédia</span>
             <span className="sm:hidden">Média</span>
           </TabsTrigger>
+          <TabsTrigger value="security" className="gap-2">
+            <ShieldCheck className="h-4 w-4" />
+            <span className="hidden sm:inline">Segurança & Conformidade</span>
+            <span className="sm:hidden">Segurança</span>
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="business">
