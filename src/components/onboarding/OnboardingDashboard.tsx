@@ -4,6 +4,7 @@ import { ProgressBar } from "./ProgressBar";
 import { SetupCard } from "./SetupCard";
 import { SocialSetupFlow } from "./SocialSetupFlow";
 import { AdLab } from "./AdLab";
+import { MyUsage } from "@/components/dashboard/MyUsage";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import MetaAdsConnectModal from "@/components/ads/MetaAdsConnectModal";
 import { useProjectData } from "@/hooks/useProjectData";
