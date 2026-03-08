@@ -655,27 +655,66 @@ serve(async (req) => {
       });
     }
 
-    // Enrich system prompt with user's sector context
+    // Enrich system prompt with user's business context
     let enrichedPrompt = SYSTEM_PROMPT;
     if (user_id) {
       try {
         const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
-        const { data: profile } = await supabase
-          .from("profiles").select("business_sector, company_name")
-          .eq("user_id", user_id).maybeSingle();
+        const [profileRes, projectRes, subscriptionRes, leadsRes] = await Promise.all([
+          supabase.from("profiles").select("business_sector, company_name, ai_custom_instructions, ai_credits_used, ai_credits_limit").eq("user_id", user_id).maybeSingle(),
+          supabase.from("projects").select("name, domain, selected_plan, trial_expires_at").eq("user_id", user_id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+          supabase.from("subscriptions").select("plan_type, status, trial_ends_at").eq("user_id", user_id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+          supabase.from("leads").select("id").eq("user_id", user_id),
+        ]);
+
+        const profile = profileRes.data;
+        const project = projectRes.data;
+        const subscription = subscriptionRes.data;
+        const leadsCount = leadsRes.data?.length || 0;
+
+        // Determine current plan
+        const planType = subscription?.plan_type || project?.selected_plan || "Lite";
+        const isLitePlan = planType?.toLowerCase().includes("lite") || planType?.toLowerCase().includes("start");
+
+        enrichedPrompt += `\n\nCONTEXTO DO UTILIZADOR:
+- Empresa: ${profile?.company_name || "Não definido"}
+- Setor: ${profile?.business_sector || "Não definido"}
+- Plano atual: ${planType}${isLitePlan ? " (Lite — 49€/mês)" : " (Business — 89€/mês)"}
+- Estado da subscrição: ${subscription?.status || "trial"}
+- Projeto: ${project?.name || "Sem projeto"}
+- Domínio: ${project?.domain || "Não configurado"}
+- Potenciais clientes: ${leadsCount}
+- Créditos IA: ${profile?.ai_credits_used || 0}/${profile?.ai_credits_limit || 50000}`;
+
+        if (profile?.ai_custom_instructions) {
+          enrichedPrompt += `\n- Instruções personalizadas do utilizador: ${profile.ai_custom_instructions}`;
+        }
 
         if (profile?.business_sector && SECTOR_TEMPLATES[profile.business_sector]) {
           const tmpl = SECTOR_TEMPLATES[profile.business_sector];
-          enrichedPrompt += `\n\nCONTEXTO DO NEGÓCIO:
-- Setor: ${profile.business_sector}
-- Empresa: ${profile.company_name || "Não definido"}
+          enrichedPrompt += `\n\nESPECIALIZAÇÃO DO SETOR (${profile.business_sector}):
 - Foco de conteúdo: ${tmpl.focus}
 - Tom de comunicação: ${tmpl.tone}
 - Keywords prioritárias: ${tmpl.keywords.join(", ")}
 Adapta TODAS as sugestões e conteúdos a este setor específico.`;
         }
+
+        if (isLitePlan) {
+          enrichedPrompt += `\n\nNOTA INTERNA: Este cliente está no plano Lite. Quando mencionar funcionalidades de Publicidade, SEO avançado, Email Marketing ou WhatsApp, explica o valor e sugere naturalmente o upgrade para Business (89€/mês). Nunca bloqueies — oferece sempre alternativas manuais.`;
+        }
+
+        // Trial info
+        if (project?.trial_expires_at) {
+          const trialEnd = new Date(project.trial_expires_at);
+          const daysLeft = Math.max(0, Math.ceil((trialEnd.getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
+          if (daysLeft > 0) {
+            enrichedPrompt += `\n- Trial ativo: ${daysLeft} dias restantes`;
+          } else {
+            enrichedPrompt += `\n- Trial EXPIRADO — sugere ativação do plano`;
+          }
+        }
       } catch (e) {
-        console.error("Error enriching sector context:", e);
+        console.error("Error enriching context:", e);
       }
     }
 
