@@ -18,10 +18,18 @@ import {
   GripVertical,
   Sparkles,
   Loader2,
-  Check
+  Check,
+  FileText
 } from "lucide-react";
 import { useSiteBuilder } from "@/hooks/useSiteBuilder";
 import type { WebsiteSection } from "@/types/nexus";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 const sectionTypes = [
   { type: 'hero', label: 'Hero', icon: Layout },
@@ -33,9 +41,24 @@ const sectionTypes = [
 ] as const;
 
 export default function SiteBuilder() {
-  const { sections, updateSections, loading, saving } = useSiteBuilder();
+  const {
+    pages,
+    currentPageId,
+    sections,
+    updateSections,
+    loading,
+    saving,
+    loadPageSections,
+    addPage,
+    deletePage,
+  } = useSiteBuilder();
   const [selectedSection, setSelectedSection] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'edit' | 'preview'>('edit');
+  const [newPageTitle, setNewPageTitle] = useState("");
+  const [newPageSlug, setNewPageSlug] = useState("");
+  const [addPageOpen, setAddPageOpen] = useState(false);
+
+  const currentPage = pages.find((p) => p.id === currentPageId);
 
   const addSection = (type: WebsiteSection['type']) => {
     const newSection: WebsiteSection = {
@@ -62,6 +85,20 @@ export default function SiteBuilder() {
   const deleteSection = (id: string) => {
     updateSections(sections.filter(s => s.id !== id));
     if (selectedSection === id) setSelectedSection(null);
+  };
+
+  const handleAddPage = async () => {
+    if (!newPageTitle.trim()) return;
+    const slug = newPageSlug.trim() || newPageTitle.trim().toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+    await addPage(newPageTitle.trim(), slug);
+    setNewPageTitle("");
+    setNewPageSlug("");
+    setAddPageOpen(false);
+  };
+
+  const handlePageChange = (pageId: string) => {
+    setSelectedSection(null);
+    loadPageSections(pageId);
   };
 
   const selectedSectionData = sections.find(s => s.id === selectedSection);
@@ -150,21 +187,9 @@ export default function SiteBuilder() {
               <div className="p-12 bg-gray-50">
                 <h2 className="text-3xl font-bold text-center mb-8">{section.content.title}</h2>
                 <div className="max-w-md mx-auto space-y-4">
-                  <input 
-                    type="text" 
-                    placeholder="Nome" 
-                    className="w-full p-3 border rounded-lg"
-                  />
-                  <input 
-                    type="email" 
-                    placeholder="Email" 
-                    className="w-full p-3 border rounded-lg"
-                  />
-                  <textarea 
-                    placeholder="Mensagem" 
-                    rows={4}
-                    className="w-full p-3 border rounded-lg"
-                  />
+                  <input type="text" placeholder="Nome" className="w-full p-3 border rounded-lg" />
+                  <input type="email" placeholder="Email" className="w-full p-3 border rounded-lg" />
+                  <textarea placeholder="Mensagem" rows={4} className="w-full p-3 border rounded-lg" />
                   <button className="w-full bg-primary text-white py-3 rounded-lg font-semibold">
                     {section.content.buttonText || 'Enviar'}
                   </button>
@@ -177,6 +202,11 @@ export default function SiteBuilder() {
             )}
           </div>
         ))}
+        {sections.length === 0 && (
+          <div className="flex items-center justify-center h-64 text-gray-400">
+            <p>Esta página ainda não tem secções.</p>
+          </div>
+        )}
       </div>
     );
   };
@@ -190,7 +220,7 @@ export default function SiteBuilder() {
             Site Builder
           </h1>
           <p className="text-muted-foreground mt-1">
-            Construa o seu website arrastando e configurando secções
+            Construa o seu website multi-página
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -203,9 +233,7 @@ export default function SiteBuilder() {
               <Check className="h-3 w-3" /> Guardado
             </span>
           )}
-          <Button
-            onClick={() => setViewMode('edit')}
-          >
+          <Button onClick={() => setViewMode('edit')}>
             <Code className="h-4 w-4 mr-2" />
             Editar
           </Button>
@@ -219,8 +247,81 @@ export default function SiteBuilder() {
         </div>
       </div>
 
+      {/* Page Tabs */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-1">
+        {pages.map((page) => (
+          <div key={page.id} className="flex items-center group">
+            <Button
+              variant={currentPageId === page.id ? "default" : "outline"}
+              size="sm"
+              onClick={() => handlePageChange(page.id)}
+              className="whitespace-nowrap"
+            >
+              <FileText className="h-3.5 w-3.5 mr-1.5" />
+              {page.title}
+            </Button>
+            {pages.length > 1 && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity ml-0.5"
+                onClick={() => deletePage(page.id)}
+              >
+                <Trash2 className="h-3 w-3 text-destructive" />
+              </Button>
+            )}
+          </div>
+        ))}
+
+        <Dialog open={addPageOpen} onOpenChange={setAddPageOpen}>
+          <DialogTrigger asChild>
+            <Button variant="ghost" size="sm" className="whitespace-nowrap">
+              <Plus className="h-3.5 w-3.5 mr-1" />
+              Nova Página
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Criar Nova Página</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 pt-2">
+              <div className="space-y-2">
+                <Label>Título da Página</Label>
+                <Input
+                  value={newPageTitle}
+                  onChange={(e) => {
+                    setNewPageTitle(e.target.value);
+                    setNewPageSlug(
+                      e.target.value.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "")
+                    );
+                  }}
+                  placeholder="Ex: Galeria, FAQ, Blog..."
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Slug (URL)</Label>
+                <Input
+                  value={newPageSlug}
+                  onChange={(e) => setNewPageSlug(e.target.value)}
+                  placeholder="ex: galeria"
+                />
+              </div>
+              <Button onClick={handleAddPage} className="w-full" disabled={!newPageTitle.trim()}>
+                <Plus className="h-4 w-4 mr-2" />
+                Criar Página
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+
       {viewMode === 'preview' ? (
         <Card className="glass overflow-hidden">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-muted-foreground">
+              Pré-visualização: {currentPage?.title}
+            </CardTitle>
+          </CardHeader>
           <CardContent className="p-0">
             {renderPreview()}
           </CardContent>
@@ -231,7 +332,7 @@ export default function SiteBuilder() {
           <div className="lg:col-span-1 space-y-4">
             <Card className="glass">
               <CardHeader>
-                <CardTitle className="text-lg">Secções</CardTitle>
+                <CardTitle className="text-lg">Secções — {currentPage?.title}</CardTitle>
                 <CardDescription>Arraste para reordenar</CardDescription>
               </CardHeader>
               <CardContent className="space-y-2">
@@ -267,6 +368,12 @@ export default function SiteBuilder() {
                     </div>
                   );
                 })}
+
+                {sections.length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    Esta página ainda não tem secções.
+                  </p>
+                )}
 
                 <div className="pt-4 border-t border-border">
                   <p className="text-sm font-medium mb-3">Adicionar Secção</p>
