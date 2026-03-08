@@ -37,6 +37,8 @@ const sidebarGroups = [
       { title: "Dashboard", url: "/", icon: LayoutDashboard },
       { title: "Site Builder", url: "/builder", icon: Globe },
       { title: "Domínios", url: "/domains", icon: Globe },
+      { title: "CRM", url: "/crm", icon: Users },
+      { title: "Agenda", url: "/notes", icon: CalendarDays },
     ],
   },
   {
