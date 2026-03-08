@@ -94,7 +94,7 @@ export function NexusConcierge() {
         supabase.from("leads").select("name", { count: "exact" }).eq("ai_classification", "hot").limit(5),
         supabase.from("social_posts").select("id", { count: "exact", head: true }).eq("status", "draft"),
         supabase.from("projects").select("id", { count: "exact", head: true }),
-        supabase.from("profiles").select("full_name, company_name, business_sector").eq("user_id", user.id).maybeSingle(),
+        supabase.from("profiles").select("full_name, company_name").eq("user_id", user.id).maybeSingle(),
       ]);
 
       const hotLeads = hotLeadsRes.data || [];
