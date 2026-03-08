@@ -67,13 +67,17 @@ serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Fetch the post from the database, verifying ownership
-    const { data: post, error: fetchError } = await supabase
+    // Fetch the post from the database, verifying ownership if user-initiated
+    let query = supabase
       .from("social_posts")
       .select("*")
-      .eq("id", postId)
-      .eq("user_id", userId)
-      .single();
+      .eq("id", postId);
+    
+    if (userId) {
+      query = query.eq("user_id", userId);
+    }
+
+    const { data: post, error: fetchError } = await query.single();
 
     if (fetchError || !post) {
       console.error("Error fetching post:", fetchError);
