@@ -56,9 +56,9 @@ export function CurrentPlanCard({ subscription }: CurrentPlanCardProps) {
               {plan.label}
             </p>
             <p className="text-xs text-muted-foreground">
-              {subscription.plan_type === "START" && "490€ setup + 29€/mês"}
-              {subscription.plan_type === "GROWTH" && "890€ setup + 99€/mês"}
-              {subscription.plan_type === "NEXUS_OS" && "1.490€/ano"}
+              {subscription.plan_name === "START" && "490€ setup + 29€/mês"}
+              {subscription.plan_name === "GROWTH" && "890€ setup + 99€/mês"}
+              {subscription.plan_name === "NEXUS_OS" && "1.490€/ano"}
             </p>
           </div>
         </div>
