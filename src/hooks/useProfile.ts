@@ -6,6 +6,8 @@ export interface Profile {
   full_name: string | null;
   avatar_url: string | null;
   company_name: string | null;
+  contact_email: string | null;
+  business_sector: string | null;
 }
 
 export function useProfile() {
