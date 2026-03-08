@@ -86,3 +86,6 @@ verify_jwt = false
 
 [functions.connect-meta]
 verify_jwt = false
+
+[functions.encrypt-existing-tokens]
+verify_jwt = false
