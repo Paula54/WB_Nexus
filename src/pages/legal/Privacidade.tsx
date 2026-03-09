@@ -116,8 +116,8 @@ export default function Privacidade() {
               Nos termos do RGPD, tem direito a aceder, retificar, apagar, limitar o tratamento,
               portabilidade e oposição ao tratamento dos seus dados pessoais. Para exercer estes direitos,
               contacte-nos através do email{" "}
-              <a href="mailto:info@astrolabio-magico-invest.pt" className="text-primary underline">
-                info@astrolabio-magico-invest.pt
+              <a href="mailto:info@astrolabiomagico.com" className="text-primary underline">
+                info@astrolabiomagico.com
               </a>.
             </p>
             <p>
