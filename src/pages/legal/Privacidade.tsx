@@ -36,8 +36,8 @@ export default function Privacidade() {
             </p>
             <p>
               Contacto oficial de suporte:{" "}
-              <a href="mailto:info@astrolabio-magico-invest.pt" className="text-primary underline">
-                info@astrolabio-magico-invest.pt
+              <a href="mailto:info@astrolabiomagico.com" className="text-primary underline">
+                info@astrolabiomagico.com
               </a>
             </p>
           </section>
