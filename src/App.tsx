@@ -12,6 +12,8 @@ import MainLayout from "@/layouts/MainLayout";
 // Pages
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
+import ForgotPassword from "@/pages/ForgotPassword";
+import ResetPassword from "@/pages/ResetPassword";
 import Dashboard from "@/pages/Dashboard";
 import CRM from "@/pages/CRM";
 import SocialMedia from "@/pages/SocialMedia";
