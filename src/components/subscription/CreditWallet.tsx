@@ -164,6 +164,20 @@ export function CreditWallet() {
           </div>
         </div>
 
+        {hasBusinessProfile === false && (
+          <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+            <ShieldAlert className="h-4 w-4 text-destructive shrink-0" />
+            <div>
+              <p className="text-xs font-medium text-foreground">Dados de Faturação em falta</p>
+              <p className="text-[11px] text-muted-foreground">
+                Preenche o NIF, Nome Legal e Morada em{" "}
+                <button onClick={() => navigate("/settings")} className="underline text-primary">Configurações</button>{" "}
+                antes de comprar.
+              </p>
+            </div>
+          </div>
+        )}
+
         <div className="flex flex-col gap-2 pt-1">
           {PACKS.map((pack) => (
             <Button
