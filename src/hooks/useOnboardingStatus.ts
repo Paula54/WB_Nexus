@@ -21,15 +21,30 @@ export function useOnboardingStatus(): OnboardingStatus {
   async function fetchStatus() {
     if (!user) { setLoading(false); return; }
 
-    const [metaConnRes, whatsappRes, campaignRes] = await Promise.all([
-      supabase.from("meta_connections").select("id").eq("user_id", user.id).eq("is_active", true).limit(1).maybeSingle(),
-      supabase.from("whatsapp_accounts").select("id").eq("user_id", user.id).eq("is_active", true).limit(1).maybeSingle(),
-      supabase.from("ads_campaigns").select("id").eq("user_id", user.id).limit(1).maybeSingle(),
-    ]);
+    // Check project columns for Meta IDs
+    const { data: project } = await supabase
+      .from("projects")
+      .select("id, facebook_page_id, instagram_business_id, whatsapp_business_id")
+      .eq("user_id", user.id)
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-    setSocialConnected(!!metaConnRes.data);
-    setWhatsappConnected(!!whatsappRes.data);
-    setFirstCampaignLaunched(!!campaignRes.data);
+    const raw = project as Record<string, unknown> | null;
+    const hasFbOrIg = !!(raw?.facebook_page_id || raw?.instagram_business_id);
+    const hasWhatsapp = !!raw?.whatsapp_business_id;
+
+    // Check campaigns
+    const { data: campaign } = await supabase
+      .from("ads_campaigns")
+      .select("id")
+      .eq("user_id", user.id)
+      .limit(1)
+      .maybeSingle();
+
+    setSocialConnected(hasFbOrIg);
+    setWhatsappConnected(hasWhatsapp);
+    setFirstCampaignLaunched(!!campaign);
     setLoading(false);
   }
 
