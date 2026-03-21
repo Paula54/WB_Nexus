@@ -87,12 +87,10 @@ export function useUsageCredits() {
       return false;
     }
 
-    const { error } = await supabase
-      .from("nx_usage_credits" as string)
-      .update({ used_credits: newUsed, updated_at: new Date().toISOString() } as Record<string, unknown>)
-      .eq("user_id", user.id);
+    const { data: success, error } = await supabase
+      .rpc("spend_credits", { p_action: action, p_cost: cost });
 
-    if (error) {
+    if (error || !success) {
       toast({ variant: "destructive", title: "Erro", description: "Não foi possível descontar créditos." });
       return false;
     }
