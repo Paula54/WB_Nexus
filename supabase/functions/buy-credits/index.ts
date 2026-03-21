@@ -8,9 +8,9 @@ const corsHeaders = {
 };
 
 const CREDIT_PACKS: Record<string, { price_id: string; credits: number; label: string }> = {
-  lite:       { price_id: "price_1TDVbHCn71ikcRodMZqbvoId", credits: 100,  label: "Pack Lite (+100)" },
-  pro:        { price_id: "price_1TDVbkCn71ikcRodJsVzvHG5", credits: 500,  label: "Pack Pro (+500)" },
-  enterprise: { price_id: "price_1TDVd2E6rYpESbYpMVAP3xzL", credits: 2000, label: "Pack Enterprise (+2.000)" },
+  lite:       { price_id: "price_1TDWJhE6rYpESbYpqWqSEGip", credits: 100,  label: "Pack Lite (+100)" },
+  pro:        { price_id: "price_1TDWKPE6rYpESbYpyXkYahCF", credits: 500,  label: "Pack Pro (+500)" },
+  enterprise: { price_id: "price_1TDWKhE6rYpESbYpm5CLUu2r", credits: 2000, label: "Pack Enterprise (+2.000)" },
 };
 
 serve(async (req) => {

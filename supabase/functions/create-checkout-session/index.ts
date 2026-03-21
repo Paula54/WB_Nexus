@@ -16,20 +16,20 @@ const PLAN_CONFIG: Record<string, {
 }> = {
   START: {
     name: 'Nexus Start',
-    subscription_price_id: 'price_1TDVUhE6rYpESbYpCArPIGK3',
-    setup_price_id: 'price_1TDVV0E6rYpESbYpcsLBHH3G',
+    subscription_price_id: 'price_1TDWGeE6rYpESbYpobOodPtI',
+    setup_price_id: 'price_1TDWH1E6rYpESbYpH1HEB8pY',
     description: 'SEO e Validação — 49€/mês + Taxa de Ativação 790€',
   },
   GROWTH: {
     name: 'Nexus Growth',
-    subscription_price_id: 'price_1TDVVlCn71ikcRodagEgCCYa',
-    setup_price_id: 'price_1TDVZVCn71ikcRodnS0pcbQQ',
+    subscription_price_id: 'price_1TDWHpCn71ikcRod3GVke0Uy',
+    setup_price_id: 'price_1TDWIjE6rYpESbYpkkajePcW',
     description: 'Blog IA, Ads e Newsletters — 149€/mês + Taxa de Ativação 1.490€',
   },
   NEXUS_OS: {
     name: 'Nexus OS',
-    subscription_price_id: 'price_1TDVaUE6rYpESbYpMpKupCc5',
-    setup_price_id: 'price_1TDVauCn71ikcRodX3dJZbTN',
+    subscription_price_id: 'price_1TDWJ7Cn71ikcRodMNiuFyke',
+    setup_price_id: 'price_1TDWJhE6rYpESbYpbzTCDw0h',
     description: 'WhatsApp AI, CRM e Gestão Total — 299€/mês + Taxa de Ativação 2.490€',
   },
 };
