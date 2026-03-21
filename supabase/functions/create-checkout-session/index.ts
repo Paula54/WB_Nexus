@@ -16,24 +16,23 @@ const PLAN_CONFIG: Record<string, {
 }> = {
   START: {
     name: 'Nexus Start',
-    subscription_price_id: 'price_1TDWGeE6rYpESbYpobOodPtI',
+    subscription_price_id: 'price_1TDWcVE6rYpESbYpc6Pv0Gp6',
     setup_price_id: 'price_1TDWH1E6rYpESbYpH1HEB8pY',
     description: 'SEO e Validação — 49€/mês + Taxa de Ativação 790€',
   },
   GROWTH: {
     name: 'Nexus Growth',
-    subscription_price_id: 'price_1TDWHpCn71ikcRod3GVke0Uy',
+    subscription_price_id: 'price_1TDWfxE6rYpESbYpuWFi5qnL',
     setup_price_id: 'price_1TDWIjE6rYpESbYpkkajePcW',
     description: 'Blog IA, Ads e Newsletters — 149€/mês + Taxa de Ativação 1.490€',
   },
   NEXUS_OS: {
     name: 'Nexus OS',
-    subscription_price_id: 'price_1TDWJ7Cn71ikcRodMNiuFyke',
-    setup_price_id: 'price_1TDWJhE6rYpESbYpbzTCDw0h',
+    subscription_price_id: 'price_1TDWwyE6rYpESbYpHEHNEeAG',
+    setup_price_id: 'price_1TDWJPE6rYpESbYpbzTCDw0h',
     description: 'WhatsApp AI, CRM e Gestão Total — 299€/mês + Taxa de Ativação 2.490€',
   },
 };
-
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
