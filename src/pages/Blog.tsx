@@ -41,6 +41,7 @@ export default function Blog() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { checkAndIncrement } = useQuotaCheck();
+  const { spendCredits } = useUsageCredits();
 
   const [editing, setEditing] = useState<BlogPost | null>(null);
   const [creating, setCreating] = useState(false);
