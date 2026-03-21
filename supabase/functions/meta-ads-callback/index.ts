@@ -15,8 +15,6 @@ Deno.serve(async (req) => {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const META_APP_ID = Deno.env.get("META_APP_ID")!;
     const META_APP_SECRET = Deno.env.get("META_APP_SECRET")!;
-
-    // Production credentials
     const PROD_URL = Deno.env.get("PROD_SUPABASE_URL")!;
     const PROD_KEY = Deno.env.get("PROD_SUPABASE_SERVICE_ROLE_KEY")!;
 
@@ -38,89 +36,75 @@ Deno.serve(async (req) => {
       : "https://marketing-ai-core.lovable.app/settings";
 
     if (error) {
-      console.error("Meta OAuth error:", error);
       return Response.redirect(`${returnUrl}?meta_ads_error=${encodeURIComponent(error)}`, 302);
     }
-
     if (!code || !userId) {
       return Response.redirect(`${returnUrl}?meta_ads_error=${encodeURIComponent("Parâmetros em falta.")}`, 302);
     }
 
     const redirectUri = `${SUPABASE_URL}/functions/v1/meta-ads-callback`;
 
-    // Step 1: Exchange code for short-lived token
+    // Exchange code for token
     const tokenResponse = await fetch(
       `https://graph.facebook.com/v21.0/oauth/access_token?client_id=${META_APP_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&client_secret=${META_APP_SECRET}&code=${code}`
     );
     const tokenData = await tokenResponse.json();
-
     if (tokenData.error) {
-      console.error("Meta token exchange error:", tokenData.error);
       return Response.redirect(`${returnUrl}?meta_ads_error=${encodeURIComponent(tokenData.error.message)}`, 302);
     }
 
-    const shortLivedToken = tokenData.access_token;
-
-    // Step 2: Exchange for long-lived token
+    // Long-lived token
     const longLivedResponse = await fetch(
-      `https://graph.facebook.com/v21.0/oauth/access_token?grant_type=fb_exchange_token&client_id=${META_APP_ID}&client_secret=${META_APP_SECRET}&fb_exchange_token=${shortLivedToken}`
+      `https://graph.facebook.com/v21.0/oauth/access_token?grant_type=fb_exchange_token&client_id=${META_APP_ID}&client_secret=${META_APP_SECRET}&fb_exchange_token=${tokenData.access_token}`
     );
     const longLivedData = await longLivedResponse.json();
-    const longLivedToken = longLivedData.access_token || shortLivedToken;
+    const longLivedToken = longLivedData.access_token || tokenData.access_token;
 
-    // Step 3: Fetch ad accounts
-    const adAccountsResponse = await fetch(
+    // Fetch ad accounts
+    const adAccountsRes = await fetch(
       `https://graph.facebook.com/v21.0/me/adaccounts?fields=id,name,account_status&access_token=${longLivedToken}`
     );
-    const adAccountsData = await adAccountsResponse.json();
-
+    const adAccountsData = await adAccountsRes.json();
     const adAccounts = (adAccountsData.data || []).map((a: any) => ({
-      id: a.id,
-      name: a.name,
-      status: a.account_status,
+      id: a.id, name: a.name, status: a.account_status,
     }));
 
-    // Step 4: Fetch Facebook Pages to get facebook_page_id
+    // Fetch Facebook Pages + Instagram Business Account
     let facebookPageId: string | null = null;
-    let facebookPageName: string | null = null;
+    let instagramBusinessId: string | null = null;
     try {
-      const pagesResponse = await fetch(
-        `https://graph.facebook.com/v21.0/me/accounts?fields=id,name,access_token&access_token=${longLivedToken}`
+      const pagesRes = await fetch(
+        `https://graph.facebook.com/v21.0/me/accounts?fields=id,name&access_token=${longLivedToken}`
       );
-      const pagesData = await pagesResponse.json();
-      if (pagesData.data && pagesData.data.length > 0) {
+      const pagesData = await pagesRes.json();
+      if (pagesData.data?.length > 0) {
         facebookPageId = pagesData.data[0].id;
-        facebookPageName = pagesData.data[0].name;
-        console.log(`Facebook Page found: ${facebookPageName} (${facebookPageId})`);
-      } else {
-        console.log("No Facebook Pages found for this user");
+
+        const igRes = await fetch(
+          `https://graph.facebook.com/v21.0/${facebookPageId}?fields=instagram_business_account&access_token=${longLivedToken}`
+        );
+        const igData = await igRes.json();
+        if (igData.instagram_business_account?.id) {
+          instagramBusinessId = igData.instagram_business_account.id;
+        }
       }
-    } catch (pageErr) {
-      console.error("Error fetching Facebook Pages:", pageErr);
+    } catch (e) {
+      console.error("Error fetching pages/instagram:", e);
     }
 
-    // Encrypt the token before storing
-    const encryptedToken = await encryptToken(longLivedToken);
+    // WhatsApp from env
+    const whatsappBusinessId = Deno.env.get("META_WHATSAPP_BUSINESS_ACCOUNT_ID") || null;
 
-    // Use PRODUCTION Supabase for persistence
+    const encryptedToken = await encryptToken(longLivedToken);
     const prodClient = createClient(PROD_URL, PROD_KEY);
 
-    // Build update payload
     const updatePayload: Record<string, any> = {
       meta_access_token: encryptedToken,
+      meta_ads_account_id: adAccounts.length === 1 ? adAccounts[0].id : null,
+      facebook_page_id: facebookPageId,
+      instagram_business_id: instagramBusinessId,
+      whatsapp_business_id: whatsappBusinessId,
     };
-
-    // If only one ad account, auto-select it
-    if (adAccounts.length === 1) {
-      updatePayload.meta_ads_account_id = adAccounts[0].id;
-    } else {
-      updatePayload.meta_ads_account_id = null;
-    }
-
-    // Store facebook_page_id if available
-    if (facebookPageId) {
-      updatePayload.facebook_page_id = facebookPageId;
-    }
 
     const { error: updateError } = await prodClient
       .from("projects")
@@ -128,24 +112,19 @@ Deno.serve(async (req) => {
       .eq("user_id", userId);
 
     if (updateError) {
-      console.error("Error updating production project:", updateError.message);
-      return Response.redirect(`${returnUrl}?meta_ads_error=${encodeURIComponent("Erro ao gravar dados: " + updateError.message)}`, 302);
+      return Response.redirect(`${returnUrl}?meta_ads_error=${encodeURIComponent("Erro ao gravar: " + updateError.message)}`, 302);
     }
 
-    console.log(`✅ Meta connected for user ${userId} on PRODUCTION (page: ${facebookPageId})`);
+    console.log(`✅ Meta connected for user ${userId} (fb=${facebookPageId}, ig=${instagramBusinessId}, wa=${whatsappBusinessId})`);
 
     if (adAccounts.length === 1) {
-      const successUrl = `${returnUrl}?meta_ads_connected=true&meta_account_name=${encodeURIComponent(adAccounts[0].name || adAccounts[0].id)}`;
-      return Response.redirect(successUrl, 302);
+      return Response.redirect(`${returnUrl}?meta_ads_connected=true&meta_account_name=${encodeURIComponent(adAccounts[0].name || adAccounts[0].id)}`, 302);
     }
 
-    // Multiple accounts: let user pick
     const accountsParam = encodeURIComponent(JSON.stringify(adAccounts));
-    const pickUrl = `${returnUrl}?meta_ads_pick_account=true&meta_accounts=${accountsParam}`;
-    return Response.redirect(pickUrl, 302);
+    return Response.redirect(`${returnUrl}?meta_ads_pick_account=true&meta_accounts=${accountsParam}`, 302);
   } catch (err) {
     console.error("meta-ads-callback error:", err);
-    const fallbackUrl = "https://marketing-ai-core.lovable.app/settings?meta_ads_error=Erro+interno+no+servidor";
-    return Response.redirect(fallbackUrl, 302);
+    return Response.redirect("https://marketing-ai-core.lovable.app/settings?meta_ads_error=Erro+interno+no+servidor", 302);
   }
 });
