@@ -15,7 +15,7 @@ Deno.serve(async (req) => {
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Missing auth" }), {
+      return new Response(JSON.stringify({ error: "Missing Authorization header" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -32,11 +32,16 @@ Deno.serve(async (req) => {
     );
 
     if (authError || !user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      return new Response(JSON.stringify({ 
+        error: "Unauthorized – JWT validation failed", 
+        detail: authError?.message || "No user returned from getUser" 
+      }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    console.log(`Auth OK for user ${user.id} (${user.email})`);
 
     // --- Production Supabase client (data persistence) ---
     const prodUrl = Deno.env.get("PROD_SUPABASE_URL");
@@ -44,10 +49,15 @@ Deno.serve(async (req) => {
 
     if (!prodUrl || !prodServiceKey) {
       return new Response(
-        JSON.stringify({ error: "Production Supabase credentials not configured" }),
+        JSON.stringify({ 
+          error: "Production Supabase credentials not configured",
+          detail: `PROD_SUPABASE_URL=${prodUrl ? "SET" : "MISSING"}, PROD_SUPABASE_SERVICE_ROLE_KEY=${prodServiceKey ? "SET" : "MISSING"}`
+        }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    console.log(`Production URL: ${prodUrl}`);
 
     const prodSupabase = createClient(prodUrl, prodServiceKey);
 
