@@ -105,6 +105,8 @@ export default function Subscription() {
 
       <PlanSelector selected={selectedPlan} onSelect={setSelectedPlan} />
 
+      <CreditWallet />
+
       <InvoiceHistory />
 
       <Card className="glass">
