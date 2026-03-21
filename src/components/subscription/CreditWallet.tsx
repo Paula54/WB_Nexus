@@ -1,12 +1,13 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Wallet, Fuel, FileText, Mail, Megaphone, AlertTriangle, Share2, Bot, Loader2 } from "lucide-react";
+import { Wallet, Fuel, FileText, Mail, Megaphone, AlertTriangle, Share2, Bot, Loader2, ShieldAlert } from "lucide-react";
 import { useUsageCredits, CREDIT_COSTS } from "@/hooks/useUsageCredits";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabaseCustom";
 import { useToast } from "@/hooks/use-toast";
+import { useNavigate } from "react-router-dom";
 
 const CREDIT_DISPLAY = [
   { key: "blog", label: "Blog Post (IA)", cost: CREDIT_COSTS.blog, icon: FileText },
@@ -26,7 +27,21 @@ export function CreditWallet() {
   const { credits, isLoading, remaining } = useUsageCredits();
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [buyingPack, setBuyingPack] = useState<string | null>(null);
+  const [hasBusinessProfile, setHasBusinessProfile] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from("business_profiles")
+      .select("legal_name, nif, address_line1")
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        setHasBusinessProfile(!!(data?.legal_name && data?.nif && data?.address_line1));
+      });
+  }, [user]);
 
   const isLow = remaining < 20;
   const pct = credits ? Math.min((credits.used_credits / credits.total_credits) * 100, 100) : 0;
@@ -34,6 +49,16 @@ export function CreditWallet() {
   const handleBuyPack = async (packId: string) => {
     if (!user) {
       toast({ title: "Sessão expirada", description: "Faz login para continuar.", variant: "destructive" });
+      return;
+    }
+
+    if (hasBusinessProfile === false) {
+      toast({
+        title: "Perfil de Empresa incompleto",
+        description: "Preenche o NIF, Nome Legal e Morada antes de comprar créditos.",
+        variant: "destructive",
+      });
+      navigate("/settings");
       return;
     }
 
@@ -50,6 +75,7 @@ export function CreditWallet() {
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${accessToken}`,
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
           },
           body: JSON.stringify({ pack: packId }),
         }
@@ -72,7 +98,6 @@ export function CreditWallet() {
       setBuyingPack(null);
     }
   };
-
   return (
     <Card className="glass border-primary/20">
       <CardHeader className="pb-3">
