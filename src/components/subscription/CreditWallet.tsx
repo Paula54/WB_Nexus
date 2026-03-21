@@ -1,64 +1,62 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Wallet, Fuel, FileText, Mail, Megaphone, AlertTriangle } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
-import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabaseCustom";
+import { Wallet, Fuel, FileText, Mail, Megaphone, AlertTriangle, Share2, Bot } from "lucide-react";
+import { useUsageCredits, CREDIT_COSTS } from "@/hooks/useUsageCredits";
 
-const CREDIT_COSTS = [
-  { label: "Blog Post (IA)", cost: 20, icon: FileText },
-  { label: "Newsletter", cost: 10, icon: Mail },
-  { label: "Otimização Ads", cost: 2, icon: Megaphone },
+const CREDIT_DISPLAY = [
+  { key: "blog", label: "Blog Post (IA)", cost: CREDIT_COSTS.blog, icon: FileText },
+  { key: "newsletter", label: "Newsletter", cost: CREDIT_COSTS.newsletter, icon: Mail },
+  { key: "ads_optimization", label: "Otimização Ads", cost: CREDIT_COSTS.ads_optimization, icon: Megaphone },
+  { key: "social_post", label: "Post Social Media", cost: CREDIT_COSTS.social_post, icon: Share2 },
+  { key: "concierge", label: "Query Concierge", cost: CREDIT_COSTS.concierge, icon: Bot },
 ];
 
 export function CreditWallet() {
-  const { user } = useAuth();
-  const [balance, setBalance] = useState<number>(0);
-  const [loading, setLoading] = useState(true);
+  const { credits, isLoading, remaining } = useUsageCredits();
 
-  useEffect(() => {
-    if (!user) return;
-    (async () => {
-      const { data } = await supabase
-        .from("wallet_transactions" as string)
-        .select("amount, type")
-        .eq("user_id", user.id);
-
-      if (data) {
-        const total = (data as any[]).reduce((sum, t) => {
-          return t.type === "credit" || t.type === "topup" || t.type === "cashback"
-            ? sum + Number(t.amount)
-            : sum - Math.abs(Number(t.amount));
-        }, 0);
-        setBalance(total);
-      }
-      setLoading(false);
-    })();
-  }, [user]);
-
-  const isLow = balance < 20;
+  const isLow = remaining < 20;
+  const pct = credits ? Math.min((credits.used_credits / credits.total_credits) * 100, 100) : 0;
 
   return (
     <Card className="glass border-primary/20">
       <CardHeader className="pb-3">
-        <CardTitle className="text-base flex items-center gap-2">
-          <Wallet className="h-5 w-5 text-primary" />
-          Carteira AI Fuel
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Wallet className="h-5 w-5 text-primary" />
+            Carteira AI Fuel
+          </CardTitle>
+          {credits && (
+            <Badge variant="secondary" className="text-xs">
+              {credits.plan_name}
+            </Badge>
+          )}
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-3xl font-display font-bold text-foreground">
-              {loading ? "—" : `${balance.toFixed(0)}`}
+              {isLoading ? "—" : remaining}
             </p>
-            <p className="text-xs text-muted-foreground">créditos disponíveis</p>
+            <p className="text-xs text-muted-foreground">
+              créditos disponíveis de {credits?.total_credits ?? "—"}
+            </p>
           </div>
           <Fuel className="h-8 w-8 text-primary/40" />
         </div>
 
-        {isLow && !loading && (
+        {/* Progress bar */}
+        {credits && (
+          <div className="h-2.5 rounded-full bg-muted/50 overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all ${pct >= 80 ? "bg-destructive" : "bg-primary"}`}
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+        )}
+
+        {isLow && !isLoading && (
           <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
             <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
             <div>
@@ -73,8 +71,8 @@ export function CreditWallet() {
         <div className="border-t border-border/50 pt-3">
           <p className="text-xs text-muted-foreground mb-2 font-medium">Tabela de consumo:</p>
           <div className="space-y-1.5">
-            {CREDIT_COSTS.map((item) => (
-              <div key={item.label} className="flex items-center justify-between text-xs">
+            {CREDIT_DISPLAY.map((item) => (
+              <div key={item.key} className="flex items-center justify-between text-xs">
                 <span className="flex items-center gap-1.5 text-muted-foreground">
                   <item.icon className="h-3.5 w-3.5" />
                   {item.label}
