@@ -21,11 +21,12 @@ Deno.serve(async (req) => {
       });
     }
 
+    // --- Lovable Cloud client (auth validation) ---
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const anonClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!);
+    const anonClient = createClient(supabaseUrl, supabaseAnonKey);
     const { data: { user }, error: authError } = await anonClient.auth.getUser(
       authHeader.replace("Bearer ", "")
     );
@@ -36,6 +37,22 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // --- Production Supabase client (data persistence) ---
+    const prodUrl = Deno.env.get("PROD_SUPABASE_URL");
+    const prodServiceKey = Deno.env.get("PROD_SUPABASE_SERVICE_ROLE_KEY");
+
+    if (!prodUrl || !prodServiceKey) {
+      return new Response(
+        JSON.stringify({ error: "Production Supabase credentials not configured" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const prodSupabase = createClient(prodUrl, prodServiceKey);
+
+    // Also keep a Lovable Cloud service client for meta_connections
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const { connection_type } = await req.json();
 
@@ -50,7 +67,45 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { data: project, error: projectError } = await supabase
+    // --- Validate Meta token with Graph API ---
+    const tokenCheck = await fetch(
+      `https://graph.facebook.com/v21.0/me?access_token=${metaAccessToken}`
+    );
+    if (!tokenCheck.ok) {
+      const tokenErr = await tokenCheck.text();
+      console.error("Meta token validation failed:", tokenErr);
+      return new Response(
+        JSON.stringify({ error: "Meta access token is invalid or expired" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // --- Check legal_consent on production DB ---
+    const { data: consent, error: consentError } = await prodSupabase
+      .from("legal_consent")
+      .select("id, is_active")
+      .eq("user_id", user.id)
+      .eq("is_active", true)
+      .limit(1)
+      .maybeSingle();
+
+    if (consentError) {
+      console.error("Error checking legal_consent:", consentError.message);
+      return new Response(
+        JSON.stringify({ error: "Erro ao verificar consentimento legal: " + consentError.message }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!consent) {
+      return new Response(
+        JSON.stringify({ error: "Consentimento legal não encontrado ou inativo. Aceita os termos antes de continuar." }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // --- Find project on production DB ---
+    const { data: project, error: projectError } = await prodSupabase
       .from("projects")
       .select("id")
       .eq("user_id", user.id)
@@ -72,12 +127,14 @@ Deno.serve(async (req) => {
       );
     }
 
+    // --- Deactivate old meta_connections (Lovable Cloud) ---
     await supabase
       .from("meta_connections")
       .update({ is_active: false })
       .eq("user_id", user.id)
       .eq("project_id", project.id);
 
+    // --- Insert new meta_connection (Lovable Cloud) ---
     const { error: insertError } = await supabase
       .from("meta_connections")
       .insert({
@@ -96,10 +153,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Encrypt the Meta access token before storing in projects table
+    // --- Encrypt and write to PRODUCTION projects table ---
     const encryptedToken = await encryptToken(metaAccessToken);
 
-    const { error: updateError } = await supabase
+    const { error: updateError } = await prodSupabase
       .from("projects")
       .update({
         meta_access_token: encryptedToken,
@@ -108,11 +165,14 @@ Deno.serve(async (req) => {
       .eq("id", project.id);
 
     if (updateError) {
+      console.error("Error updating production project:", updateError.message);
       return new Response(JSON.stringify({ error: updateError.message }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    console.log(`✅ Meta connected for user ${user.id}, project ${project.id} (production)`);
 
     return new Response(
       JSON.stringify({
@@ -120,10 +180,12 @@ Deno.serve(async (req) => {
         project_id: project.id,
         ad_account_id: adAccountId,
         connection_type: connection_type || "imported",
+        legal_consent_verified: true,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
+    console.error("connect-meta error:", err);
     return new Response(JSON.stringify({ error: err.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
