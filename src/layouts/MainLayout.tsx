@@ -71,7 +71,15 @@ export default function MainLayout() {
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => navigate("/settings/subscription")} className="cursor-pointer">
                   <CreditCard className="mr-2 h-4 w-4" />
-                  Plano & Faturação
+                  Planos
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate("/settings/credits")} className="cursor-pointer">
+                  <Wallet className="mr-2 h-4 w-4" />
+                  Carteira AI Fuel
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate("/settings/invoices")} className="cursor-pointer">
+                  <FileText className="mr-2 h-4 w-4" />
+                  Faturas
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={signOut} className="cursor-pointer text-destructive focus:text-destructive">

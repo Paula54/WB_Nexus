@@ -165,7 +165,7 @@ export function RegularDashboard() {
         )}
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
         {quickStats.map((stat) => (
           <Card key={stat.label} className="glass">
             <CardContent className="p-4 flex items-center gap-3">
@@ -179,6 +179,7 @@ export function RegularDashboard() {
             </CardContent>
           </Card>
         ))}
+        <CreditMiniWidget />
       </div>
 
       <div>

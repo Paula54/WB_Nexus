@@ -93,6 +93,8 @@ function AppRoutes() {
         <Route path="whatsapp" element={<WhatsAppInbox />} />
         <Route path="settings" element={<Settings />} />
         <Route path="settings/subscription" element={<Subscription />} />
+        <Route path="settings/credits" element={<Credits />} />
+        <Route path="settings/invoices" element={<Invoices />} />
         <Route path="domains" element={<Domains />} />
         <Route path="performance" element={<Performance />} />
         <Route path="profile" element={<ProfilePage />} />
