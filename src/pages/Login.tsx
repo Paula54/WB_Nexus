@@ -96,7 +96,12 @@ export default function Login() {
                 {loading ? "A entrar..." : "Entrar"}
               </Button>
             </form>
-            <p className="text-center text-sm text-muted-foreground mt-4">
+            <p className="text-center text-sm text-muted-foreground mt-3">
+              <Link to="/forgot-password" className="text-primary hover:underline">
+                Esqueceu a password?
+              </Link>
+            </p>
+            <p className="text-center text-sm text-muted-foreground mt-2">
               Não tem conta?{" "}
               <Link to="/register" className="text-primary hover:underline">
                 Criar conta
