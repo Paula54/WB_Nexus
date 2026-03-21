@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
 import { PlanUsage } from "@/components/dashboard/PlanUsage";
 import { MyUsage } from "@/components/dashboard/MyUsage";
+import { CreditMiniWidget } from "@/components/dashboard/CreditMiniWidget";
 
 interface Insight {
   id: string;
