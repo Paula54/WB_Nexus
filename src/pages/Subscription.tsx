@@ -15,7 +15,7 @@ import { InvoiceHistory } from "@/components/subscription/InvoiceHistory";
 import type { PlanType } from "@/types/nexus";
 
 const PLAN_RANK: Record<string, number> = { START: 1, GROWTH: 2, NEXUS_OS: 3 };
-const PLAN_LABELS: Record<string, string> = { START: "Start", GROWTH: "Growth", NEXUS_OS: "Nexus OS" };
+const PLAN_LABELS: Record<string, string> = { START: "Nexus Start", GROWTH: "Nexus Growth", NEXUS_OS: "Nexus OS" };
 
 export default function Subscription() {
   const { toast } = useToast();
