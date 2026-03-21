@@ -5,15 +5,11 @@ import {
   Share2,
   Search,
   MessageCircle,
-  Settings,
   Zap,
   Megaphone,
   Mail,
-  CreditCard,
   BarChart3,
-  Building2,
   Headphones,
-  ChevronDown,
   Users,
   CalendarDays,
   Briefcase,
@@ -64,13 +60,6 @@ const sidebarGroups = [
     ],
   },
   {
-    label: "Conta",
-    items: [
-      { title: "Plano & Faturação", url: "/settings/subscription", icon: CreditCard },
-      { title: "Perfil da Empresa", url: "/settings", icon: Building2 },
-    ],
-  },
-  {
     label: "Administração",
     items: [
       { title: "Gestão de Tarefas", url: "/admin", icon: UserCheck },
@@ -85,7 +74,6 @@ export function AppSidebar() {
   const location = useLocation();
   const { isFreelancer, isAdmin } = useUserRole();
 
-  // Build dynamic groups based on role
   const dynamicGroups = isFreelancer
     ? [
         {
@@ -94,7 +82,6 @@ export function AppSidebar() {
             { title: "Meus Projetos", url: "/freelancer-dashboard", icon: Briefcase },
           ],
         },
-        ...sidebarGroups.filter((g) => g.label === "Conta"),
       ]
     : sidebarGroups.filter((g) => !(g as any).adminOnly || isAdmin);
 

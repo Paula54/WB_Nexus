@@ -3,7 +3,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
-import { LogOut, Menu, User, Settings } from "lucide-react";
+import { LogOut, Menu, User, Building2, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { NexusConcierge } from "@/components/NexusConcierge";
 import { DynamicSEOHead } from "@/components/seo/DynamicSEOHead";
@@ -34,7 +34,7 @@ export default function MainLayout() {
               </SidebarTrigger>
               <div className="hidden md:block">
                 <h1 className="font-display text-lg font-semibold text-primary">
-                  NEXUS<span className="text-foreground">AI</span>
+                  NEXUS<span className="text-foreground">Machine</span>
                 </h1>
               </div>
             </div>
@@ -66,8 +66,12 @@ export default function MainLayout() {
                   O Meu Perfil
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => navigate("/settings")} className="cursor-pointer">
-                  <Settings className="mr-2 h-4 w-4" />
-                  Configurações
+                  <Building2 className="mr-2 h-4 w-4" />
+                  Perfil da Empresa
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate("/settings/subscription")} className="cursor-pointer">
+                  <CreditCard className="mr-2 h-4 w-4" />
+                  Plano & Faturação
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={signOut} className="cursor-pointer text-destructive focus:text-destructive">
@@ -90,7 +94,7 @@ export default function MainLayout() {
               <span>·</span>
               <Link to="/contacto" className="hover:text-foreground transition-colors">Contacto</Link>
             </div>
-            <p>Nexus © 2026 | Powered by <a href="https://web-business.pt" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Web Business</a> – Um produto Astrolábio Mágico Investimentos LDA.</p>
+            <p>Nexus Machine © 2026 | Powered by <a href="https://web-business.pt" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Web Business</a> – Um produto Astrolábio Mágico Investimentos LDA.</p>
           </footer>
         </main>
         <NexusConcierge />

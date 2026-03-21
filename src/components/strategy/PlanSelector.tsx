@@ -17,7 +17,6 @@ import {
   LineChart,
   Bot,
   RefreshCw,
-  FileText,
   Layout,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -41,31 +40,31 @@ interface PlanOption {
 const PLANS: PlanOption[] = [
   {
     id: "START",
-    name: "Start",
-    subtitle: "O Essencial para Arrancar",
-    price: "490€ + 29€/mês",
-    priceDetail: "Setup + mensalidade",
+    name: "Nexus Start",
+    subtitle: "SEO e Validação",
+    price: "790€ + 49€/mês",
+    priceDetail: "Taxa de Ativação Técnica (Não Reembolsável) + mensalidade",
     features: [
       { label: "Landing Page profissional e responsiva", icon: <Globe className="h-4 w-4" /> },
       { label: "Certificado SSL e conformidade RGPD", icon: <ShieldCheck className="h-4 w-4" /> },
       { label: "SEO básico e indexação no Google", icon: <Search className="h-4 w-4" /> },
       { label: "Integração Google Analytics", icon: <BarChart3 className="h-4 w-4" /> },
-      { label: "Relatório Mensal de Performance", icon: <LineChart className="h-4 w-4" /> },
+      { label: "Estimativas de Performance e Conversão", icon: <LineChart className="h-4 w-4" /> },
       { label: "Integração Stripe (Checkout Seguro)", icon: <CreditCard className="h-4 w-4" /> },
       { label: "Concierge de Suporte na App", icon: <Headphones className="h-4 w-4" /> },
     ],
   },
   {
     id: "GROWTH",
-    name: "Growth",
-    subtitle: "O Motor de Vendas",
-    price: "890€ + 99€/mês",
-    priceDetail: "Setup + mensalidade",
+    name: "Nexus Growth",
+    subtitle: "Blog IA, Ads e Newsletters",
+    price: "1.490€ + 149€/mês",
+    priceDetail: "Taxa de Ativação Técnica (Não Reembolsável) + mensalidade",
     features: [
-      { label: "Tudo do Plano Start, mais:", icon: <Check className="h-4 w-4" /> },
-      { label: "Site completo com múltiplas páginas e blog", icon: <Layout className="h-4 w-4" /> },
+      { label: "Tudo do Nexus Start, mais:", icon: <Check className="h-4 w-4" /> },
+      { label: "Site completo com múltiplas páginas e blog IA", icon: <Layout className="h-4 w-4" /> },
       { label: "Painel de Controlo em tempo real", icon: <BarChart3 className="h-4 w-4" /> },
-      { label: "Relatório Semanal de Performance", icon: <LineChart className="h-4 w-4" /> },
+      { label: "Estimativas de Performance semanais", icon: <LineChart className="h-4 w-4" /> },
       { label: "Social Media e Google Ads", icon: <Megaphone className="h-4 w-4" /> },
       { label: "Captura de Leads e Email Marketing", icon: <Mail className="h-4 w-4" /> },
       { label: "Suporte prioritário via Concierge Mentor", icon: <Headphones className="h-4 w-4" /> },
@@ -74,16 +73,16 @@ const PLANS: PlanOption[] = [
   {
     id: "NEXUS_OS",
     name: "Nexus OS",
-    subtitle: "A Agência Completa com IA",
-    price: "1.490€/ano",
-    priceDetail: "Pagamento anual",
+    subtitle: "WhatsApp AI, CRM e Gestão Total",
+    price: "2.490€ + 299€/mês",
+    priceDetail: "Taxa de Ativação Técnica (Não Reembolsável) + mensalidade",
     isHero: true,
     features: [
-      { label: "Tudo do Plano Growth, mais:", icon: <Check className="h-4 w-4" /> },
+      { label: "Tudo do Nexus Growth, mais:", icon: <Check className="h-4 w-4" /> },
       { label: "WhatsApp AI — Atendimento automático", icon: <MessageCircle className="h-4 w-4" /> },
       { label: "CRM integrado e pipeline de vendas", icon: <Users className="h-4 w-4" /> },
       { label: "Gestão total de Meta Ads", icon: <Megaphone className="h-4 w-4" /> },
-      { label: "Relatórios de Conversão e ROI em tempo real", icon: <LineChart className="h-4 w-4" /> },
+      { label: "Estimativas de Performance e Conversão", icon: <LineChart className="h-4 w-4" /> },
       { label: "IA Insights — Sugestões estratégicas", icon: <Bot className="h-4 w-4" /> },
       { label: "Revisões ilimitadas e SLA garantido", icon: <RefreshCw className="h-4 w-4" /> },
     ],
@@ -121,7 +120,6 @@ export function PlanSelector({ selected, onSelect }: PlanSelectorProps) {
                 !plan.isHero && isSelected && "border-primary bg-primary/5 shadow-[0_0_20px_hsl(var(--primary)/0.15)]",
               )}
             >
-              {/* Hero badge */}
               {plan.isHero && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                   <Badge className="bg-nexus-gold text-nexus-navy border-0 px-3 py-0.5 text-xs font-bold flex items-center gap-1">
@@ -131,7 +129,6 @@ export function PlanSelector({ selected, onSelect }: PlanSelectorProps) {
                 </div>
               )}
 
-              {/* Selection indicator */}
               <div className={cn(
                 "absolute top-3 right-3 h-5 w-5 rounded-full border-2 flex items-center justify-center transition-colors",
                 isSelected
@@ -143,7 +140,6 @@ export function PlanSelector({ selected, onSelect }: PlanSelectorProps) {
                 {isSelected && <Check className="h-3 w-3 text-nexus-navy" />}
               </div>
 
-              {/* Plan name */}
               <div className="mb-4 mt-1">
                 <h3 className={cn(
                   "text-xl font-display font-bold",
@@ -154,7 +150,6 @@ export function PlanSelector({ selected, onSelect }: PlanSelectorProps) {
                 <p className="text-xs text-muted-foreground mt-0.5">{plan.subtitle}</p>
               </div>
 
-              {/* Price */}
               <div className="mb-5">
                 <p className={cn(
                   "text-2xl font-bold font-display",
@@ -165,10 +160,8 @@ export function PlanSelector({ selected, onSelect }: PlanSelectorProps) {
                 <p className="text-[11px] text-muted-foreground mt-0.5">{plan.priceDetail}</p>
               </div>
 
-              {/* Divider */}
               <div className="border-t border-border/50 mb-4" />
 
-              {/* Features */}
               <ul className="space-y-2.5 flex-1">
                 {plan.features.map((feature) => (
                   <li key={feature.label} className="flex items-start gap-2.5 text-sm text-muted-foreground">
