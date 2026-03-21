@@ -26,6 +26,8 @@ import NotesReminders from "@/pages/NotesReminders";
 import Ads from "@/pages/Ads";
 import Marketing from "@/pages/Marketing";
 import Subscription from "@/pages/Subscription";
+import Credits from "@/pages/Credits";
+import Invoices from "@/pages/Invoices";
 import Domains from "@/pages/Domains";
 import Performance from "@/pages/Performance";
 import ProfilePage from "@/pages/Profile";
