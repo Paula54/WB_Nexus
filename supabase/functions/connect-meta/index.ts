@@ -159,9 +159,6 @@ Deno.serve(async (req) => {
     }
 
     console.log(`Project found: ${project.id}`);
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
 
     // --- Deactivate old meta_connections (Lovable Cloud) ---
     await supabase
