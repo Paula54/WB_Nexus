@@ -13,9 +13,12 @@ Deno.serve(async (req) => {
 
   try {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const META_APP_ID = Deno.env.get("META_APP_ID")!;
     const META_APP_SECRET = Deno.env.get("META_APP_SECRET")!;
+
+    // Production credentials
+    const PROD_URL = Deno.env.get("PROD_SUPABASE_URL")!;
+    const PROD_KEY = Deno.env.get("PROD_SUPABASE_SERVICE_ROLE_KEY")!;
 
     const url = new URL(req.url);
     const code = url.searchParams.get("code");
@@ -77,34 +80,66 @@ Deno.serve(async (req) => {
       status: a.account_status,
     }));
 
+    // Step 4: Fetch Facebook Pages to get facebook_page_id
+    let facebookPageId: string | null = null;
+    let facebookPageName: string | null = null;
+    try {
+      const pagesResponse = await fetch(
+        `https://graph.facebook.com/v21.0/me/accounts?fields=id,name,access_token&access_token=${longLivedToken}`
+      );
+      const pagesData = await pagesResponse.json();
+      if (pagesData.data && pagesData.data.length > 0) {
+        facebookPageId = pagesData.data[0].id;
+        facebookPageName = pagesData.data[0].name;
+        console.log(`Facebook Page found: ${facebookPageName} (${facebookPageId})`);
+      } else {
+        console.log("No Facebook Pages found for this user");
+      }
+    } catch (pageErr) {
+      console.error("Error fetching Facebook Pages:", pageErr);
+    }
+
     // Encrypt the token before storing
     const encryptedToken = await encryptToken(longLivedToken);
 
-    const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    // Use PRODUCTION Supabase for persistence
+    const prodClient = createClient(PROD_URL, PROD_KEY);
+
+    // Build update payload
+    const updatePayload: Record<string, any> = {
+      meta_access_token: encryptedToken,
+    };
 
     // If only one ad account, auto-select it
     if (adAccounts.length === 1) {
-      await adminClient
-        .from("projects")
-        .update({
-          meta_access_token: encryptedToken,
-          meta_ads_account_id: adAccounts[0].id,
-        })
-        .eq("user_id", userId);
+      updatePayload.meta_ads_account_id = adAccounts[0].id;
+    } else {
+      updatePayload.meta_ads_account_id = null;
+    }
 
+    // Store facebook_page_id if available
+    if (facebookPageId) {
+      updatePayload.facebook_page_id = facebookPageId;
+    }
+
+    const { error: updateError } = await prodClient
+      .from("projects")
+      .update(updatePayload)
+      .eq("user_id", userId);
+
+    if (updateError) {
+      console.error("Error updating production project:", updateError.message);
+      return Response.redirect(`${returnUrl}?meta_ads_error=${encodeURIComponent("Erro ao gravar dados: " + updateError.message)}`, 302);
+    }
+
+    console.log(`✅ Meta connected for user ${userId} on PRODUCTION (page: ${facebookPageId})`);
+
+    if (adAccounts.length === 1) {
       const successUrl = `${returnUrl}?meta_ads_connected=true&meta_account_name=${encodeURIComponent(adAccounts[0].name || adAccounts[0].id)}`;
       return Response.redirect(successUrl, 302);
     }
 
-    // Multiple accounts: store token, let user pick
-    await adminClient
-      .from("projects")
-      .update({
-        meta_access_token: encryptedToken,
-        meta_ads_account_id: null,
-      })
-      .eq("user_id", userId);
-
+    // Multiple accounts: let user pick
     const accountsParam = encodeURIComponent(JSON.stringify(adAccounts));
     const pickUrl = `${returnUrl}?meta_ads_pick_account=true&meta_accounts=${accountsParam}`;
     return Response.redirect(pickUrl, 302);
