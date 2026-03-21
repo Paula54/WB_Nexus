@@ -85,12 +85,15 @@ export function CreditWallet() {
           </div>
         </div>
 
-        <div className="flex gap-2 pt-1">
-          <Button size="sm" variant="outline" className="flex-1 text-xs">
-            +50 créditos — 29€
+        <div className="flex flex-col gap-2 pt-1">
+          <Button size="sm" variant="outline" className="w-full text-xs">
+            +100 créditos — 29€
           </Button>
-          <Button size="sm" className="flex-1 text-xs">
-            +200 créditos — 99€
+          <Button size="sm" variant="outline" className="w-full text-xs">
+            +500 créditos — 99€
+          </Button>
+          <Button size="sm" className="w-full text-xs">
+            +2.000 créditos — 249€
           </Button>
         </div>
       </CardContent>

@@ -103,10 +103,6 @@ export default function Subscription() {
 
       <PlanSelector selected={selectedPlan} onSelect={setSelectedPlan} />
 
-      <CreditWallet />
-
-      <InvoiceHistory />
-
       <Card className="glass">
         <CardHeader>
           <div className="flex items-center gap-2">
