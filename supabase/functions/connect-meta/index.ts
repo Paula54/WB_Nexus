@@ -82,15 +82,15 @@ Deno.serve(async (req) => {
 
     // --- Check legal_consent on production DB ---
     const { data: consent, error: consentError } = await prodSupabase
-      .from("legal_consent")
-      .select("id, is_active")
+      .from("legal_consents")
+      .select("user_id, accepted_at, ip_address")
       .eq("user_id", user.id)
-      .eq("is_active", true)
+      .not("accepted_at", "is", null)
       .limit(1)
       .maybeSingle();
 
     if (consentError) {
-      console.error("Error checking legal_consent:", consentError.message);
+      console.error("Error checking legal_consents:", consentError.message);
       return new Response(
         JSON.stringify({ error: "Erro ao verificar consentimento legal: " + consentError.message }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
