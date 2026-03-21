@@ -16,83 +16,54 @@ Deno.serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Missing Authorization header" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // --- Lovable Cloud client (auth validation) ---
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-
     const anonClient = createClient(supabaseUrl, supabaseAnonKey);
     const { data: { user }, error: authError } = await anonClient.auth.getUser(
       authHeader.replace("Bearer ", "")
     );
 
     if (authError || !user) {
-      return new Response(JSON.stringify({ 
-        error: "Unauthorized – JWT validation failed", 
-        detail: authError?.message || "No user returned from getUser" 
-      }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      return new Response(JSON.stringify({ error: "Unauthorized", detail: authError?.message }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    console.log(`Auth OK for user ${user.id} (${user.email})`);
+    console.log(`Auth OK for user ${user.id}`);
 
-    // --- Production Supabase client (data persistence) ---
+    // Production client
     const prodUrl = Deno.env.get("PROD_SUPABASE_URL");
     const prodServiceKey = Deno.env.get("PROD_SUPABASE_SERVICE_ROLE_KEY");
-
     if (!prodUrl || !prodServiceKey) {
-      return new Response(
-        JSON.stringify({ 
-          error: "Production Supabase credentials not configured",
-          detail: `PROD_SUPABASE_URL=${prodUrl ? "SET" : "MISSING"}, PROD_SUPABASE_SERVICE_ROLE_KEY=${prodServiceKey ? "SET" : "MISSING"}`
-        }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: "Production credentials not configured" }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
-
-    console.log(`Production URL: ${prodUrl}`);
-
     const prodSupabase = createClient(prodUrl, prodServiceKey);
 
-    // Also keep a Lovable Cloud service client for meta_connections
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
     const { connection_type } = await req.json();
-
     const metaAccessToken = Deno.env.get("META_ACCESS_TOKEN");
     const adAccountId = Deno.env.get("META_AD_ACCOUNT_ID");
-    const whatsappBusinessAccountId = Deno.env.get("META_WHATSAPP_BUSINESS_ACCOUNT_ID");
 
     if (!metaAccessToken) {
-      return new Response(
-        JSON.stringify({ error: "META_ACCESS_TOKEN not configured" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: "META_ACCESS_TOKEN not configured" }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    // --- Validate Meta token with Graph API ---
-    const tokenCheck = await fetch(
-      `https://graph.facebook.com/v21.0/me?access_token=${metaAccessToken}`
-    );
+    // Validate token
+    const tokenCheck = await fetch(`https://graph.facebook.com/v21.0/me?access_token=${metaAccessToken}`);
     if (!tokenCheck.ok) {
-      const tokenErr = await tokenCheck.text();
-      console.error("Meta token validation failed:", tokenErr);
-      return new Response(
-        JSON.stringify({ error: "Meta access token is invalid or expired", detail: tokenErr }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: "Meta token invalid or expired" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    console.log("Meta token validated OK");
-
-    // --- Check legal_consent on production DB ---
+    // Check legal consent
     const { data: consent, error: consentError } = await prodSupabase
       .from("legal_consents")
       .select("user_id, accepted_at, ip_address")
@@ -102,32 +73,17 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (consentError) {
-      console.error("Error checking legal_consents:", consentError.message);
-      return new Response(
-        JSON.stringify({ 
-          error: "Erro ao verificar consentimento legal",
-          detail: consentError.message,
-          hint: consentError.code === "PGRST116" ? "Table legal_consents may not exist" : 
-                consentError.code === "42501" ? "Invalid API Key or insufficient permissions (check PROD_SUPABASE_SERVICE_ROLE_KEY)" :
-                `Postgres error code: ${consentError.code}`
-        }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: "Erro ao verificar consentimento legal", detail: consentError.message }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
-
-    console.log(`Legal consent lookup for user ${user.id}: ${consent ? "FOUND" : "NOT FOUND"}`);
-
     if (!consent) {
-      return new Response(
-        JSON.stringify({ 
-          error: "User not found in legal_consents",
-          detail: `No record with accepted_at for user_id=${user.id}. Insert a consent record before calling connect-meta.`
-        }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: "User not found in legal_consents" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    // --- Find project on production DB ---
+    // Find project
     const { data: project, error: projectError } = await prodSupabase
       .from("projects")
       .select("id")
@@ -136,92 +92,97 @@ Deno.serve(async (req) => {
       .limit(1)
       .maybeSingle();
 
-    if (projectError) {
-      console.error("Error finding project:", projectError.message);
-      return new Response(JSON.stringify({ 
-        error: "Failed to query projects table in production",
-        detail: projectError.message,
-        hint: projectError.code === "42501" ? "Invalid API Key or RLS blocking service role" : `Code: ${projectError.code}`
-      }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+    if (projectError || !project) {
+      return new Response(JSON.stringify({ error: projectError?.message || "No project found" }), {
+        status: projectError ? 500 : 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    if (!project) {
-      return new Response(
-        JSON.stringify({ 
-          error: "No project found for this user",
-          detail: `No rows in projects where user_id=${user.id}`
-        }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    // --- Fetch Facebook Page, Instagram Business, WhatsApp Business IDs ---
+    let facebookPageId: string | null = null;
+    let instagramBusinessId: string | null = null;
+    let whatsappBusinessId: string | null = null;
+
+    // Facebook Pages
+    try {
+      const pagesRes = await fetch(
+        `https://graph.facebook.com/v21.0/me/accounts?fields=id,name&access_token=${metaAccessToken}`
       );
+      const pagesData = await pagesRes.json();
+      if (pagesData.data?.length > 0) {
+        facebookPageId = pagesData.data[0].id;
+        console.log(`Facebook Page: ${facebookPageId}`);
+
+        // Instagram Business Account linked to the page
+        const igRes = await fetch(
+          `https://graph.facebook.com/v21.0/${facebookPageId}?fields=instagram_business_account&access_token=${metaAccessToken}`
+        );
+        const igData = await igRes.json();
+        if (igData.instagram_business_account?.id) {
+          instagramBusinessId = igData.instagram_business_account.id;
+          console.log(`Instagram Business: ${instagramBusinessId}`);
+        }
+      }
+    } catch (e) {
+      console.error("Error fetching pages/instagram:", e);
     }
 
-    console.log(`Project found: ${project.id}`);
-
-    // --- Deactivate old meta_connections (Lovable Cloud) ---
-    await supabase
-      .from("meta_connections")
-      .update({ is_active: false })
-      .eq("user_id", user.id)
-      .eq("project_id", project.id);
-
-    // --- Insert new meta_connection (Lovable Cloud) ---
-    const { error: insertError } = await supabase
-      .from("meta_connections")
-      .insert({
-        project_id: project.id,
-        user_id: user.id,
-        ad_account_id: adAccountId || null,
-        connection_type: connection_type || "imported",
-        whatsapp_account_id: whatsappBusinessAccountId || null,
-        is_active: true,
-      });
-
-    if (insertError) {
-      return new Response(JSON.stringify({ error: insertError.message }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    // WhatsApp Business Account
+    const whatsappEnvId = Deno.env.get("META_WHATSAPP_BUSINESS_ACCOUNT_ID");
+    if (whatsappEnvId) {
+      whatsappBusinessId = whatsappEnvId;
+      console.log(`WhatsApp Business: ${whatsappBusinessId}`);
     }
 
-    // --- Encrypt and write to PRODUCTION projects table ---
+    // Encrypt token
     const encryptedToken = await encryptToken(metaAccessToken);
+
+    // Update production project with all IDs
+    const updatePayload: Record<string, unknown> = {
+      meta_access_token: encryptedToken,
+      meta_ads_account_id: adAccountId || null,
+      facebook_page_id: facebookPageId,
+      instagram_business_id: instagramBusinessId,
+      whatsapp_business_id: whatsappBusinessId,
+    };
 
     const { error: updateError } = await prodSupabase
       .from("projects")
-      .update({
-        meta_access_token: encryptedToken,
-        meta_ads_account_id: adAccountId || null,
-      })
+      .update(updatePayload)
       .eq("id", project.id);
 
     if (updateError) {
-      console.error("Error updating production project:", updateError.message);
       return new Response(JSON.stringify({ error: updateError.message }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    console.log(`✅ Meta connected for user ${user.id}, project ${project.id} (production)`);
+    // Insert meta_connection in Lovable Cloud
+    const supabase = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    await supabase.from("meta_connections").update({ is_active: false }).eq("user_id", user.id).eq("project_id", project.id);
+    await supabase.from("meta_connections").insert({
+      project_id: project.id,
+      user_id: user.id,
+      ad_account_id: adAccountId || null,
+      connection_type: connection_type || "imported",
+      whatsapp_account_id: whatsappBusinessId,
+      instagram_business_id: instagramBusinessId,
+      is_active: true,
+    });
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        project_id: project.id,
-        ad_account_id: adAccountId,
-        connection_type: connection_type || "imported",
-        legal_consent_verified: true,
-      }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    console.log(`✅ Meta connected: project=${project.id}, fb=${facebookPageId}, ig=${instagramBusinessId}, wa=${whatsappBusinessId}`);
+
+    return new Response(JSON.stringify({
+      success: true,
+      project_id: project.id,
+      facebook_page_id: facebookPageId,
+      instagram_business_id: instagramBusinessId,
+      whatsapp_business_id: whatsappBusinessId,
+    }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (err) {
     console.error("connect-meta error:", err);
     return new Response(JSON.stringify({ error: err.message }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });
