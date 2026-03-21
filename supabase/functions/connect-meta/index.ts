@@ -15,7 +15,7 @@ Deno.serve(async (req) => {
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Missing auth" }), {
+      return new Response(JSON.stringify({ error: "Missing Authorization header" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -32,11 +32,16 @@ Deno.serve(async (req) => {
     );
 
     if (authError || !user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      return new Response(JSON.stringify({ 
+        error: "Unauthorized – JWT validation failed", 
+        detail: authError?.message || "No user returned from getUser" 
+      }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    console.log(`Auth OK for user ${user.id} (${user.email})`);
 
     // --- Production Supabase client (data persistence) ---
     const prodUrl = Deno.env.get("PROD_SUPABASE_URL");
@@ -44,10 +49,15 @@ Deno.serve(async (req) => {
 
     if (!prodUrl || !prodServiceKey) {
       return new Response(
-        JSON.stringify({ error: "Production Supabase credentials not configured" }),
+        JSON.stringify({ 
+          error: "Production Supabase credentials not configured",
+          detail: `PROD_SUPABASE_URL=${prodUrl ? "SET" : "MISSING"}, PROD_SUPABASE_SERVICE_ROLE_KEY=${prodServiceKey ? "SET" : "MISSING"}`
+        }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    console.log(`Production URL: ${prodUrl}`);
 
     const prodSupabase = createClient(prodUrl, prodServiceKey);
 
@@ -75,10 +85,12 @@ Deno.serve(async (req) => {
       const tokenErr = await tokenCheck.text();
       console.error("Meta token validation failed:", tokenErr);
       return new Response(
-        JSON.stringify({ error: "Meta access token is invalid or expired" }),
+        JSON.stringify({ error: "Meta access token is invalid or expired", detail: tokenErr }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    console.log("Meta token validated OK");
 
     // --- Check legal_consent on production DB ---
     const { data: consent, error: consentError } = await prodSupabase
@@ -92,14 +104,25 @@ Deno.serve(async (req) => {
     if (consentError) {
       console.error("Error checking legal_consents:", consentError.message);
       return new Response(
-        JSON.stringify({ error: "Erro ao verificar consentimento legal: " + consentError.message }),
+        JSON.stringify({ 
+          error: "Erro ao verificar consentimento legal",
+          detail: consentError.message,
+          hint: consentError.code === "PGRST116" ? "Table legal_consents may not exist" : 
+                consentError.code === "42501" ? "Invalid API Key or insufficient permissions (check PROD_SUPABASE_SERVICE_ROLE_KEY)" :
+                `Postgres error code: ${consentError.code}`
+        }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
+    console.log(`Legal consent lookup for user ${user.id}: ${consent ? "FOUND" : "NOT FOUND"}`);
+
     if (!consent) {
       return new Response(
-        JSON.stringify({ error: "Consentimento legal não encontrado ou inativo. Aceita os termos antes de continuar." }),
+        JSON.stringify({ 
+          error: "User not found in legal_consents",
+          detail: `No record with accepted_at for user_id=${user.id}. Insert a consent record before calling connect-meta.`
+        }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -114,7 +137,12 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (projectError) {
-      return new Response(JSON.stringify({ error: projectError.message }), {
+      console.error("Error finding project:", projectError.message);
+      return new Response(JSON.stringify({ 
+        error: "Failed to query projects table in production",
+        detail: projectError.message,
+        hint: projectError.code === "42501" ? "Invalid API Key or RLS blocking service role" : `Code: ${projectError.code}`
+      }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -122,10 +150,15 @@ Deno.serve(async (req) => {
 
     if (!project) {
       return new Response(
-        JSON.stringify({ error: "No project found. Create a project first." }),
+        JSON.stringify({ 
+          error: "No project found for this user",
+          detail: `No rows in projects where user_id=${user.id}`
+        }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    console.log(`Project found: ${project.id}`);
 
     // --- Deactivate old meta_connections (Lovable Cloud) ---
     await supabase
