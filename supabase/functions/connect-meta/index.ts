@@ -137,7 +137,12 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (projectError) {
-      return new Response(JSON.stringify({ error: projectError.message }), {
+      console.error("Error finding project:", projectError.message);
+      return new Response(JSON.stringify({ 
+        error: "Failed to query projects table in production",
+        detail: projectError.message,
+        hint: projectError.code === "42501" ? "Invalid API Key or RLS blocking service role" : `Code: ${projectError.code}`
+      }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -145,7 +150,15 @@ Deno.serve(async (req) => {
 
     if (!project) {
       return new Response(
-        JSON.stringify({ error: "No project found. Create a project first." }),
+        JSON.stringify({ 
+          error: "No project found for this user",
+          detail: `No rows in projects where user_id=${user.id}`
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log(`Project found: ${project.id}`);
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
