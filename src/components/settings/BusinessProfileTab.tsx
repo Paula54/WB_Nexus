@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/lib/supabaseCustom";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
-import { Building2, MapPin, Phone, Globe, Save, Loader2, BookOpen, AlertTriangle } from "lucide-react";
+import { Building2, MapPin, Phone, Globe, Save, Loader2, AlertTriangle } from "lucide-react";
 
 interface BusinessProfile {
   legal_name: string;
@@ -24,8 +24,6 @@ interface BusinessProfile {
   facebook_url: string;
   instagram_url: string;
   linkedin_url: string;
-  complaints_book_url: string;
-  dre_url: string;
 }
 
 const EMPTY_PROFILE: BusinessProfile = {
@@ -43,8 +41,6 @@ const EMPTY_PROFILE: BusinessProfile = {
   facebook_url: "",
   instagram_url: "",
   linkedin_url: "",
-  complaints_book_url: "",
-  dre_url: "",
 };
 
 const COMPANY_TYPES = [
@@ -90,11 +86,7 @@ export default function BusinessProfileTab() {
           facebook_url: (d.facebook_url as string) || "",
           instagram_url: (d.instagram_url as string) || "",
           linkedin_url: (d.linkedin_url as string) || "",
-          complaints_book_url: (d.complaints_book_url as string) || "",
-          dre_url: (d.dre_url as string) || "",
         });
-        // Extract company type from custom_fields or infer
-        // We'll store it as part of the profile via a convention in trade_name or custom field
       }
       setLoading(false);
     })();
@@ -164,7 +156,6 @@ export default function BusinessProfileTab() {
     if (error) {
       toast({ variant: "destructive", title: "Erro", description: "Não foi possível guardar o perfil." });
     } else {
-      // Sync with Stripe customer
       try {
         const { data: sessionData } = await supabase.auth.getSession();
         const accessToken = sessionData?.session?.access_token;
@@ -212,7 +203,6 @@ export default function BusinessProfileTab() {
 
   return (
     <form onSubmit={handleSave} className="space-y-6">
-      {/* Alert for missing fiscal data */}
       {missingFields && (
         <Card className="border-amber-500/30 bg-amber-500/5">
           <CardContent className="flex items-center gap-3 py-4">
@@ -369,27 +359,6 @@ export default function BusinessProfileTab() {
               <Label>LinkedIn</Label>
               <Input value={profile.linkedin_url} onChange={update("linkedin_url")} placeholder="https://linkedin.com/..." />
             </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Compliance */}
-      <Card className="glass border-amber-500/20">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <BookOpen className="h-5 w-5 text-amber-500" />
-            Links de Conformidade
-          </CardTitle>
-          <CardDescription>URLs obrigatórias para cumprimento legal</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label>Livro de Reclamações Online</Label>
-            <Input value={profile.complaints_book_url} onChange={update("complaints_book_url")} placeholder="https://www.livroreclamacoes.pt/..." />
-          </div>
-          <div className="space-y-2">
-            <Label>Diário da República (DRE)</Label>
-            <Input value={profile.dre_url} onChange={update("dre_url")} placeholder="https://dre.pt/..." />
           </div>
         </CardContent>
       </Card>

@@ -5,8 +5,8 @@ import { cn } from "@/lib/utils";
 import type { SubscriptionData } from "@/hooks/useSubscription";
 
 const PLAN_META: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
-  START: { label: "Start", icon: <Zap className="h-5 w-5" />, color: "text-primary" },
-  GROWTH: { label: "Growth", icon: <Rocket className="h-5 w-5" />, color: "text-blue-400" },
+  START: { label: "Nexus Start", icon: <Zap className="h-5 w-5" />, color: "text-primary" },
+  GROWTH: { label: "Nexus Growth", icon: <Rocket className="h-5 w-5" />, color: "text-blue-400" },
   NEXUS_OS: { label: "Nexus OS", icon: <Crown className="h-5 w-5" />, color: "text-nexus-gold" },
 };
 
@@ -56,9 +56,9 @@ export function CurrentPlanCard({ subscription }: CurrentPlanCardProps) {
               {plan.label}
             </p>
             <p className="text-xs text-muted-foreground">
-              {subscription.plan_name === "START" && "490€ setup + 29€/mês"}
-              {subscription.plan_name === "GROWTH" && "890€ setup + 99€/mês"}
-              {subscription.plan_name === "NEXUS_OS" && "1.490€/ano"}
+              {subscription.plan_name === "START" && "790€ ativação + 49€/mês"}
+              {subscription.plan_name === "GROWTH" && "1.490€ ativação + 149€/mês"}
+              {subscription.plan_name === "NEXUS_OS" && "2.490€ ativação + 299€/mês"}
             </p>
           </div>
         </div>
