@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabaseCustom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuotaCheck } from "@/hooks/useQuotaCheck";
+import { useUsageCredits } from "@/hooks/useUsageCredits";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -40,6 +41,7 @@ export default function Blog() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { checkAndIncrement } = useQuotaCheck();
+  const { spendCredits } = useUsageCredits();
 
   const [editing, setEditing] = useState<BlogPost | null>(null);
   const [creating, setCreating] = useState(false);
@@ -133,6 +135,9 @@ export default function Blog() {
 
     const allowed = await checkAndIncrement("blog");
     if (!allowed) return;
+
+    const hasCredits = await spendCredits("blog");
+    if (!hasCredits) return;
 
     setAiLoading(true);
     try {

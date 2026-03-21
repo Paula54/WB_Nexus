@@ -728,6 +728,39 @@ export type Database = {
         }
         Relationships: []
       }
+      nx_usage_credits: {
+        Row: {
+          created_at: string
+          id: string
+          last_reset: string
+          plan_name: string
+          total_credits: number
+          updated_at: string
+          used_credits: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_reset?: string
+          plan_name?: string
+          total_credits?: number
+          updated_at?: string
+          used_credits?: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_reset?: string
+          plan_name?: string
+          total_credits?: number
+          updated_at?: string
+          used_credits?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       page_sections: {
         Row: {
           content: Json
