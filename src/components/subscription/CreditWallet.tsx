@@ -1,8 +1,12 @@
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Wallet, Fuel, FileText, Mail, Megaphone, AlertTriangle, Share2, Bot } from "lucide-react";
+import { Wallet, Fuel, FileText, Mail, Megaphone, AlertTriangle, Share2, Bot, Loader2 } from "lucide-react";
 import { useUsageCredits, CREDIT_COSTS } from "@/hooks/useUsageCredits";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/lib/supabaseCustom";
+import { useToast } from "@/hooks/use-toast";
 
 const CREDIT_DISPLAY = [
   { key: "blog", label: "Blog Post (IA)", cost: CREDIT_COSTS.blog, icon: FileText },
@@ -12,11 +16,62 @@ const CREDIT_DISPLAY = [
   { key: "concierge", label: "Query Concierge", cost: CREDIT_COSTS.concierge, icon: Bot },
 ];
 
+const PACKS = [
+  { id: "lite", label: "+100 créditos", price: "29€", variant: "outline" as const },
+  { id: "pro", label: "+500 créditos", price: "99€", variant: "outline" as const },
+  { id: "enterprise", label: "+2.000 créditos", price: "249€", variant: "default" as const },
+];
+
 export function CreditWallet() {
   const { credits, isLoading, remaining } = useUsageCredits();
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [buyingPack, setBuyingPack] = useState<string | null>(null);
 
   const isLow = remaining < 20;
   const pct = credits ? Math.min((credits.used_credits / credits.total_credits) * 100, 100) : 0;
+
+  const handleBuyPack = async (packId: string) => {
+    if (!user) {
+      toast({ title: "Sessão expirada", description: "Faz login para continuar.", variant: "destructive" });
+      return;
+    }
+
+    setBuyingPack(packId);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData?.session?.access_token;
+      if (!accessToken) throw new Error("Sem sessão ativa");
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/buy-credits`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({ pack: packId }),
+        }
+      );
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Erro ao iniciar compra");
+
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    } catch (error: unknown) {
+      console.error("Buy credits error:", error);
+      toast({
+        title: "Erro na compra",
+        description: error instanceof Error ? error.message : "Não foi possível iniciar a compra.",
+        variant: "destructive",
+      });
+    } finally {
+      setBuyingPack(null);
+    }
+  };
 
   return (
     <Card className="glass border-primary/20">
@@ -46,7 +101,6 @@ export function CreditWallet() {
           <Fuel className="h-8 w-8 text-primary/40" />
         </div>
 
-        {/* Progress bar */}
         {credits && (
           <div className="h-2.5 rounded-full bg-muted/50 overflow-hidden">
             <div
@@ -86,15 +140,22 @@ export function CreditWallet() {
         </div>
 
         <div className="flex flex-col gap-2 pt-1">
-          <Button size="sm" variant="outline" className="w-full text-xs">
-            +100 créditos — 29€
-          </Button>
-          <Button size="sm" variant="outline" className="w-full text-xs">
-            +500 créditos — 99€
-          </Button>
-          <Button size="sm" className="w-full text-xs">
-            +2.000 créditos — 249€
-          </Button>
+          {PACKS.map((pack) => (
+            <Button
+              key={pack.id}
+              size="sm"
+              variant={pack.variant}
+              className="w-full text-xs"
+              disabled={buyingPack !== null}
+              onClick={() => handleBuyPack(pack.id)}
+            >
+              {buyingPack === pack.id ? (
+                <><Loader2 className="h-3 w-3 mr-1 animate-spin" />A processar...</>
+              ) : (
+                `${pack.label} — ${pack.price}`
+              )}
+            </Button>
+          ))}
         </div>
       </CardContent>
     </Card>

@@ -20,8 +20,7 @@ serve(async (req) => {
   if (!stripeSecretKey || !webhookSecret) {
     console.error('Missing Stripe secrets');
     return new Response(JSON.stringify({ error: 'Server configuration error' }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 
@@ -30,14 +29,12 @@ serve(async (req) => {
     httpClient: Stripe.createFetchHttpClient(),
   });
 
-  // Use service role to bypass RLS (webhook has no user context)
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
   const signature = req.headers.get('stripe-signature');
   if (!signature) {
     return new Response(JSON.stringify({ error: 'Missing stripe-signature header' }), {
-      status: 400,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 
@@ -49,8 +46,7 @@ serve(async (req) => {
   } catch (err) {
     console.error('Webhook signature verification failed:', err.message);
     return new Response(JSON.stringify({ error: `Webhook Error: ${err.message}` }), {
-      status: 400,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 
@@ -62,7 +58,43 @@ serve(async (req) => {
         const session = event.data.object as Stripe.Checkout.Session;
         const userId = session.metadata?.user_id;
 
-        // Handle wallet top-up (one-time payment)
+        // ── Handle AI Fuel credit top-up (one-time payment) ──
+        if (session.metadata?.type === 'credit_topup' && userId) {
+          const credits = parseInt(session.metadata.credits || '0', 10);
+          if (credits > 0) {
+            // Add credits to user's wallet
+            const { data: existing } = await supabase
+              .from('nx_usage_credits')
+              .select('total_credits')
+              .eq('user_id', userId)
+              .maybeSingle();
+
+            if (existing) {
+              await supabase
+                .from('nx_usage_credits')
+                .update({ total_credits: existing.total_credits + credits })
+                .eq('user_id', userId);
+            } else {
+              await supabase
+                .from('nx_usage_credits')
+                .insert({ user_id: userId, total_credits: credits, used_credits: 0, plan_name: 'TopUp' });
+            }
+
+            // Record wallet transaction
+            await supabase.from('wallet_transactions').insert({
+              user_id: userId,
+              amount: credits,
+              type: 'credit_topup',
+              description: `AI Fuel Top-up: +${credits} créditos (Pack ${session.metadata.pack})`,
+              reference_id: session.id,
+            });
+
+            console.log(`Credits topped up: user=${userId}, credits=${credits}`);
+          }
+          break;
+        }
+
+        // ── Handle wallet top-up (legacy) ──
         if (session.metadata?.type === 'wallet_topup' && userId) {
           const amount = parseFloat(session.metadata.amount || '0');
           if (amount > 0) {
@@ -78,7 +110,7 @@ serve(async (req) => {
           break;
         }
 
-        // Handle subscription checkout
+        // ── Handle subscription checkout ──
         const projectId = session.metadata?.project_id;
         const planType = session.metadata?.plan_type || 'START';
 
@@ -87,10 +119,8 @@ serve(async (req) => {
           break;
         }
 
-        // Retrieve the subscription details from Stripe
         const subscription = await stripe.subscriptions.retrieve(session.subscription as string);
 
-        // Upsert subscription record
         const { error: subError } = await supabase
           .from('subscriptions')
           .upsert({
@@ -105,31 +135,21 @@ serve(async (req) => {
               : null,
             current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
             current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-          }, {
-            onConflict: 'stripe_subscription_id',
-          });
+          }, { onConflict: 'stripe_subscription_id' });
 
         if (subError) {
           console.error('Error upserting subscription:', subError);
           break;
         }
 
-        // Update project with the selected plan and trial expiry
         const trialEndsAt = subscription.trial_end
           ? new Date(subscription.trial_end * 1000).toISOString()
           : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
 
-        const { error: projError } = await supabase
+        await supabase
           .from('projects')
-          .update({
-            selected_plan: planType,
-            trial_expires_at: trialEndsAt,
-          })
+          .update({ selected_plan: planType, trial_expires_at: trialEndsAt })
           .eq('id', projectId);
-
-        if (projError) {
-          console.error('Error updating project:', projError);
-        }
 
         console.log(`Checkout completed: user=${userId}, project=${projectId}, plan=${planType}`);
         break;
@@ -139,7 +159,7 @@ serve(async (req) => {
         const subscription = event.data.object as Stripe.Subscription;
         const stripeSubId = subscription.id;
 
-        const { error } = await supabase
+        await supabase
           .from('subscriptions')
           .update({
             status: subscription.status,
@@ -151,11 +171,6 @@ serve(async (req) => {
           })
           .eq('stripe_subscription_id', stripeSubId);
 
-        if (error) {
-          console.error('Error updating subscription:', error);
-        }
-
-        // If subscription becomes active or past_due, update project accordingly
         if (subscription.status === 'active' || subscription.status === 'past_due') {
           const { data: subData } = await supabase
             .from('subscriptions')
@@ -183,29 +198,21 @@ serve(async (req) => {
         const subscription = event.data.object as Stripe.Subscription;
         const stripeSubId = subscription.id;
 
-        // Get project_id before updating
         const { data: subData } = await supabase
           .from('subscriptions')
           .select('project_id')
           .eq('stripe_subscription_id', stripeSubId)
           .single();
 
-        const { error } = await supabase
+        await supabase
           .from('subscriptions')
           .update({ status: 'canceled' })
           .eq('stripe_subscription_id', stripeSubId);
 
-        if (error) {
-          console.error('Error canceling subscription:', error);
-        }
-
-        // Mark project trial as expired
         if (subData?.project_id) {
           await supabase
             .from('projects')
-            .update({
-              trial_expires_at: new Date().toISOString(), // Expire immediately
-            })
+            .update({ trial_expires_at: new Date().toISOString() })
             .eq('id', subData.project_id);
         }
 
@@ -219,13 +226,11 @@ serve(async (req) => {
   } catch (err) {
     console.error('Error processing webhook event:', err);
     return new Response(JSON.stringify({ error: 'Internal processing error' }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 
   return new Response(JSON.stringify({ received: true }), {
-    status: 200,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
 });
