@@ -1372,6 +1372,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      spend_credits: {
+        Args: { p_action: string; p_cost: number }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "admin" | "freelancer" | "customer"
