@@ -10,6 +10,7 @@ import { useStripeCheckout } from "@/hooks/useStripeCheckout";
 import { useSubscription } from "@/hooks/useSubscription";
 import { PlanSelector } from "@/components/strategy/PlanSelector";
 import { CurrentPlanCard } from "@/components/subscription/CurrentPlanCard";
+import { CreditWallet } from "@/components/subscription/CreditWallet";
 import { InvoiceHistory } from "@/components/subscription/InvoiceHistory";
 import type { PlanType } from "@/types/nexus";
 
