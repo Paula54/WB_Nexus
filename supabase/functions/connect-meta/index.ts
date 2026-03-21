@@ -85,10 +85,12 @@ Deno.serve(async (req) => {
       const tokenErr = await tokenCheck.text();
       console.error("Meta token validation failed:", tokenErr);
       return new Response(
-        JSON.stringify({ error: "Meta access token is invalid or expired" }),
+        JSON.stringify({ error: "Meta access token is invalid or expired", detail: tokenErr }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    console.log("Meta token validated OK");
 
     // --- Check legal_consent on production DB ---
     const { data: consent, error: consentError } = await prodSupabase
@@ -102,14 +104,25 @@ Deno.serve(async (req) => {
     if (consentError) {
       console.error("Error checking legal_consents:", consentError.message);
       return new Response(
-        JSON.stringify({ error: "Erro ao verificar consentimento legal: " + consentError.message }),
+        JSON.stringify({ 
+          error: "Erro ao verificar consentimento legal",
+          detail: consentError.message,
+          hint: consentError.code === "PGRST116" ? "Table legal_consents may not exist" : 
+                consentError.code === "42501" ? "Invalid API Key or insufficient permissions (check PROD_SUPABASE_SERVICE_ROLE_KEY)" :
+                `Postgres error code: ${consentError.code}`
+        }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
+    console.log(`Legal consent lookup for user ${user.id}: ${consent ? "FOUND" : "NOT FOUND"}`);
+
     if (!consent) {
       return new Response(
-        JSON.stringify({ error: "Consentimento legal não encontrado ou inativo. Aceita os termos antes de continuar." }),
+        JSON.stringify({ 
+          error: "User not found in legal_consents",
+          detail: `No record with accepted_at for user_id=${user.id}. Insert a consent record before calling connect-meta.`
+        }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
