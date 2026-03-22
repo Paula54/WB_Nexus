@@ -33,7 +33,7 @@ Deno.serve(async (req) => {
 
     const returnUrl = returnOrigin
       ? `${returnOrigin}/settings`
-      : "https://marketing-ai-core.lovable.app/settings";
+      : "https://nexus.web-business.pt/settings";
 
     if (error) {
       return Response.redirect(`${returnUrl}?meta_ads_error=${encodeURIComponent(error)}`, 302);
@@ -125,6 +125,6 @@ Deno.serve(async (req) => {
     return Response.redirect(`${returnUrl}?meta_ads_pick_account=true&meta_accounts=${accountsParam}`, 302);
   } catch (err) {
     console.error("meta-ads-callback error:", err);
-    return Response.redirect("https://marketing-ai-core.lovable.app/settings?meta_ads_error=Erro+interno+no+servidor", 302);
+    return Response.redirect("https://nexus.web-business.pt/settings?meta_ads_error=Erro+interno+no+servidor", 302);
   }
 });

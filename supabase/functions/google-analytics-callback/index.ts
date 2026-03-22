@@ -35,7 +35,7 @@ Deno.serve(async (req) => {
 
     const returnUrl = returnOrigin
       ? `${returnOrigin}/settings`
-      : "https://marketing-ai-core.lovable.app/settings";
+      : "https://nexus.web-business.pt/settings";
 
     if (error) {
       console.error("Google OAuth error:", error);
@@ -124,6 +124,6 @@ Deno.serve(async (req) => {
     return Response.redirect(successUrl, 302);
   } catch (err) {
     console.error("google-analytics-callback error:", err);
-    return Response.redirect("https://marketing-ai-core.lovable.app/settings?google_analytics_error=Erro+interno", 302);
+    return Response.redirect("https://nexus.web-business.pt/settings?google_analytics_error=Erro+interno", 302);
   }
 });
