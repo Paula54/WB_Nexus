@@ -512,7 +512,7 @@ Retorna um array JSON com os posts. Apenas o JSON, sem markdown.`;
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: "gemini-2.5-flash",
         messages: [
           { role: "system", content: "Gera conteúdo de redes sociais em Português de Portugal. Retorna APENAS JSON válido." },
           { role: "user", content: generatePrompt },
