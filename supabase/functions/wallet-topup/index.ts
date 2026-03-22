@@ -94,8 +94,8 @@ Deno.serve(async (req) => {
         type: "wallet_topup",
         amount: (cents / 100).toFixed(2),
       },
-      success_url: successUrl || `${req.headers.get("origin") || "https://marketing-ai-core.lovable.app"}/domains?topup=success`,
-      cancel_url: cancelUrl || `${req.headers.get("origin") || "https://marketing-ai-core.lovable.app"}/domains?topup=cancel`,
+      success_url: successUrl || `${req.headers.get("origin") || "https://nexus.web-business.pt"}/domains?topup=success`,
+      cancel_url: cancelUrl || `${req.headers.get("origin") || "https://nexus.web-business.pt"}/domains?topup=cancel`,
     });
 
     return new Response(JSON.stringify({ url: session.url, sessionId: session.id }), {
