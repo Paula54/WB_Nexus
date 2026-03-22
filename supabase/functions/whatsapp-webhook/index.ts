@@ -7,7 +7,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-const VERIFY_TOKEN = "nexus_whatsapp_verify_2024";
+const VERIFY_TOKEN = Deno.env.get("VERIFY_TOKEN") || "";
 
 serve(async (req) => {
   // Handle CORS
