@@ -33,7 +33,7 @@ Deno.serve(async (req) => {
 
     const returnUrl = returnOrigin
       ? `${returnOrigin}/settings`
-      : "https://marketing-ai-core.lovable.app/settings";
+      : "https://nexus.web-business.pt/settings";
 
     if (error) {
       return Response.redirect(`${returnUrl}?meta_ads_error=${encodeURIComponent(error)}`, 302);
