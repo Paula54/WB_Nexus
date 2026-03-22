@@ -156,7 +156,7 @@ serve(async (req) => {
           // Generate AI response
           let aiReply = "Obrigado pela sua mensagem! Entraremos em contacto brevemente.";
 
-          if (LOVABLE_API_KEY) {
+          if (GEMINI_API_KEY) {
             try {
               const customInstructions = profile?.ai_custom_instructions || "";
               const companyName = profile?.company_name || "";
