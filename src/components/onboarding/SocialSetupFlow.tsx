@@ -22,8 +22,6 @@ interface SocialSetupFlowProps {
 
 type Step = "choice" | "create-form" | "create-guide" | "connect";
 
-const CONNECT_META_URL = "https://hqyuxponbobmuletqshq.supabase.co/functions/v1/connect-meta";
-
 export function SocialSetupFlow({ open, onOpenChange, onHasPage }: SocialSetupFlowProps) {
   const [step, setStep] = useState<Step>("choice");
   const [businessName, setBusinessName] = useState("");
@@ -65,7 +63,7 @@ export function SocialSetupFlow({ open, onOpenChange, onHasPage }: SocialSetupFl
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) throw new Error("Sessão inválida");
 
-      const response = await fetch(CONNECT_META_URL, {
+      const response = await fetch("https://hqyuxponbobmuletqshq.supabase.co/functions/v1/connect-meta", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
