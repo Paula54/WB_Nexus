@@ -63,7 +63,7 @@ export function SocialSetupFlow({ open, onOpenChange, onHasPage }: SocialSetupFl
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) throw new Error("Sessão inválida");
 
-      const edgeFunctionUrl = `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/functions/v1/connect-meta`;
+      const edgeFunctionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/connect-meta`;
       const response = await fetch(edgeFunctionUrl, {
         method: "POST",
         headers: {
