@@ -647,7 +647,7 @@ serve(async (req) => {
           result = await handleSchedulePost(supabase, user_id, tool_args, SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
           break;
         case "generate_instagram_draft":
-          result = await handleGenerateInstagramDraft(supabase, user_id, tool_args, LOVABLE_API_KEY);
+          result = await handleGenerateInstagramDraft(supabase, user_id, tool_args, GEMINI_API_KEY);
           break;
         default:
           result = { success: false, message: `Ferramenta "${tool_name}" não reconhecida` };
