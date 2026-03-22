@@ -35,7 +35,7 @@ Deno.serve(async (req) => {
 
     const returnUrl = returnOrigin
       ? `${returnOrigin}/settings`
-      : "https://marketing-ai-core.lovable.app/settings";
+      : "https://nexus.web-business.pt/settings";
 
     if (error) {
       console.error("Google OAuth error:", error);
