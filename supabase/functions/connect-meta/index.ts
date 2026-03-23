@@ -12,22 +12,36 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // --- Meta Webhook Verification (GET) ---
+  // --- GET: Webhook verification OR Facebook Login redirect ---
   if (req.method === "GET") {
     const url = new URL(req.url);
     const mode = url.searchParams.get("hub.mode");
     const token = url.searchParams.get("hub.verify_token");
     const challenge = url.searchParams.get("hub.challenge");
 
-    const VERIFY_TOKEN = Deno.env.get("VERIFY_TOKEN") || "nexus2026";
-
-    if (mode === "subscribe" && token === VERIFY_TOKEN) {
-      console.log("✅ Webhook verified successfully");
-      return new Response(challenge, { status: 200, headers: { "Content-Type": "text/plain" } });
+    // 1) Meta Webhook Verification
+    if (mode && token && challenge) {
+      const VERIFY_TOKEN = Deno.env.get("VERIFY_TOKEN") || Deno.env.get("META_VERIFY_TOKEN") || "nexus2026";
+      if (mode === "subscribe" && token === VERIFY_TOKEN) {
+        console.log("✅ Webhook verified successfully");
+        return new Response(challenge, { status: 200, headers: { "Content-Type": "text/plain" } });
+      }
+      console.error("❌ Webhook verification failed", { mode, token });
+      return new Response("Forbidden", { status: 403, headers: { "Content-Type": "text/plain" } });
     }
 
-    console.error("❌ Webhook verification failed", { mode, token });
-    return new Response("Forbidden", { status: 403 });
+    // 2) Facebook Login — generate OAuth URL
+    const META_APP_ID = "1578338553386945";
+    const redirectUri = "https://nexus.web-business.pt/auth/callback";
+    const scopes = "pages_show_list,pages_read_engagement,instagram_basic,ads_management,business_management";
+    const returnOrigin = url.searchParams.get("return_origin") || "https://nexus.web-business.pt";
+
+    const loginUrl = `https://www.facebook.com/v21.0/dialog/oauth?client_id=${META_APP_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}&state=${encodeURIComponent(returnOrigin)}&response_type=code`;
+
+    return new Response(JSON.stringify({ login_url: loginUrl }), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
   try {
