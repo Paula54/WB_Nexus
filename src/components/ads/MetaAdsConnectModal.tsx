@@ -80,7 +80,7 @@ export default function MetaAdsConnectModal({
       const returnOrigin = window.location.origin;
 
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/meta-ads-auth?return_origin=${encodeURIComponent(returnOrigin)}`,
+        `https://hqyuxponbobmuletqshq.supabase.co/functions/v1/meta-ads-auth?return_origin=${encodeURIComponent(returnOrigin)}`,
         {
           method: "GET",
           headers: {
