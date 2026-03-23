@@ -12,6 +12,24 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // --- Meta Webhook Verification (GET) ---
+  if (req.method === "GET") {
+    const url = new URL(req.url);
+    const mode = url.searchParams.get("hub.mode");
+    const token = url.searchParams.get("hub.verify_token");
+    const challenge = url.searchParams.get("hub.challenge");
+
+    const VERIFY_TOKEN = Deno.env.get("VERIFY_TOKEN") || "nexus2026";
+
+    if (mode === "subscribe" && token === VERIFY_TOKEN) {
+      console.log("✅ Webhook verified successfully");
+      return new Response(challenge, { status: 200, headers: { "Content-Type": "text/plain" } });
+    }
+
+    console.error("❌ Webhook verification failed", { mode, token });
+    return new Response("Forbidden", { status: 403 });
+  }
+
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
