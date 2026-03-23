@@ -386,7 +386,7 @@ export function NexusConcierge() {
 
               const followUpToken = await getAccessToken();
               const followUpResponse = await fetch(
-                `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/nexus-concierge`,
+                `https://hqyuxponbobmuletqshq.supabase.co/functions/v1/nexus-concierge`,
                 {
                   method: "POST",
                   headers: {

@@ -105,7 +105,7 @@ export default function Strategy() {
       }
 
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-strategy`,
+        `https://hqyuxponbobmuletqshq.supabase.co/functions/v1/generate-strategy`,
         {
           method: "POST",
           headers: {

@@ -80,7 +80,7 @@ export default function GoogleAdsConnect() {
       const returnOrigin = window.location.origin;
 
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-ads-auth?return_origin=${encodeURIComponent(returnOrigin)}`,
+        `https://hqyuxponbobmuletqshq.supabase.co/functions/v1/google-ads-auth?return_origin=${encodeURIComponent(returnOrigin)}`,
         {
           method: "GET",
           headers: {

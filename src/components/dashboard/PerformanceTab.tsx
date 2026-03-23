@@ -84,7 +84,7 @@ export function PerformanceTab() {
       // Need to pass return_origin as query param
       const origin = window.location.origin;
       const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-analytics-auth?return_origin=${encodeURIComponent(origin)}`,
+        `https://hqyuxponbobmuletqshq.supabase.co/functions/v1/google-analytics-auth?return_origin=${encodeURIComponent(origin)}`,
         {
           headers: {
             Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,

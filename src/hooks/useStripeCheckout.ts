@@ -29,7 +29,7 @@ export function useStripeCheckout() {
       }
 
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout-session`,
+        `https://hqyuxponbobmuletqshq.supabase.co/functions/v1/create-checkout-session`,
         {
           method: "POST",
           headers: {
