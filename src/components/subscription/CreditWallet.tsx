@@ -69,7 +69,7 @@ export function CreditWallet() {
       if (!accessToken) throw new Error("Sem sessão ativa");
 
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/buy-credits`,
+        `https://hqyuxponbobmuletqshq.supabase.co/functions/v1/buy-credits`,
         {
           method: "POST",
           headers: {

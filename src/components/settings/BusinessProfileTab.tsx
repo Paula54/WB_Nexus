@@ -161,7 +161,7 @@ export default function BusinessProfileTab() {
         const accessToken = sessionData?.session?.access_token;
         if (accessToken) {
           await fetch(
-            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/sync-stripe-customer`,
+            `https://hqyuxponbobmuletqshq.supabase.co/functions/v1/sync-stripe-customer`,
             {
               method: "POST",
               headers: {
