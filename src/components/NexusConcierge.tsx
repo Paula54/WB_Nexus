@@ -171,7 +171,7 @@ export function NexusConcierge() {
       if (!accessToken) return { success: false, message: "Sessão expirada. Faz login novamente." };
 
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/nexus-concierge`,
+        `https://hqyuxponbobmuletqshq.supabase.co/functions/v1/nexus-concierge`,
         {
           method: "POST",
           headers: {
