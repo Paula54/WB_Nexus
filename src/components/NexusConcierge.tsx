@@ -396,8 +396,11 @@ export function NexusConcierge() {
 
   const handleActionButton = async (button: ActionButton) => {
     if (button.actionType === "navigate") {
-      navigate(button.params);
-      // Keep the chat open so the user doesn't lose context
+      // Only navigate if user explicitly clicks — show confirmation first
+      const confirmed = window.confirm(`Queres ir para ${button.label}? Vais sair desta página.`);
+      if (confirmed) {
+        navigate(button.params);
+      }
       return;
     }
 
