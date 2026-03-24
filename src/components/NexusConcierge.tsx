@@ -490,10 +490,11 @@ export function NexusConcierge() {
         return prev;
       });
     } catch (error) {
-      console.error("Concierge error:", error);
+      const errMsg = error instanceof Error ? error.message : "Erro desconhecido";
+      console.error("[Concierge] Error:", errMsg, error);
       setMessages(prev => [...prev, {
         role: "assistant",
-        content: "Desculpe, ocorreu um erro. Por favor, tente novamente.",
+        content: `⚠️ Erro: ${errMsg}\n\nTenta novamente ou recarrega a página.`,
       }]);
     } finally {
       setIsLoading(false);
