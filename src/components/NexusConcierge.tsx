@@ -11,6 +11,7 @@ import { useNavigate } from "react-router-dom";
 
 // Lovable Cloud edge function URL (auto-deployed on Publish)
 const CONCIERGE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/nexus-concierge`;
+const OPEN_CONCIERGE_EVENT = "nexus-concierge:open";
 
 interface Message {
   role: "user" | "assistant" | "tool_result";
@@ -54,6 +55,10 @@ interface UserContext {
   leads_count?: number;
   ai_custom_instructions?: string;
   trial_days_left?: number;
+}
+
+interface ConciergeOpenDetail {
+  prompt?: string;
 }
 
 function isExplicitNavigationRequest(content?: string): boolean {
@@ -171,6 +176,21 @@ export function NexusConcierge() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  useEffect(() => {
+    const handleOpenConcierge = (event: Event) => {
+      const customEvent = event as CustomEvent<ConciergeOpenDetail>;
+      setIsOpen(true);
+      if (customEvent.detail?.prompt) {
+        setInput(customEvent.detail.prompt);
+      }
+    };
+
+    window.addEventListener(OPEN_CONCIERGE_EVENT, handleOpenConcierge as EventListener);
+    return () => {
+      window.removeEventListener(OPEN_CONCIERGE_EVENT, handleOpenConcierge as EventListener);
+    };
+  }, []);
 
   useEffect(() => {
     if (user && isOpen) {
