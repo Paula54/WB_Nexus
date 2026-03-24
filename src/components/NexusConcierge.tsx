@@ -397,7 +397,7 @@ export function NexusConcierge() {
   const handleActionButton = async (button: ActionButton) => {
     if (button.actionType === "navigate") {
       navigate(button.params);
-      setIsOpen(false);
+      // Keep the chat open so the user doesn't lose context
       return;
     }
 
