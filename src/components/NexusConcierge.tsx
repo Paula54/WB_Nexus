@@ -9,6 +9,9 @@ import ReactMarkdown from "react-markdown";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 
+// Lovable Cloud edge function URL (auto-deployed on Publish)
+const CONCIERGE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/nexus-concierge`;
+
 interface Message {
   role: "user" | "assistant" | "tool_result";
   content: string;
@@ -42,6 +45,17 @@ interface ActionButton {
   params: string;
 }
 
+interface UserContext {
+  company_name?: string;
+  business_sector?: string;
+  plan_type?: string;
+  project_name?: string;
+  domain?: string;
+  leads_count?: number;
+  ai_custom_instructions?: string;
+  trial_days_left?: number;
+}
+
 // Parse action buttons from message content
 function parseActionButtons(content: string): { cleanContent: string; buttons: ActionButton[] } {
   const buttonRegex = /\[ACTION:([^:]+):([^:]+):([^\]]+)\]/g;
@@ -60,6 +74,62 @@ function parseActionButtons(content: string): { cleanContent: string; buttons: A
   return { cleanContent, buttons };
 }
 
+// Parse natural language dates (moved from edge function)
+function parseNaturalDate(dateStr: string): string | null {
+  const now = new Date();
+  const lowerDate = dateStr.toLowerCase();
+
+  if (lowerDate.includes("amanhã") || lowerDate.includes("amanha")) {
+    const d = new Date(now);
+    d.setDate(d.getDate() + 1);
+    const timeMatch = lowerDate.match(/(\d{1,2})[h:.]?(\d{2})?/);
+    if (timeMatch) {
+      d.setHours(parseInt(timeMatch[1]), parseInt(timeMatch[2] || "0"), 0);
+    } else {
+      d.setHours(9, 0, 0);
+    }
+    return d.toISOString();
+  }
+
+  if (lowerDate.includes("hoje")) {
+    const d = new Date(now);
+    const timeMatch = lowerDate.match(/(\d{1,2})[h:.]?(\d{2})?/);
+    if (timeMatch) {
+      d.setHours(parseInt(timeMatch[1]), parseInt(timeMatch[2] || "0"), 0);
+    }
+    return d.toISOString();
+  }
+
+  const dayMap: Record<string, number> = {
+    domingo: 0, segunda: 1, "terça": 2, terca: 2, quarta: 3,
+    quinta: 4, sexta: 5, "sábado": 6, sabado: 6,
+  };
+
+  for (const [dayName, dayNum] of Object.entries(dayMap)) {
+    if (lowerDate.includes(dayName)) {
+      const d = new Date(now);
+      const currentDay = d.getDay();
+      let daysToAdd = dayNum - currentDay;
+      if (daysToAdd <= 0) daysToAdd += 7;
+      d.setDate(d.getDate() + daysToAdd);
+      const timeMatch = lowerDate.match(/(\d{1,2})[h:.]?(\d{2})?/);
+      if (timeMatch) {
+        d.setHours(parseInt(timeMatch[1]), parseInt(timeMatch[2] || "0"), 0);
+      } else {
+        d.setHours(10, 0, 0);
+      }
+      return d.toISOString();
+    }
+  }
+
+  try {
+    const d = new Date(dateStr);
+    if (!isNaN(d.getTime())) return d.toISOString();
+  } catch { /* ignore */ }
+
+  return null;
+}
+
 export function NexusConcierge() {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -67,6 +137,7 @@ export function NexusConcierge() {
   const [isLoading, setIsLoading] = useState(false);
   const [isExecutingTool, setIsExecutingTool] = useState(false);
   const [hasLoadedProactive, setHasLoadedProactive] = useState(false);
+  const [userContext, setUserContext] = useState<UserContext | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -81,16 +152,53 @@ export function NexusConcierge() {
 
   useEffect(() => {
     if (user && isOpen) {
+      loadUserContext();
       loadConversationHistory();
     }
   }, [user, isOpen]);
+
+  // Fetch user context from external DB to send to the edge function
+  const loadUserContext = async () => {
+    if (!user) return;
+
+    try {
+      const [profileRes, projectRes, subscriptionRes, leadsRes] = await Promise.all([
+        supabase.from("profiles").select("business_sector, company_name, ai_custom_instructions").eq("user_id", user.id).maybeSingle(),
+        supabase.from("projects").select("name, domain, selected_plan, trial_expires_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+        supabase.from("subscriptions").select("plan_type, status, trial_ends_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+        supabase.from("leads").select("id", { count: "exact", head: true }).eq("user_id", user.id),
+      ]);
+
+      const profile = profileRes.data;
+      const project = projectRes.data;
+      const subscription = subscriptionRes.data;
+
+      let trialDaysLeft: number | undefined;
+      if (project?.trial_expires_at) {
+        const trialEnd = new Date(project.trial_expires_at);
+        trialDaysLeft = Math.max(0, Math.ceil((trialEnd.getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
+      }
+
+      setUserContext({
+        company_name: profile?.company_name || undefined,
+        business_sector: profile?.business_sector || undefined,
+        plan_type: subscription?.plan_type || project?.selected_plan || "Lite",
+        project_name: project?.name || undefined,
+        domain: project?.domain || undefined,
+        leads_count: leadsRes.count ?? 0,
+        ai_custom_instructions: profile?.ai_custom_instructions || undefined,
+        trial_days_left: trialDaysLeft,
+      });
+    } catch (error) {
+      console.error("Error loading user context:", error);
+    }
+  };
 
   const generateProactiveInsight = useCallback(async () => {
     if (!user || hasLoadedProactive) return;
     setHasLoadedProactive(true);
 
     try {
-      // Query projects (exists on external DB) — other tables may not exist
       const projectsRes = await supabase.from("projects").select("id", { count: "exact", head: true });
       const projectCount = projectsRes.count ?? 0;
 
@@ -127,7 +235,6 @@ export function NexusConcierge() {
         generateProactiveInsight();
       }
     } catch {
-      // Table may not exist on external DB — fall back to proactive insight
       generateProactiveInsight();
     }
   };
@@ -158,77 +265,135 @@ export function NexusConcierge() {
     }
   };
 
-  const getAccessToken = async (): Promise<string | null> => {
-    const { data: { session } } = await supabase.auth.getSession();
-    return session?.access_token || null;
-  };
+  // ============ LOCAL TOOL EXECUTION (uses external DB directly) ============
 
   const executeTool = async (toolName: string, toolArgs: Record<string, unknown>): Promise<ToolExecutionResult> => {
     if (!user) return { success: false, message: "Utilizador não autenticado" };
 
     try {
-      const accessToken = await getAccessToken();
-      if (!accessToken) return { success: false, message: "Sessão expirada. Faz login novamente." };
-
-      const response = await fetch(
-        `https://hqyuxponbobmuletqshq.supabase.co/functions/v1/nexus-concierge`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify({
-            execute_tool: true,
-            tool_name: toolName,
-            tool_args: toolArgs,
-          }),
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error("Falha na execução da ferramenta");
+      switch (toolName) {
+        case "create_lead":
+          return await executeCreateLead(toolArgs);
+        case "add_note_to_lead":
+          return await executeAddNoteToLead(toolArgs);
+        case "add_note":
+          return await executeAddNote(toolArgs);
+        case "set_reminder":
+          return await executeSetReminder(toolArgs);
+        case "generate_instagram_draft":
+          return await executeGenerateInstagramDraft(toolArgs);
+        default:
+          return { success: false, message: `Ferramenta "${toolName}" não reconhecida` };
       }
-
-      const result: ToolExecutionResult = await response.json();
-
-      if (result.success) {
-        toast.success(getToolSuccessTitle(toolName), {
-          description: result.message,
-          duration: 4000,
-        });
-      } else {
-        toast.error("Ação não concluída", {
-          description: result.message,
-          duration: 4000,
-        });
-      }
-
-      return result;
     } catch (error) {
       console.error("Tool execution error:", error);
-      toast.error("Erro de execução", {
-        description: "Não foi possível executar a ação. Tente novamente.",
-        duration: 4000,
-      });
       return { success: false, message: "Erro ao executar ação" };
     }
   };
 
-  const getToolSuccessTitle = (toolName: string): string => {
-    const titles: Record<string, string> = {
-      create_lead: "Potencial cliente criado! 🎉",
-      add_note_to_lead: "Nota adicionada! 📝",
-      add_note: "Nota guardada! 📝",
-      set_reminder: "Lembrete definido! ⏰",
-      save_site_progress: "Progresso guardado! 💾",
-      generate_instagram_draft: "Rascunhos criados! ✨",
-      schedule_post: "Post agendado! ⏰",
-    };
-    return titles[toolName] || "Ação concluída! ✅";
+  const executeCreateLead = async (args: Record<string, unknown>): Promise<ToolExecutionResult> => {
+    const { name, email, phone, notes } = args as { name: string; email?: string; phone?: string; notes?: string };
+    const { error } = await supabase.from("leads").insert({
+      name, email: email || null, phone: phone || null, notes: notes || null,
+      user_id: user!.id, status: "novo",
+    });
+    if (error) return { success: false, message: `Erro ao criar lead: ${error.message}` };
+    toast.success("Potencial cliente criado! 🎉");
+    return { success: true, message: `Lead "${name}" criado com sucesso!` };
   };
 
-  // Handle action button clicks
+  const executeAddNoteToLead = async (args: Record<string, unknown>): Promise<ToolExecutionResult> => {
+    const { lead_name, note } = args as { lead_name: string; note: string };
+    const { data: leads } = await supabase
+      .from("leads").select("id, notes").eq("user_id", user!.id)
+      .ilike("name", `%${lead_name}%`).limit(1);
+
+    if (leads && leads.length > 0) {
+      const existingNotes = leads[0].notes || "";
+      const newNotes = existingNotes
+        ? `${existingNotes}\n\n[${new Date().toLocaleDateString("pt-PT")}] ${note}`
+        : `[${new Date().toLocaleDateString("pt-PT")}] ${note}`;
+      const { error } = await supabase.from("leads").update({ notes: newNotes }).eq("id", leads[0].id);
+      if (error) return { success: false, message: `Erro ao adicionar nota: ${error.message}` };
+      toast.success("Nota adicionada! 📝");
+      return { success: true, message: `Nota adicionada ao lead "${lead_name}"` };
+    }
+    return { success: false, message: `Lead "${lead_name}" não encontrado` };
+  };
+
+  const executeAddNote = async (args: Record<string, unknown>): Promise<ToolExecutionResult> => {
+    const { content } = args as { content: string };
+    const { error } = await supabase.from("notes_reminders").insert({
+      user_id: user!.id, type: "note", content,
+    });
+    if (error) return { success: false, message: `Erro ao guardar nota: ${error.message}` };
+    toast.success("Nota guardada! 📝");
+    return { success: true, message: `Nota guardada: "${content.substring(0, 50)}${content.length > 50 ? '...' : ''}"` };
+  };
+
+  const executeSetReminder = async (args: Record<string, unknown>): Promise<ToolExecutionResult> => {
+    const { lead_name, task, due_date } = args as { lead_name?: string; task: string; due_date: string };
+    const parsedDate = parseNaturalDate(due_date) || due_date;
+
+    if (lead_name) {
+      const { data: leads } = await supabase
+        .from("leads").select("id, notes").eq("user_id", user!.id)
+        .ilike("name", `%${lead_name}%`).limit(1);
+
+      if (leads && leads.length > 0) {
+        const existingNotes = leads[0].notes || "";
+        const reminderNote = `\n\n[LEMBRETE ${new Date(parsedDate).toLocaleString("pt-PT")}] ${task}`;
+        const { error } = await supabase
+          .from("leads")
+          .update({ reminder_date: parsedDate, notes: existingNotes + reminderNote })
+          .eq("id", leads[0].id);
+        if (error) return { success: false, message: `Erro ao definir lembrete: ${error.message}` };
+        toast.success("Lembrete definido! ⏰");
+        return { success: true, message: `Lembrete definido para "${lead_name}" em ${new Date(parsedDate).toLocaleString("pt-PT")}` };
+      }
+      return { success: false, message: `Lead "${lead_name}" não encontrado` };
+    }
+
+    const { error } = await supabase.from("notes_reminders").insert({
+      user_id: user!.id, type: "reminder", content: task, due_date: parsedDate,
+    });
+    if (error) return { success: false, message: `Erro ao criar lembrete: ${error.message}` };
+    toast.success("Lembrete definido! ⏰");
+    return { success: true, message: `Lembrete criado para ${new Date(parsedDate).toLocaleString("pt-PT")}: "${task}"` };
+  };
+
+  const executeGenerateInstagramDraft = async (args: Record<string, unknown>): Promise<ToolExecutionResult> => {
+    const { topic, count = 1, platform = "instagram" } = args as { topic: string; count?: number; platform?: string };
+    // This tool requires AI generation, which happens on the edge function side.
+    // We save a simple draft with the topic as caption.
+    const postCount = Math.min(Math.max(1, count), 5);
+    const savedPosts: string[] = [];
+
+    for (let i = 0; i < postCount; i++) {
+      const caption = `📝 Rascunho sobre "${topic}" — edita na Presença no Instagram`;
+      const { error } = await supabase.from("social_posts").insert({
+        user_id: user!.id,
+        platform,
+        caption,
+        hashtags: [],
+        status: "draft",
+      });
+      if (!error) savedPosts.push(caption);
+    }
+
+    if (savedPosts.length === 0) {
+      return { success: false, message: "Erro ao guardar os rascunhos." };
+    }
+
+    toast.success(`${savedPosts.length} rascunho(s) criado(s)! ✨`);
+    return {
+      success: true,
+      message: `✨ ${savedPosts.length} rascunho${savedPosts.length > 1 ? "s" : ""} criado${savedPosts.length > 1 ? "s" : ""}! Vai à Presença no Instagram para editar e publicar.`,
+    };
+  };
+
+  // ============ AI CHAT (calls Lovable Cloud) ============
+
   const handleActionButton = async (button: ActionButton) => {
     if (button.actionType === "navigate") {
       navigate(button.params);
@@ -237,7 +402,6 @@ export function NexusConcierge() {
     }
 
     if (button.actionType === "generate_draft") {
-      // Prompt user for topic via the chat
       setInput(`Gera um post de ${button.params} sobre `);
       return;
     }
@@ -252,7 +416,6 @@ export function NexusConcierge() {
       return;
     }
 
-    // Fallback: send as chat message
     setInput(button.label);
   };
 
@@ -266,145 +429,189 @@ export function NexusConcierge() {
     setIsLoading(true);
 
     try {
-      const accessToken = await getAccessToken();
-      if (!accessToken) {
-        setMessages(prev => [...prev, { role: "assistant", content: "Sessão expirada. Faz login novamente." }]);
-        setIsLoading(false);
-        return;
-      }
+      const chatMessages = updatedMessages
+        .filter(m => m.role !== "tool_result")
+        .map(m => ({
+          role: m.role === "tool_result" ? "assistant" : m.role,
+          content: m.content
+        }));
 
-      const response = await fetch(
-        `https://hqyuxponbobmuletqshq.supabase.co/functions/v1/nexus-concierge`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify({
-            messages: updatedMessages.filter(m => m.role !== "tool_result").map(m => ({
-              role: m.role === "tool_result" ? "assistant" : m.role,
-              content: m.content
-            })),
-          }),
-        }
-      );
+      const response = await fetch(CONCIERGE_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({
+          messages: chatMessages,
+          user_context: userContext,
+        }),
+      });
 
       if (!response.ok) {
-        throw new Error("Failed to get response");
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP ${response.status}`);
       }
 
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-      let assistantContent = "";
-      const toolCalls: ToolCall[] = [];
+      // Check if streaming or JSON response
+      const contentType = response.headers.get("content-type") || "";
 
-      if (reader) {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
+      if (contentType.includes("text/event-stream")) {
+        // Stream response
+        await handleStreamResponse(response, updatedMessages);
+      } else {
+        // JSON response (single message or non-streaming)
+        const data = await response.json();
+        const choice = data.choices?.[0];
 
-          const chunk = decoder.decode(value, { stream: true });
-          const lines = chunk.split("\n");
+        if (choice?.message?.tool_calls) {
+          await handleToolCalls(choice.message.tool_calls, updatedMessages);
+        } else {
+          const aiContent = choice?.message?.content || data.response || "Desculpe, não consegui responder.";
+          setMessages(prev => [...prev, { role: "assistant", content: aiContent }]);
+        }
+      }
 
-          for (const line of lines) {
-            if (line.startsWith("data: ")) {
-              const jsonStr = line.slice(6).trim();
-              if (jsonStr === "[DONE]") continue;
+      // Save conversation
+      setMessages(prev => {
+        saveConversationHistory(prev);
+        return prev;
+      });
+    } catch (error) {
+      console.error("Concierge error:", error);
+      setMessages(prev => [...prev, {
+        role: "assistant",
+        content: "Desculpe, ocorreu um erro. Por favor, tente novamente.",
+      }]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-              try {
-                const parsed = JSON.parse(jsonStr);
-                const delta = parsed.choices?.[0]?.delta;
+  const handleStreamResponse = async (response: Response, updatedMessages: Message[]) => {
+    const reader = response.body?.getReader();
+    const decoder = new TextDecoder();
+    let assistantContent = "";
+    const toolCalls: ToolCall[] = [];
 
-                if (delta?.content) {
-                  assistantContent += delta.content;
-                  setMessages((prev) => {
-                    const last = prev[prev.length - 1];
-                    if (last?.role === "assistant" && !last.toolCall) {
-                      return prev.map((m, i) =>
-                        i === prev.length - 1 ? { ...m, content: assistantContent } : m
-                      );
-                    }
-                    return [...prev, { role: "assistant", content: assistantContent }];
-                  });
+    if (!reader) return;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value, { stream: true });
+      const lines = chunk.split("\n");
+
+      for (const line of lines) {
+        if (line.startsWith("data: ")) {
+          const jsonStr = line.slice(6).trim();
+          if (jsonStr === "[DONE]") continue;
+
+          try {
+            const parsed = JSON.parse(jsonStr);
+            const delta = parsed.choices?.[0]?.delta;
+
+            if (delta?.content) {
+              assistantContent += delta.content;
+              setMessages(prev => {
+                const last = prev[prev.length - 1];
+                if (last?.role === "assistant" && !last.toolCall) {
+                  return prev.map((m, i) =>
+                    i === prev.length - 1 ? { ...m, content: assistantContent } : m
+                  );
                 }
+                return [...prev, { role: "assistant", content: assistantContent }];
+              });
+            }
 
-                if (delta?.tool_calls) {
-                  for (const tc of delta.tool_calls) {
-                    if (tc.index !== undefined) {
-                      if (!toolCalls[tc.index]) {
-                        toolCalls[tc.index] = {
-                          id: tc.id || "",
-                          type: "function",
-                          function: { name: "", arguments: "" }
-                        };
-                      }
-                      if (tc.id) toolCalls[tc.index].id = tc.id;
-                      if (tc.function?.name) toolCalls[tc.index].function.name = tc.function.name;
-                      if (tc.function?.arguments) toolCalls[tc.index].function.arguments += tc.function.arguments;
-                    }
+            if (delta?.tool_calls) {
+              for (const tc of delta.tool_calls) {
+                if (tc.index !== undefined) {
+                  if (!toolCalls[tc.index]) {
+                    toolCalls[tc.index] = {
+                      id: tc.id || "",
+                      type: "function",
+                      function: { name: "", arguments: "" }
+                    };
                   }
+                  if (tc.id) toolCalls[tc.index].id = tc.id;
+                  if (tc.function?.name) toolCalls[tc.index].function.name = tc.function.name;
+                  if (tc.function?.arguments) toolCalls[tc.index].function.arguments += tc.function.arguments;
                 }
-              } catch {
-                // Ignore parsing errors for incomplete chunks
               }
             }
+          } catch {
+            // Ignore parsing errors for incomplete chunks
           }
         }
       }
+    }
 
-      // Process tool calls if any
-      if (toolCalls.length > 0) {
-        setIsExecutingTool(true);
+    // Process tool calls locally
+    if (toolCalls.length > 0) {
+      await handleToolCalls(toolCalls.map(tc => ({
+        id: tc.id,
+        type: tc.type,
+        function: tc.function,
+      })), updatedMessages);
+    }
+  };
 
-        for (const tc of toolCalls) {
-          if (tc.function.name && tc.function.arguments) {
-            try {
-              const args = JSON.parse(tc.function.arguments);
+  const handleToolCalls = async (
+    toolCalls: Array<{ id?: string; type?: string; function: { name: string; arguments: string } }>,
+    updatedMessages: Message[]
+  ) => {
+    setIsExecutingTool(true);
 
-              setMessages(prev => [...prev, {
-                role: "assistant",
-                content: `A executar: ${getToolFriendlyName(tc.function.name)}...`,
-                toolCall: { name: tc.function.name, args }
-              }]);
+    for (const tc of toolCalls) {
+      if (tc.function.name && tc.function.arguments) {
+        try {
+          const args = JSON.parse(tc.function.arguments);
 
-              const result = await executeTool(tc.function.name, args);
+          setMessages(prev => [...prev, {
+            role: "assistant",
+            content: `A executar: ${getToolFriendlyName(tc.function.name)}...`,
+            toolCall: { name: tc.function.name, args }
+          }]);
 
-              setMessages(prev => {
-                const newMessages = prev.slice(0, -1);
-                return [...newMessages, {
-                  role: "tool_result",
-                  content: result.message,
-                  toolResult: result
-                }];
-              });
+          const result = await executeTool(tc.function.name, args);
 
-              const followUpMessages = [
-                ...updatedMessages,
-                { role: "assistant" as const, content: `Executei ${tc.function.name} com resultado: ${result.message}` }
-              ];
+          setMessages(prev => {
+            const newMessages = prev.slice(0, -1);
+            return [...newMessages, {
+              role: "tool_result",
+              content: result.message,
+              toolResult: result
+            }];
+          });
 
-              const followUpToken = await getAccessToken();
-              const followUpResponse = await fetch(
-                `https://hqyuxponbobmuletqshq.supabase.co/functions/v1/nexus-concierge`,
-                {
-                  method: "POST",
-                  headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${followUpToken}`,
-                  },
-                  body: JSON.stringify({
-                    messages: followUpMessages.map(m => ({
-                      role: m.role,
-                      content: m.content
-                    })),
-                  }),
-                }
-              );
+          // Follow-up: ask AI to comment on the result
+          const followUpMessages = [
+            ...updatedMessages.map(m => ({ role: m.role === "tool_result" ? "assistant" : m.role, content: m.content })),
+            { role: "assistant", content: `Executei ${tc.function.name} com resultado: ${result.message}` }
+          ];
 
-              if (followUpResponse.ok) {
+          try {
+            const followUpResponse = await fetch(CONCIERGE_URL, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+              },
+              body: JSON.stringify({
+                messages: followUpMessages,
+                user_context: userContext,
+              }),
+            });
+
+            if (followUpResponse.ok) {
+              const followUpContentType = followUpResponse.headers.get("content-type") || "";
+
+              if (followUpContentType.includes("text/event-stream")) {
                 const followUpReader = followUpResponse.body?.getReader();
                 let followUpContent = "";
+                const decoder = new TextDecoder();
 
                 if (followUpReader) {
                   while (true) {
@@ -412,19 +619,16 @@ export function NexusConcierge() {
                     if (done) break;
 
                     const chunk = decoder.decode(value, { stream: true });
-                    const lines = chunk.split("\n");
-
-                    for (const line of lines) {
+                    for (const line of chunk.split("\n")) {
                       if (line.startsWith("data: ")) {
                         const jsonStr = line.slice(6).trim();
                         if (jsonStr === "[DONE]") continue;
-
                         try {
                           const parsed = JSON.parse(jsonStr);
                           const content = parsed.choices?.[0]?.delta?.content;
                           if (content) {
                             followUpContent += content;
-                            setMessages((prev) => {
+                            setMessages(prev => {
                               const last = prev[prev.length - 1];
                               if (last?.role === "assistant" && !last.toolCall && !last.toolResult) {
                                 return prev.map((m, i) =>
@@ -439,31 +643,24 @@ export function NexusConcierge() {
                     }
                   }
                 }
+              } else {
+                const data = await followUpResponse.json();
+                const aiContent = data.choices?.[0]?.message?.content || "";
+                if (aiContent) {
+                  setMessages(prev => [...prev, { role: "assistant", content: aiContent }]);
+                }
               }
-            } catch (e) {
-              console.error("Tool call parse error:", e);
             }
+          } catch {
+            // Follow-up failed, that's OK — tool was already executed
           }
+        } catch (e) {
+          console.error("Tool call parse error:", e);
         }
-
-        setIsExecutingTool(false);
       }
-
-      // Save final conversation
-      setMessages(prev => {
-        saveConversationHistory(prev);
-        return prev;
-      });
-    } catch (error) {
-      console.error("Concierge error:", error);
-      const errorMessage: Message = {
-        role: "assistant",
-        content: "Desculpe, ocorreu um erro. Por favor, tente novamente.",
-      };
-      setMessages((prev) => [...prev, errorMessage]);
-    } finally {
-      setIsLoading(false);
     }
+
+    setIsExecutingTool(false);
   };
 
   const getToolFriendlyName = (toolName: string): string => {
@@ -472,9 +669,7 @@ export function NexusConcierge() {
       add_note_to_lead: "Adicionar nota",
       add_note: "Guardar nota",
       set_reminder: "Definir lembrete",
-      save_site_progress: "Guardar progresso",
       generate_instagram_draft: "Gerar rascunhos",
-      schedule_post: "Agendar post",
     };
     return names[toolName] || toolName;
   };
@@ -490,10 +685,12 @@ export function NexusConcierge() {
     setMessages([]);
     setHasLoadedProactive(false);
     if (user) {
-      await supabase
-        .from("concierge_conversations")
-        .delete()
-        .eq("user_id", user.id);
+      try {
+        await supabase
+          .from("concierge_conversations" as string)
+          .delete()
+          .eq("user_id", user.id);
+      } catch { /* ignore */ }
     }
   };
 
