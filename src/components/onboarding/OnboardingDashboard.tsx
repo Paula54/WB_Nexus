@@ -15,9 +15,10 @@ export function OnboardingDashboard() {
   const { project } = useProjectData();
   const [socialFlowOpen, setSocialFlowOpen] = useState(false);
   const [metaConnectOpen, setMetaConnectOpen] = useState(false);
+  const navigate = useNavigate();
 
   const handleWhatsAppSetup = () => {
-    toast.info("Abre o Concierge (canto inferior direito) e diz: 'Quero configurar o WhatsApp'");
+    navigate("/whatsapp");
   };
 
   if (loading) {
