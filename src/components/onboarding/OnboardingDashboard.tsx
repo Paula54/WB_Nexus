@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Share2, MessageCircle, Megaphone } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { ProgressBar } from "./ProgressBar";
 import { SetupCard } from "./SetupCard";
 import { SocialSetupFlow } from "./SocialSetupFlow";
@@ -8,16 +9,16 @@ import { MyUsage } from "@/components/dashboard/MyUsage";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import MetaAdsConnectModal from "@/components/ads/MetaAdsConnectModal";
 import { useProjectData } from "@/hooks/useProjectData";
-import { toast } from "sonner";
 
 export function OnboardingDashboard() {
   const { socialConnected, whatsappConnected, firstCampaignLaunched, loading, progress, refetch } = useOnboardingStatus();
   const { project } = useProjectData();
   const [socialFlowOpen, setSocialFlowOpen] = useState(false);
   const [metaConnectOpen, setMetaConnectOpen] = useState(false);
+  const navigate = useNavigate();
 
   const handleWhatsAppSetup = () => {
-    toast.info("Abre o Concierge (canto inferior direito) e diz: 'Quero configurar o WhatsApp'");
+    navigate("/whatsapp");
   };
 
   if (loading) {
