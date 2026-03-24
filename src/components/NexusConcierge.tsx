@@ -56,6 +56,28 @@ interface UserContext {
   trial_days_left?: number;
 }
 
+function isExplicitNavigationRequest(content?: string): boolean {
+  if (!content) return false;
+
+  const normalized = content
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+  return [
+    "leva-me",
+    "leva me",
+    "abre",
+    "vai para",
+    "ir para",
+    "navega",
+    "mostra-me",
+    "mostra me",
+    "encaminha-me",
+    "encaminha me",
+  ].some((phrase) => normalized.includes(phrase));
+}
+
 // Parse action buttons from message content
 function parseActionButtons(content: string): { cleanContent: string; buttons: ActionButton[] } {
   const buttonRegex = /\[ACTION:([^:]+):([^:]+):([^\]]+)\]/g;
@@ -396,7 +418,15 @@ export function NexusConcierge() {
 
   const handleActionButton = async (button: ActionButton) => {
     if (button.actionType === "navigate") {
-      // Only navigate if user explicitly clicks — show confirmation first
+      const lastUserMessage = [...messages].reverse().find((message) => message.role === "user");
+      const userExplicitlyAskedToNavigate = isExplicitNavigationRequest(lastUserMessage?.content);
+
+      if (!userExplicitlyAskedToNavigate) {
+        toast.info("O Concierge só muda de página quando pedires explicitamente.");
+        setInput(`Leva-me para ${button.label}`);
+        return;
+      }
+
       const confirmed = window.confirm(`Queres ir para ${button.label}? Vais sair desta página.`);
       if (confirmed) {
         navigate(button.params);
@@ -727,6 +757,12 @@ export function NexusConcierge() {
 
     if (message.role === "assistant") {
       const { cleanContent, buttons } = parseActionButtons(message.content);
+      const lastUserMessage = [...messages].reverse().find((entry) => entry.role === "user");
+      const userExplicitlyAskedToNavigate = isExplicitNavigationRequest(lastUserMessage?.content);
+      const visibleButtons = buttons.filter(
+        (button) => button.actionType !== "navigate" || userExplicitlyAskedToNavigate
+      );
+
       return (
         <div>
           {cleanContent && (
@@ -734,9 +770,9 @@ export function NexusConcierge() {
               <ReactMarkdown>{cleanContent}</ReactMarkdown>
             </div>
           )}
-          {buttons.length > 0 && (
+          {visibleButtons.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mt-2.5">
-              {buttons.map((btn, i) => (
+              {visibleButtons.map((btn, i) => (
                 <button
                   key={i}
                   onClick={() => handleActionButton(btn)}
