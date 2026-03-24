@@ -436,6 +436,9 @@ export function NexusConcierge() {
           content: m.content
         }));
 
+      console.log("[Concierge] Sending to:", CONCIERGE_URL);
+      console.log("[Concierge] Messages count:", chatMessages.length);
+
       const response = await fetch(CONCIERGE_URL, {
         method: "POST",
         headers: {
@@ -448,9 +451,17 @@ export function NexusConcierge() {
         }),
       });
 
+      console.log("[Concierge] Response status:", response.status, "Content-Type:", response.headers.get("content-type"));
+
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `HTTP ${response.status}`);
+        const errorText = await response.text();
+        console.error("[Concierge] Error response:", errorText);
+        let errorMessage = `HTTP ${response.status}`;
+        try {
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.error || errorMessage;
+        } catch { /* not JSON */ }
+        throw new Error(errorMessage);
       }
 
       // Check if streaming or JSON response
@@ -462,6 +473,7 @@ export function NexusConcierge() {
       } else {
         // JSON response (single message or non-streaming)
         const data = await response.json();
+        console.log("[Concierge] JSON response:", JSON.stringify(data).substring(0, 200));
         const choice = data.choices?.[0];
 
         if (choice?.message?.tool_calls) {
@@ -478,10 +490,11 @@ export function NexusConcierge() {
         return prev;
       });
     } catch (error) {
-      console.error("Concierge error:", error);
+      const errMsg = error instanceof Error ? error.message : "Erro desconhecido";
+      console.error("[Concierge] Error:", errMsg, error);
       setMessages(prev => [...prev, {
         role: "assistant",
-        content: "Desculpe, ocorreu um erro. Por favor, tente novamente.",
+        content: `⚠️ Erro: ${errMsg}\n\nTenta novamente ou recarrega a página.`,
       }]);
     } finally {
       setIsLoading(false);
