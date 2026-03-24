@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Share2, MessageCircle, Megaphone } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 import { ProgressBar } from "./ProgressBar";
 import { SetupCard } from "./SetupCard";
 import { SocialSetupFlow } from "./SocialSetupFlow";
@@ -15,10 +14,15 @@ export function OnboardingDashboard() {
   const { project } = useProjectData();
   const [socialFlowOpen, setSocialFlowOpen] = useState(false);
   const [metaConnectOpen, setMetaConnectOpen] = useState(false);
-  const navigate = useNavigate();
 
   const handleWhatsAppSetup = () => {
-    navigate("/whatsapp");
+    window.dispatchEvent(
+      new CustomEvent("nexus-concierge:open", {
+        detail: {
+          prompt: "Ajuda-me a configurar o WhatsApp sem sair desta página.",
+        },
+      })
+    );
   };
 
   if (loading) {
