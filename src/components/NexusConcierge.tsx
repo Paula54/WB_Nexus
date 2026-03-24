@@ -396,8 +396,8 @@ export function NexusConcierge() {
 
   const handleActionButton = async (button: ActionButton) => {
     if (button.actionType === "navigate") {
-      navigate(button.params);
-      setIsOpen(false);
+      // Open in background — don't close the Concierge or navigate away
+      window.open(button.params, "_self");
       return;
     }
 
