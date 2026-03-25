@@ -28,17 +28,15 @@ serve(async (req) => {
       global: { headers: { Authorization: authHeader } },
     });
 
-    const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims) {
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
       return new Response(
         JSON.stringify({ error: "Invalid token" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const userId = claimsData.claims.sub as string;
-
+    const userId = user.id;
     const { leadId, message, phone } = await req.json();
 
     if (!message || !phone) {
@@ -65,65 +63,37 @@ serve(async (req) => {
       }
     }
 
-    const WHATSAPP_ACCESS_TOKEN = Deno.env.get("WHATSAPP_ACCESS_TOKEN");
-    const WHATSAPP_PHONE_NUMBER_ID = Deno.env.get("WHATSAPP_PHONE_NUMBER_ID");
+    // Pull whatsapp_phone_number_id dynamically from the user's project
+    const { data: project, error: projectError } = await supabase
+      .from("projects")
+      .select("whatsapp_phone_number_id")
+      .eq("user_id", userId)
+      .maybeSingle();
 
-    if (!WHATSAPP_ACCESS_TOKEN) {
-      console.error("WhatsApp access token not configured");
+    if (projectError) {
+      console.error("Error fetching project:", projectError);
       return new Response(
-        JSON.stringify({ error: "WhatsApp access token not configured" }),
+        JSON.stringify({ error: "Failed to fetch project configuration", details: projectError.message }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // If no Phone Number ID stored, discover it from the WABA
-    let phoneNumberId = WHATSAPP_PHONE_NUMBER_ID;
-
+    const phoneNumberId = project?.whatsapp_phone_number_id;
     if (!phoneNumberId) {
-      console.log("Discovering Phone Number ID from Meta API...");
-      
-      const businessRes = await fetch(
-        `https://graph.facebook.com/v21.0/me/businesses`,
-        { headers: { "Authorization": `Bearer ${WHATSAPP_ACCESS_TOKEN}` } }
+      return new Response(
+        JSON.stringify({ error: "WhatsApp Phone Number ID not configured in project. Please add it in Settings." }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
-      const businessData = await businessRes.json();
-      console.log("Business accounts:", JSON.stringify(businessData));
+    }
 
-      if (businessData.data && businessData.data.length > 0) {
-        const businessId = businessData.data[0].id;
-        const wabaRes = await fetch(
-          `https://graph.facebook.com/v21.0/${businessId}/owned_whatsapp_business_accounts`,
-          { headers: { "Authorization": `Bearer ${WHATSAPP_ACCESS_TOKEN}` } }
-        );
-        const wabaData = await wabaRes.json();
-        console.log("WABA data:", JSON.stringify(wabaData));
-
-        if (wabaData.data && wabaData.data.length > 0) {
-          const wabaId = wabaData.data[0].id;
-          
-          const phonesRes = await fetch(
-            `https://graph.facebook.com/v21.0/${wabaId}/phone_numbers`,
-            { headers: { "Authorization": `Bearer ${WHATSAPP_ACCESS_TOKEN}` } }
-          );
-          const phonesData = await phonesRes.json();
-          console.log("Phone numbers:", JSON.stringify(phonesData));
-
-          if (phonesData.data && phonesData.data.length > 0) {
-            phoneNumberId = phonesData.data[0].id;
-            console.log("Discovered Phone Number ID:", phoneNumberId);
-          }
-        }
-      }
-
-      if (!phoneNumberId) {
-        return new Response(
-          JSON.stringify({ 
-            error: "Could not discover Phone Number ID. Please set WHATSAPP_PHONE_NUMBER_ID secret.",
-            businessData 
-          }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
+    // Use META_ACCESS_TOKEN from secrets
+    const WHATSAPP_ACCESS_TOKEN = Deno.env.get("META_ACCESS_TOKEN");
+    if (!WHATSAPP_ACCESS_TOKEN) {
+      console.error("META_ACCESS_TOKEN not configured");
+      return new Response(
+        JSON.stringify({ error: "META_ACCESS_TOKEN not configured in secrets" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     // Format phone: remove spaces, ensure country code, remove '+'
