@@ -67,9 +67,9 @@ Deno.serve(async (req) => {
 
     console.log(`Auth OK for user ${user.id}`);
 
-    // Production client
-    const prodUrl = Deno.env.get("PROD_SUPABASE_URL");
-    const prodServiceKey = Deno.env.get("PROD_SUPABASE_SERVICE_ROLE_KEY");
+    // Production client — use standard Supabase env vars
+    const prodUrl = Deno.env.get("PROD_SUPABASE_URL") || Deno.env.get("SUPABASE_URL");
+    const prodServiceKey = Deno.env.get("PROD_SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     if (!prodUrl || !prodServiceKey) {
       return new Response(JSON.stringify({ error: "Production credentials not configured" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
