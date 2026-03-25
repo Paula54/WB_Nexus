@@ -3,7 +3,7 @@ import { useProjectData } from "@/hooks/useProjectData";
 
 export function GoogleAnalytics() {
   const { project } = useProjectData();
-  const gaId = project?.google_analytics_id;
+  const gaId = (project as Record<string, unknown>)?.google_analytics_id as string | null;
 
   useEffect(() => {
     if (!gaId || !/^G-[A-Z0-9]+$/i.test(gaId)) return;
