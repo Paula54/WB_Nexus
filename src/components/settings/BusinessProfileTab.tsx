@@ -147,11 +147,28 @@ export default function BusinessProfileTab() {
 
     setSaving(true);
 
-    const payload = { user_id: user.id, ...profile } as Record<string, unknown>;
+    const payload = { ...profile } as Record<string, unknown>;
 
-    const { error } = await supabase
+    // Check if profile already exists
+    const { data: existing } = await supabase
       .from("business_profiles" as string)
-      .upsert(payload, { onConflict: "user_id" });
+      .select("id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    let error;
+    if (existing) {
+      const res = await supabase
+        .from("business_profiles" as string)
+        .update(payload)
+        .eq("user_id", user.id);
+      error = res.error;
+    } else {
+      const res = await supabase
+        .from("business_profiles" as string)
+        .insert({ user_id: user.id, ...payload });
+      error = res.error;
+    }
 
     if (error) {
       toast({ variant: "destructive", title: "Erro", description: "Não foi possível guardar o perfil." });
