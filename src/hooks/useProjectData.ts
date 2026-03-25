@@ -6,7 +6,6 @@ export interface ProjectData {
   id: string;
   name: string;
   domain: string | null;
-  google_analytics_id: string | null;
 }
 
 export interface ProfileData {
