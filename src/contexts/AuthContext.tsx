@@ -53,7 +53,6 @@ async function ensureProfileAndProject(user: User) {
       await supabase.from("projects").insert({
         user_id: user.id,
         name: "Meu Projeto",
-        project_type: "marketing",
       });
       console.log("[Auth] Project created for", user.id);
     }

@@ -47,7 +47,6 @@ export function useProjectData() {
           id: d.id as string,
           name: d.name as string,
           domain: (d.domain as string) || null,
-          google_analytics_id: (d.google_analytics_id as string) || null,
         });
       }
 
