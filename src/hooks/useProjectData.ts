@@ -6,6 +6,7 @@ export interface ProjectData {
   id: string;
   name: string;
   domain: string | null;
+  google_analytics_id: string | null;
 }
 
 export interface ProfileData {
@@ -29,7 +30,7 @@ export function useProjectData() {
       const [projectRes, profileRes] = await Promise.all([
         supabase
           .from("projects")
-          .select("id, name, domain")
+          .select("id, name, domain, google_analytics_id")
           .eq("user_id", user!.id)
           .order("created_at", { ascending: false })
           .limit(1)
@@ -47,6 +48,7 @@ export function useProjectData() {
           id: d.id as string,
           name: d.name as string,
           domain: (d.domain as string) || null,
+          google_analytics_id: (d.google_analytics_id as string) || null,
         });
       }
 

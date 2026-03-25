@@ -38,6 +38,7 @@ async function ensureProfileAndProject(user: User) {
       await supabase.from("profiles").insert({
         user_id: user.id,
         full_name: user.user_metadata?.full_name || null,
+        contact_email: user.email || null,
       });
       console.log("[Auth] Profile created for", user.id);
     }
