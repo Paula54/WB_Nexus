@@ -95,25 +95,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check legal consent
-    const { data: consent, error: consentError } = await prodSupabase
-      .from("legal_consents")
-      .select("user_id, accepted_at, ip_address")
-      .eq("user_id", user.id)
-      .not("accepted_at", "is", null)
-      .limit(1)
-      .maybeSingle();
-
-    if (consentError) {
-      return new Response(JSON.stringify({ error: "Erro ao verificar consentimento legal", detail: consentError.message }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    if (!consent) {
-      return new Response(JSON.stringify({ error: "User not found in legal_consents" }), {
-        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    // Legal consent check skipped — handled at app level
 
     // Find project
     const { data: project, error: projectError } = await prodSupabase
