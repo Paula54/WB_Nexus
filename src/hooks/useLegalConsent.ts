@@ -28,7 +28,7 @@ export function useLegalConsent() {
     checkConsent();
   }, [user]);
 
-  async function acceptConsent(planSelected = "START") {
+  async function acceptConsent(planSelected?: string | null) {
     if (!user) return;
 
     // Try to get IP
@@ -41,12 +41,17 @@ export function useLegalConsent() {
       // ignore
     }
 
-    const { error } = await supabase.from("legal_consents" as any).insert({
+    const consentPayload: Record<string, any> = {
       user_id: user.id,
       ip_address: ip,
-      plan_selected: planSelected,
       accepted_at: new Date().toISOString(),
-    } as any);
+    };
+
+    if (planSelected && planSelected.trim()) {
+      consentPayload.plan_selected = planSelected;
+    }
+
+    const { error } = await supabase.from("legal_consents" as any).insert(consentPayload);
 
     if (!error) {
       setHasConsented(true);
