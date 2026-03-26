@@ -3,6 +3,8 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
+import { useLegalConsent } from "@/hooks/useLegalConsent";
+import { LegalConsentModal } from "@/components/LegalConsentModal";
 import { LogOut, Menu, User, Building2, CreditCard, Wallet, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { NexusConcierge } from "@/components/NexusConcierge";
@@ -20,7 +22,10 @@ import {
 export default function MainLayout() {
   const { signOut, user } = useAuth();
   const { profile } = useProfile();
+  const { hasConsented, loading: consentLoading, acceptConsent } = useLegalConsent();
   const navigate = useNavigate();
+
+  const showConsentModal = !consentLoading && hasConsented === false;
 
   return (
     <SidebarProvider>
@@ -108,6 +113,7 @@ export default function MainLayout() {
         <NexusConcierge />
         <DynamicSEOHead />
         <GoogleAnalytics />
+        <LegalConsentModal open={showConsentModal} onAccept={acceptConsent} />
       </div>
     </SidebarProvider>
   );
