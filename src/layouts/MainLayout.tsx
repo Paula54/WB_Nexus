@@ -22,7 +22,10 @@ import {
 export default function MainLayout() {
   const { signOut, user } = useAuth();
   const { profile } = useProfile();
+  const { hasConsented, loading: consentLoading, acceptConsent } = useLegalConsent();
   const navigate = useNavigate();
+
+  const showConsentModal = !consentLoading && hasConsented === false;
 
   return (
     <SidebarProvider>
