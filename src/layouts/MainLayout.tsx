@@ -3,6 +3,8 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
+import { useLegalConsent } from "@/hooks/useLegalConsent";
+import { LegalConsentModal } from "@/components/LegalConsentModal";
 import { LogOut, Menu, User, Building2, CreditCard, Wallet, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { NexusConcierge } from "@/components/NexusConcierge";
