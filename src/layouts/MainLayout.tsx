@@ -113,6 +113,7 @@ export default function MainLayout() {
         <NexusConcierge />
         <DynamicSEOHead />
         <GoogleAnalytics />
+        <LegalConsentModal open={showConsentModal} onAccept={acceptConsent} />
       </div>
     </SidebarProvider>
   );
