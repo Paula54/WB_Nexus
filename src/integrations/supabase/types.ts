@@ -998,10 +998,12 @@ export type Database = {
           content: Json
           created_at: string
           domain: string | null
+          facebook_page_id: string | null
           freelancer_notes: string | null
           google_analytics_id: string | null
           gtm_container_id: string | null
           id: string
+          instagram_business_id: string | null
           measurement_id: string | null
           meta_access_token: string | null
           meta_ads_account_id: string | null
@@ -1011,15 +1013,19 @@ export type Database = {
           trial_expires_at: string | null
           updated_at: string
           user_id: string
+          whatsapp_business_id: string | null
+          whatsapp_phone_number_id: string | null
         }
         Insert: {
           content?: Json
           created_at?: string
           domain?: string | null
+          facebook_page_id?: string | null
           freelancer_notes?: string | null
           google_analytics_id?: string | null
           gtm_container_id?: string | null
           id?: string
+          instagram_business_id?: string | null
           measurement_id?: string | null
           meta_access_token?: string | null
           meta_ads_account_id?: string | null
@@ -1029,15 +1035,19 @@ export type Database = {
           trial_expires_at?: string | null
           updated_at?: string
           user_id: string
+          whatsapp_business_id?: string | null
+          whatsapp_phone_number_id?: string | null
         }
         Update: {
           content?: Json
           created_at?: string
           domain?: string | null
+          facebook_page_id?: string | null
           freelancer_notes?: string | null
           google_analytics_id?: string | null
           gtm_container_id?: string | null
           id?: string
+          instagram_business_id?: string | null
           measurement_id?: string | null
           meta_access_token?: string | null
           meta_ads_account_id?: string | null
@@ -1047,6 +1057,8 @@ export type Database = {
           trial_expires_at?: string | null
           updated_at?: string
           user_id?: string
+          whatsapp_business_id?: string | null
+          whatsapp_phone_number_id?: string | null
         }
         Relationships: []
       }
