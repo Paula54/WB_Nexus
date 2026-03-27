@@ -8,6 +8,12 @@ const corsHeaders = {
 };
 
 Deno.serve(async (req) => {
+  const requestId = crypto.randomUUID().slice(0, 8);
+  const log = (msg: string, data?: unknown) => console.log(`[${requestId}] ${msg}`, data !== undefined ? JSON.stringify(data) : "");
+  const logError = (msg: string, data?: unknown) => console.error(`[${requestId}] ❌ ${msg}`, data !== undefined ? JSON.stringify(data) : "");
+
+  log(`➡️ ${req.method} ${req.url}`);
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
