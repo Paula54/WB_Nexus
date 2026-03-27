@@ -53,6 +53,7 @@ Deno.serve(async (req) => {
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
+      logError("Missing Authorization header");
       return new Response(JSON.stringify({ error: "Missing Authorization header" }), {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -60,43 +61,56 @@ Deno.serve(async (req) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    log("🔑 Auth: validating user token...");
     const anonClient = createClient(supabaseUrl, supabaseAnonKey);
     const { data: { user }, error: authError } = await anonClient.auth.getUser(
       authHeader.replace("Bearer ", "")
     );
 
     if (authError || !user) {
+      logError("Auth failed", { error: authError?.message });
       return new Response(JSON.stringify({ error: "Unauthorized", detail: authError?.message }), {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    console.log(`Auth OK for user ${user.id}`);
+    log(`✅ Auth OK — user=${user.id}, email=${user.email}`);
 
     // Production client — use standard Supabase env vars
     const prodUrl = Deno.env.get("PROD_SUPABASE_URL") || Deno.env.get("SUPABASE_URL");
     const prodServiceKey = Deno.env.get("PROD_SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    log("🏭 Prod env check", { hasProdUrl: !!prodUrl, hasProdKey: !!prodServiceKey, usingFallback: !Deno.env.get("PROD_SUPABASE_URL") });
     if (!prodUrl || !prodServiceKey) {
+      logError("Production credentials not configured");
       return new Response(JSON.stringify({ error: "Production credentials not configured" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
     const prodSupabase = createClient(prodUrl, prodServiceKey);
 
-    const { connection_type } = await req.json();
+    const body = await req.json();
+    const connection_type = body.connection_type;
+    log("📦 Request body", { connection_type });
+
     const metaAccessToken = Deno.env.get("META_ACCESS_TOKEN");
     const adAccountId = Deno.env.get("META_AD_ACCOUNT_ID");
+    log("🔧 Meta env", { hasToken: !!metaAccessToken, tokenLength: metaAccessToken?.length, adAccountId });
 
     if (!metaAccessToken) {
+      logError("META_ACCESS_TOKEN not configured");
       return new Response(JSON.stringify({ error: "META_ACCESS_TOKEN not configured" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     // Validate token
+    log("🌐 Validating Meta token with Graph API...");
     const tokenCheck = await fetch(`https://graph.facebook.com/v21.0/me?access_token=${metaAccessToken}`);
+    const tokenBody = await tokenCheck.json();
+    log("🌐 Meta token validation result", { status: tokenCheck.status, ok: tokenCheck.ok, name: tokenBody.name, id: tokenBody.id, error: tokenBody.error });
     if (!tokenCheck.ok) {
-      return new Response(JSON.stringify({ error: "Meta token invalid or expired" }), {
+      logError("Meta token invalid or expired", tokenBody.error);
+      return new Response(JSON.stringify({ error: "Meta token invalid or expired", detail: tokenBody.error?.message }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
