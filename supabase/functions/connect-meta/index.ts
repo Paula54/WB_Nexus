@@ -157,7 +157,7 @@ Deno.serve(async (req) => {
     // Find project
     const { data: project, error: projectError } = await prodSupabase
       .from("projects")
-      .select("id")
+      .select("id, name")
       .eq("user_id", user.id)
       .order("updated_at", { ascending: false })
       .limit(1)
