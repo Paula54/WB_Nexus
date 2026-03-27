@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Dialog,
   DialogContent,
@@ -14,6 +14,8 @@ import { ExternalLink, Copy, Check, Facebook, Sparkles, Loader2 } from "lucide-r
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabaseCustom";
 
+const META_APP_ID = "1578338553386945";
+
 interface SocialSetupFlowProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -21,6 +23,61 @@ interface SocialSetupFlowProps {
 }
 
 type Step = "choice" | "create-form" | "create-guide" | "connect";
+
+// Load Facebook SDK
+function loadFacebookSDK(): Promise<void> {
+  return new Promise((resolve) => {
+    if ((window as any).FB) {
+      resolve();
+      return;
+    }
+
+    (window as any).fbAsyncInit = function () {
+      (window as any).FB.init({
+        appId: META_APP_ID,
+        cookie: true,
+        xfbml: false,
+        version: "v21.0",
+      });
+      resolve();
+    };
+
+    if (!document.getElementById("facebook-jssdk")) {
+      const js = document.createElement("script");
+      js.id = "facebook-jssdk";
+      js.src = "https://connect.facebook.net/pt_PT/sdk.js";
+      js.async = true;
+      js.defer = true;
+      document.head.appendChild(js);
+    }
+  });
+}
+
+function fbLogin(): Promise<{ accessToken: string; userID: string }> {
+  return new Promise((resolve, reject) => {
+    const FB = (window as any).FB;
+    if (!FB) {
+      reject(new Error("Facebook SDK não carregado"));
+      return;
+    }
+    FB.login(
+      (response: any) => {
+        if (response.authResponse) {
+          resolve({
+            accessToken: response.authResponse.accessToken,
+            userID: response.authResponse.userID,
+          });
+        } else {
+          reject(new Error("Login cancelado pelo utilizador"));
+        }
+      },
+      {
+        scope:
+          "pages_show_list,pages_read_engagement,instagram_basic,ads_management,business_management,pages_manage_posts,instagram_content_publish",
+      }
+    );
+  });
+}
 
 export function SocialSetupFlow({ open, onOpenChange, onHasPage }: SocialSetupFlowProps) {
   const [step, setStep] = useState<Step>("choice");
@@ -30,6 +87,13 @@ export function SocialSetupFlow({ open, onOpenChange, onHasPage }: SocialSetupFl
   const [generatedBio, setGeneratedBio] = useState("");
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
+  const [sdkReady, setSdkReady] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      loadFacebookSDK().then(() => setSdkReady(true));
+    }
+  }, [open]);
 
   const copyText = (text: string, field: string) => {
     navigator.clipboard.writeText(text);
@@ -57,28 +121,44 @@ export function SocialSetupFlow({ open, onOpenChange, onHasPage }: SocialSetupFl
     onOpenChange(false);
   };
 
-  const connectMeta = async (connectionType: "imported" | "created_by_nexus") => {
+  const connectWithFacebookSDK = useCallback(async (connectionType: "imported" | "created_by_nexus") => {
     setConnecting(true);
     try {
+      if (!sdkReady) {
+        await loadFacebookSDK();
+      }
+
+      // 1. FB.login() — user authorizes, we get a short-lived token
+      const fbAuth = await fbLogin();
+      toast.info("A processar ligação...");
+
+      // 2. Send token to our edge function for exchange & storage
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) throw new Error("Sessão inválida");
 
-      const response = await fetch("https://hqyuxponbobmuletqshq.supabase.co/functions/v1/connect-meta", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({ connection_type: connectionType }),
-      });
-      const data = await response.json();
-      const error = !response.ok ? { message: data?.error || `HTTP ${response.status}` } : null;
+      const response = await fetch(
+        "https://hqyuxponbobmuletqshq.supabase.co/functions/v1/connect-meta",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            access_token: fbAuth.accessToken,
+            connection_type: connectionType,
+          }),
+        }
+      );
 
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      const data = await response.json();
+
+      if (!response.ok || data.error) {
+        throw new Error(data.error || data.detail || `HTTP ${response.status}`);
+      }
 
       toast.success("✅ Meta conectado!", {
-        description: `Conta de anúncios ${data.ad_account_id || ""} ligada com sucesso.`,
+        description: `Página: ${data.facebook_page_id || "—"} | Token válido até ${data.token_expires_at ? new Date(data.token_expires_at).toLocaleDateString("pt-PT") : "~60 dias"}`,
       });
       handleClose();
       onHasPage();
@@ -90,7 +170,7 @@ export function SocialSetupFlow({ open, onOpenChange, onHasPage }: SocialSetupFl
     } finally {
       setConnecting(false);
     }
-  };
+  }, [sdkReady, onHasPage]);
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -111,7 +191,7 @@ export function SocialSetupFlow({ open, onOpenChange, onHasPage }: SocialSetupFl
                 variant="outline"
                 className="h-auto p-5 flex flex-col items-start gap-2 border-neon-blue/30 hover:border-neon-blue/60 hover:bg-neon-blue/5"
                 disabled={connecting}
-                onClick={() => connectMeta("imported")}
+                onClick={() => connectWithFacebookSDK("imported")}
               >
                 {connecting ? (
                   <span className="flex items-center gap-2 text-base font-semibold text-foreground">
@@ -120,7 +200,9 @@ export function SocialSetupFlow({ open, onOpenChange, onHasPage }: SocialSetupFl
                 ) : (
                   <>
                     <span className="text-base font-semibold text-foreground">✅ Já tenho uma Página</span>
-                    <span className="text-sm text-muted-foreground text-left">Vou ligar a minha página do Facebook/Instagram existente.</span>
+                    <span className="text-sm text-muted-foreground text-left">
+                      Vou autorizar o acesso à minha página do Facebook/Instagram.
+                    </span>
                   </>
                 )}
               </Button>
@@ -222,7 +304,7 @@ export function SocialSetupFlow({ open, onOpenChange, onHasPage }: SocialSetupFl
                 className="w-full gap-2 bg-neon-green hover:bg-neon-green/90 text-background font-bold"
                 size="lg"
                 disabled={connecting}
-                onClick={() => connectMeta("created_by_nexus")}
+                onClick={() => connectWithFacebookSDK("created_by_nexus")}
               >
                 {connecting ? (
                   <>
