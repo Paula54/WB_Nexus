@@ -34,6 +34,7 @@ import ProfilePage from "@/pages/Profile";
 import FreelancerDashboard from "@/pages/FreelancerDashboard";
 import Admin from "@/pages/Admin";
 import Blog from "@/pages/Blog";
+import SessionLanding from "@/pages/SessionLanding";
 
 // Legal Pages
 import Privacidade from "@/pages/legal/Privacidade";
