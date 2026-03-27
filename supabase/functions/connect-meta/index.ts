@@ -118,6 +118,7 @@ Deno.serve(async (req) => {
     // Legal consent check skipped — handled at app level
 
     // Find project
+    log("🔍 Looking up project for user...");
     const { data: project, error: projectError } = await prodSupabase
       .from("projects")
       .select("id")
@@ -127,10 +128,12 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (projectError || !project) {
+      logError("Project lookup failed", { error: projectError?.message, hasProject: !!project });
       return new Response(JSON.stringify({ error: projectError?.message || "No project found" }), {
         status: projectError ? 500 : 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    log(`📁 Project found: ${project.id}`);
 
     // --- Fetch Facebook Page, Instagram Business, WhatsApp Business IDs ---
     let facebookPageId: string | null = null;
@@ -139,37 +142,40 @@ Deno.serve(async (req) => {
 
     // Facebook Pages
     try {
+      log("📘 Fetching Facebook Pages...");
       const pagesRes = await fetch(
         `https://graph.facebook.com/v21.0/me/accounts?fields=id,name&access_token=${metaAccessToken}`
       );
       const pagesData = await pagesRes.json();
+      log("📘 Pages response", { count: pagesData.data?.length, pages: pagesData.data?.map((p: any) => ({ id: p.id, name: p.name })), error: pagesData.error });
+
       if (pagesData.data?.length > 0) {
         facebookPageId = pagesData.data[0].id;
-        console.log(`Facebook Page: ${facebookPageId}`);
 
         // Instagram Business Account linked to the page
+        log(`📸 Fetching Instagram for page ${facebookPageId}...`);
         const igRes = await fetch(
           `https://graph.facebook.com/v21.0/${facebookPageId}?fields=instagram_business_account&access_token=${metaAccessToken}`
         );
         const igData = await igRes.json();
+        log("📸 Instagram response", igData);
         if (igData.instagram_business_account?.id) {
           instagramBusinessId = igData.instagram_business_account.id;
-          console.log(`Instagram Business: ${instagramBusinessId}`);
         }
       }
     } catch (e) {
-      console.error("Error fetching pages/instagram:", e);
+      logError("Error fetching pages/instagram", e);
     }
 
     // WhatsApp Business Account
     const whatsappEnvId = Deno.env.get("META_WHATSAPP_BUSINESS_ACCOUNT_ID");
-    if (whatsappEnvId) {
-      whatsappBusinessId = whatsappEnvId;
-      console.log(`WhatsApp Business: ${whatsappBusinessId}`);
-    }
+    whatsappBusinessId = whatsappEnvId || null;
+    log("💬 WhatsApp", { whatsappBusinessId });
 
     // Encrypt token
+    log("🔒 Encrypting Meta token...");
     const encryptedToken = await encryptToken(metaAccessToken);
+    log("🔒 Token encrypted", { length: encryptedToken.length });
 
     // Update production project with all IDs
     const updatePayload: Record<string, unknown> = {
@@ -179,6 +185,7 @@ Deno.serve(async (req) => {
       instagram_business_id: instagramBusinessId,
       whatsapp_business_id: whatsappBusinessId,
     };
+    log("💾 Updating project in production DB...", { projectId: project.id, keys: Object.keys(updatePayload) });
 
     const { error: updateError } = await prodSupabase
       .from("projects")
@@ -186,15 +193,20 @@ Deno.serve(async (req) => {
       .eq("id", project.id);
 
     if (updateError) {
+      logError("Project update failed", { error: updateError.message, code: updateError.code, details: updateError.details });
       return new Response(JSON.stringify({ error: updateError.message }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    log("💾 Project updated successfully");
 
     // Insert meta_connection in Lovable Cloud
+    log("🔗 Saving meta_connection...");
     const supabase = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-    await supabase.from("meta_connections").update({ is_active: false }).eq("user_id", user.id).eq("project_id", project.id);
-    await supabase.from("meta_connections").insert({
+    const { error: deactivateErr } = await supabase.from("meta_connections").update({ is_active: false }).eq("user_id", user.id).eq("project_id", project.id);
+    if (deactivateErr) log("⚠️ Deactivate old connections warning", deactivateErr);
+
+    const { error: insertErr } = await supabase.from("meta_connections").insert({
       project_id: project.id,
       user_id: user.id,
       ad_account_id: adAccountId || null,
@@ -203,18 +215,21 @@ Deno.serve(async (req) => {
       instagram_business_id: instagramBusinessId,
       is_active: true,
     });
+    if (insertErr) logError("meta_connections insert failed", insertErr);
+    else log("🔗 meta_connection saved");
 
-    console.log(`✅ Meta connected: project=${project.id}, fb=${facebookPageId}, ig=${instagramBusinessId}, wa=${whatsappBusinessId}`);
-
-    return new Response(JSON.stringify({
+    const result = {
       success: true,
       project_id: project.id,
       facebook_page_id: facebookPageId,
       instagram_business_id: instagramBusinessId,
       whatsapp_business_id: whatsappBusinessId,
-    }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    };
+    log("✅ connect-meta completed", result);
+
+    return new Response(JSON.stringify(result), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (err) {
-    console.error("connect-meta error:", err);
+    logError("connect-meta unhandled error", { message: err.message, stack: err.stack });
     return new Response(JSON.stringify({ error: err.message }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
