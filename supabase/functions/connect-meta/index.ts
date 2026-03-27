@@ -77,8 +77,10 @@ Deno.serve(async (req) => {
     }
 
     // --- Exchange short-lived for long-lived token ---
-    const META_APP_ID = Deno.env.get("META_APP_ID") || Deno.env.get("VITE_FACEBOOK_APP_ID");
-    const META_APP_SECRET = Deno.env.get("META_APP_SECRET") || Deno.env.get("FACEBOOK_APP_SECRET");
+    const META_APP_ID = (Deno.env.get("META_APP_ID") || Deno.env.get("VITE_FACEBOOK_APP_ID") || "").trim();
+    const META_APP_SECRET = (Deno.env.get("META_APP_SECRET") || Deno.env.get("FACEBOOK_APP_SECRET") || "").trim();
+    log("🔑 META_APP_ID length:", META_APP_ID.length);
+    log("🔑 META_APP_SECRET length:", META_APP_SECRET.length);
 
     if (!META_APP_ID || !META_APP_SECRET) {
       logError("META_APP_ID or META_APP_SECRET not configured");
@@ -155,7 +157,7 @@ Deno.serve(async (req) => {
     // Find project
     const { data: project, error: projectError } = await prodSupabase
       .from("projects")
-      .select("id")
+      .select("id, name")
       .eq("user_id", user.id)
       .order("updated_at", { ascending: false })
       .limit(1)
@@ -173,38 +175,41 @@ Deno.serve(async (req) => {
     log("🔒 Encrypting token...");
     const encryptedToken = await encryptToken(longLivedToken);
 
-    // Update project
-    const updatePayload: Record<string, unknown> = {
+    // Upsert project — uses project.id to update existing row
+    const upsertPayload = {
+      id: project.id,
+      user_id: user.id,
+      name: project.name || "Meu Projeto",
       meta_access_token: encryptedToken,
       meta_ads_account_id: adAccountId,
       facebook_page_id: facebookPageId,
       instagram_business_id: instagramBusinessId,
+      updated_at: new Date().toISOString(),
     };
-    log("💾 Updating project...", { keys: Object.keys(updatePayload) });
+    log("💾 Upserting project...", { id: project.id });
 
-    const { error: updateError } = await prodSupabase
+    const { error: upsertError } = await prodSupabase
       .from("projects")
-      .update(updatePayload)
-      .eq("id", project.id);
+      .upsert(upsertPayload, { onConflict: "id" });
 
-    if (updateError) {
-      logError("Project update failed", updateError);
-      return new Response(JSON.stringify({ error: updateError.message }), {
+    if (upsertError) {
+      logError("Project upsert failed", upsertError);
+      return new Response(JSON.stringify({ error: upsertError.message }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Save meta_connection
+    // Save meta_connection via upsert
     const serviceClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
     await serviceClient.from("meta_connections").update({ is_active: false }).eq("user_id", user.id).eq("project_id", project.id);
-    await serviceClient.from("meta_connections").insert({
+    await serviceClient.from("meta_connections").upsert({
       project_id: project.id,
       user_id: user.id,
       ad_account_id: adAccountId,
       connection_type: connectionType,
       instagram_business_id: instagramBusinessId,
       is_active: true,
-    });
+    }, { onConflict: "project_id,user_id" }).select();
 
     const expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
     const result = {
