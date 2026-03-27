@@ -77,8 +77,10 @@ Deno.serve(async (req) => {
     }
 
     // --- Exchange short-lived for long-lived token ---
-    const META_APP_ID = Deno.env.get("META_APP_ID") || Deno.env.get("VITE_FACEBOOK_APP_ID");
-    const META_APP_SECRET = Deno.env.get("META_APP_SECRET") || Deno.env.get("FACEBOOK_APP_SECRET");
+    const META_APP_ID = (Deno.env.get("META_APP_ID") || Deno.env.get("VITE_FACEBOOK_APP_ID") || "").trim();
+    const META_APP_SECRET = (Deno.env.get("META_APP_SECRET") || Deno.env.get("FACEBOOK_APP_SECRET") || "").trim();
+    log("🔑 META_APP_ID length:", META_APP_ID.length);
+    log("🔑 META_APP_SECRET length:", META_APP_SECRET.length);
 
     if (!META_APP_ID || !META_APP_SECRET) {
       logError("META_APP_ID or META_APP_SECRET not configured");
