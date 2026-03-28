@@ -14,11 +14,13 @@ export function useLegalConsent() {
       return;
     }
 
-    const { data } = await supabase
-      .from("legal_consents" as any)
+    const { data, error } = await supabase
+      .from("legal_consents")
       .select("id")
       .eq("user_id", user.id)
       .maybeSingle();
+    
+    if (error) console.error("[LegalConsent] Check error:", error);
 
     setHasConsented(!!data);
     setLoading(false);
