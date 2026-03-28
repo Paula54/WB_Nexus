@@ -51,7 +51,18 @@ export function useLegalConsent() {
       consentPayload.plan_selected = planSelected;
     }
 
-    const { error } = await supabase.from("legal_consents" as any).insert(consentPayload);
+    console.log("[LegalConsent] Inserting consent for user:", user.id);
+    
+    // Verify we have a valid session before inserting
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData?.session) {
+      console.error("[LegalConsent] No active session found");
+      return { error: { message: "Sessão não encontrada. Tenta recarregar a página." } };
+    }
+    
+    const { error, data } = await supabase.from("legal_consents").insert(consentPayload).select();
+
+    console.log("[LegalConsent] Insert result:", { error, data });
 
     if (!error) {
       setHasConsented(true);
