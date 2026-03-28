@@ -17,12 +17,24 @@ export function LegalConsentModal({ open, onAccept }: LegalConsentModalProps) {
   const handleAccept = async () => {
     if (!checked) return;
     setLoading(true);
-    const result = await onAccept();
-    if (result?.error) {
+    try {
+      const result = await onAccept();
+      if (result?.error) {
+        console.error("[LegalConsent] Accept error:", result.error);
+        toast({
+          variant: "destructive",
+          title: "Erro",
+          description: typeof result.error === "object" && "message" in result.error 
+            ? result.error.message 
+            : "Não foi possível registar o consentimento. Tenta novamente.",
+        });
+      }
+    } catch (err: any) {
+      console.error("[LegalConsent] Unexpected error:", err);
       toast({
         variant: "destructive",
         title: "Erro",
-        description: "Não foi possível registar o consentimento. Tenta novamente.",
+        description: err?.message || "Erro inesperado. Tenta novamente.",
       });
     }
     setLoading(false);
