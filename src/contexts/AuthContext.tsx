@@ -113,6 +113,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     await supabase.auth.signOut();
+    window.location.href = "https://site.web-business.pt";
   };
 
   return (

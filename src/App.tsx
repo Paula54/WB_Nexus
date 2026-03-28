@@ -46,6 +46,8 @@ import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
 
+const EXTERNAL_LOGIN_URL = "https://site.web-business.pt/login";
+
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
 
@@ -58,7 +60,8 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (!user) {
-    return <Navigate to="/login" replace />;
+    window.location.href = EXTERNAL_LOGIN_URL;
+    return null;
   }
 
   return <>{children}</>;
