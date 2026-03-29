@@ -22,6 +22,7 @@ Deno.serve(async (req) => {
       throw new Error("HOSTINGER_API_TOKEN not configured");
     }
 
+    // --- Auth ---
     const authHeader = req.headers.get("authorization");
     if (!authHeader) {
       return new Response(
@@ -45,18 +46,20 @@ Deno.serve(async (req) => {
 
     if (!domain || !price) {
       return new Response(
-        JSON.stringify({ error: "Dados em falta" }),
+        JSON.stringify({ error: "Dados em falta (domain, price)" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Check wallet balance
+    console.log(`[domain-register] User ${user.id} requesting domain: ${domain}, price: ${price}`);
+
+    // --- 1. Verify wallet balance ---
     const { data: transactions } = await adminClient
       .from("wallet_transactions")
       .select("amount")
       .eq("user_id", user.id);
 
-    const balance = (transactions || []).reduce((sum: number, t: { amount: number }) => sum + t.amount, 0);
+    const balance = (transactions || []).reduce((sum: number, t: { amount: number }) => sum + Number(t.amount), 0);
 
     if (balance < price) {
       return new Response(
@@ -65,29 +68,123 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Register domain via Hostinger API
+    // --- 2. Get registrant data from profiles + business_profiles ---
+    const [profileRes, businessRes] = await Promise.all([
+      adminClient.from("profiles").select("full_name, contact_email").eq("user_id", user.id).maybeSingle(),
+      adminClient.from("business_profiles").select("legal_name, email, phone, address_line1, city, postal_code, country, nif").eq("user_id", user.id).maybeSingle(),
+    ]);
+
+    const profile = profileRes.data;
+    const business = businessRes.data;
+
+    const registrantName = business?.legal_name || profile?.full_name || user.email?.split("@")[0] || "Domain Owner";
+    const registrantEmail = business?.email || profile?.contact_email || user.email || "";
+    const registrantPhone = business?.phone || "";
+    const registrantAddress = business?.address_line1 || "";
+    const registrantCity = business?.city || "Lisboa";
+    const registrantZip = business?.postal_code || "1000-001";
+    const registrantCountry = business?.country || "PT";
+
+    console.log(`[domain-register] Registrant: ${registrantName}, ${registrantEmail}`);
+
+    // --- 3. Get catalog item_id for the TLD ---
+    const tld = domain.includes(".") ? domain.split(".").slice(1).join(".") : "com";
+
+    const catalogRes = await fetch(`${HOSTINGER_API_BASE}/api/billing/v1/catalog?category=DOMAIN&name=.${tld.toUpperCase()}*`, {
+      headers: {
+        Authorization: `Bearer ${HOSTINGER_API_TOKEN}`,
+      },
+    });
+
+    let itemId: string | null = null;
+
+    if (catalogRes.ok) {
+      const catalogData = await catalogRes.json();
+      console.log(`[domain-register] Catalog response for .${tld}:`, JSON.stringify(catalogData).substring(0, 500));
+
+      // Find the matching catalog item — look for registration items
+      if (Array.isArray(catalogData)) {
+        const match = catalogData.find((item: any) =>
+          item.name?.toLowerCase().includes(tld.toLowerCase()) &&
+          (item.name?.toLowerCase().includes("register") || item.category === "DOMAIN")
+        );
+        if (match) {
+          itemId = match.id || match.item_id;
+        }
+        // Fallback: just take the first domain item
+        if (!itemId && catalogData.length > 0) {
+          itemId = catalogData[0].id || catalogData[0].item_id;
+        }
+      } else if (catalogData?.data && Array.isArray(catalogData.data)) {
+        const match = catalogData.data.find((item: any) =>
+          item.name?.toLowerCase().includes(tld.toLowerCase())
+        );
+        if (match) {
+          itemId = match.id || match.item_id;
+        }
+        if (!itemId && catalogData.data.length > 0) {
+          itemId = catalogData.data[0].id || catalogData.data[0].item_id;
+        }
+      }
+    } else {
+      console.error(`[domain-register] Catalog fetch failed: ${catalogRes.status}`, await catalogRes.text());
+    }
+
+    if (!itemId) {
+      console.error(`[domain-register] Could not find catalog item_id for TLD: .${tld}`);
+      return new Response(
+        JSON.stringify({ error: `Não foi possível encontrar o item de catálogo para .${tld}. Contacta o suporte.` }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log(`[domain-register] Using catalog item_id: ${itemId} for domain: ${domain}`);
+
+    // --- 4. Purchase domain via Hostinger API (POST /api/domains/v1/portfolio) ---
+    const purchaseBody: Record<string, any> = {
+      domain,
+      item_id: itemId,
+      domain_contacts: {
+        owner: {
+          first_name: registrantName.split(" ")[0],
+          last_name: registrantName.split(" ").slice(1).join(" ") || registrantName.split(" ")[0],
+          email: registrantEmail,
+          phone: registrantPhone || "+351000000000",
+          address: registrantAddress || "Rua Exemplo 1",
+          city: registrantCity,
+          zip: registrantZip,
+          country: registrantCountry === "Portugal" ? "PT" : registrantCountry,
+          company: business?.legal_name || "",
+        },
+      },
+    };
+
+    console.log(`[domain-register] Purchase request body:`, JSON.stringify(purchaseBody));
+
     const registerRes = await fetch(`${HOSTINGER_API_BASE}/api/domains/v1/portfolio`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${HOSTINGER_API_TOKEN}`,
       },
-      body: JSON.stringify({
-        domain,
-        payment_method_id: null, // Uses default payment method on Hostinger account
-      }),
+      body: JSON.stringify(purchaseBody),
     });
 
+    const registerText = await registerRes.text();
+    console.log(`[domain-register] Hostinger response [${registerRes.status}]:`, registerText);
+
     if (!registerRes.ok) {
-      const errorText = await registerRes.text();
-      console.error(`Hostinger register error [${registerRes.status}]:`, errorText);
-      throw new Error(`Erro ao registar domínio na Hostinger: ${registerRes.status}`);
+      throw new Error(`Erro Hostinger (${registerRes.status}): ${registerText}`);
     }
 
-    const registerData = await registerRes.json();
-    console.log("Hostinger register response:", JSON.stringify(registerData));
+    let registerData: any = {};
+    try {
+      registerData = JSON.parse(registerText);
+    } catch {
+      console.log("[domain-register] Response is not JSON, proceeding with defaults");
+    }
 
-    // Debit wallet
+    // --- 5. Debit wallet ---
     await adminClient.from("wallet_transactions").insert({
       user_id: user.id,
       amount: -price,
@@ -96,7 +193,7 @@ Deno.serve(async (req) => {
       reference_id: domain,
     });
 
-    // Save domain registration — 1 year expiry
+    // --- 6. Save to domain_registrations ---
     const expiryDate = new Date();
     expiryDate.setFullYear(expiryDate.getFullYear() + 1);
 
@@ -111,17 +208,42 @@ Deno.serve(async (req) => {
       expiry_date: registerData.expiry_date || expiryDate.toISOString(),
     });
 
+    // --- 7. Upsert domain into projects table ---
+    const { data: existingProject } = await adminClient
+      .from("projects")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("domain", domain)
+      .maybeSingle();
+
+    if (existingProject) {
+      await adminClient
+        .from("projects")
+        .update({ domain, updated_at: new Date().toISOString() })
+        .eq("id", existingProject.id);
+    } else {
+      await adminClient.from("projects").insert({
+        user_id: user.id,
+        name: domain.split(".")[0],
+        domain,
+        project_type: "website",
+      });
+    }
+
+    console.log(`[domain-register] Success! Domain ${domain} registered for user ${user.id}`);
+
     return new Response(
       JSON.stringify({
         success: true,
         domain,
         message: `Domínio ${domain} registado com sucesso!`,
         newBalance: balance - price,
+        redirect: "https://app.wbnexus.pt/dashboard",
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
-    console.error("domain-register error:", error);
+    console.error("[domain-register] error:", error);
     return new Response(
       JSON.stringify({ error: (error as Error).message }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
