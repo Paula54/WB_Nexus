@@ -62,8 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         // On first sign-in or sign-up, ensure profile & project exist
         if (session?.user && (event === "SIGNED_IN" || event === "SIGNED_UP" || event === "TOKEN_REFRESHED")) {
-          // Use setTimeout to avoid Supabase deadlock with auth state
-          setTimeout(() => ensureProfileAndProject(session.user), 0);
+          setTimeout(() => ensureProfileExists(session.user), 0);
         }
       }
     );
