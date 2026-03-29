@@ -77,7 +77,11 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`[domain-register] User ${user.id} requesting domain: ${domain}, price: ${price}`);
+    // Calculate cost price (reverse the markup to store real cost)
+    const tld = domain.includes(".") ? domain.split(".").slice(1).join(".") : "com";
+    const salePrice = price; // price sent from frontend is already the markup price
+
+    console.log(`[domain-register] User ${user.id} requesting domain: ${domain}, salePrice: ${salePrice}€`);
 
     // --- 1. Verify wallet balance ---
     const { data: transactions } = await adminClient
