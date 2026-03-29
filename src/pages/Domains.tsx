@@ -161,6 +161,10 @@ export default function Domains() {
       setResult(null);
       setSearchQuery("");
       fetchWalletData();
+      // Redirect to dashboard if provided
+      if (data.redirect) {
+        setTimeout(() => { window.location.href = data.redirect; }, 1500);
+      }
     } catch (e: any) {
       toast.error("Erro ao registar: " + (e.message || "Tenta novamente"));
     } finally {
