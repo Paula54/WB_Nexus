@@ -195,28 +195,35 @@ Deno.serve(async (req) => {
 
     console.log("[domain-search] Final priceMap:", JSON.stringify(priceMap));
 
-    // --- Build response ---
+    // --- Build response with MARKUP ---
     const mainResult = results.find((r) => r.domain === cleanDomain);
     const mainAvailable = mainResult?.is_available ?? false;
-    const mainPrice = priceMap[tld] ?? 0;
+    const mainCostPrice = priceMap[tld] ?? 0;
+    const mainSalePrice = mainCostPrice > 0 ? applyMarkup(mainCostPrice, tld) : 0;
+
+    console.log(`[domain-search] Main: cost=${mainCostPrice}€, sale=${mainSalePrice}€, margin=${(mainSalePrice - mainCostPrice).toFixed(2)}€`);
 
     const suggestions = results
       .filter((r) => r.domain !== cleanDomain && r.is_available)
       .map((r) => {
         const rTld = r.domain.split(".").slice(1).join(".");
+        const costPrice = priceMap[rTld] ?? 0;
+        const salePrice = costPrice > 0 ? applyMarkup(costPrice, rTld) : 0;
         return {
           domain: r.domain,
           tld: rTld,
           available: true,
           restriction: r.restriction,
-          price: priceMap[rTld] ?? 0,
+          price: salePrice,
+          costPrice, // internal reference
         };
       });
 
     const response = {
       domain: cleanDomain,
       available: mainAvailable,
-      price: mainPrice,
+      price: mainSalePrice,
+      costPrice: mainCostPrice,
       tld,
       suggestions,
     };
