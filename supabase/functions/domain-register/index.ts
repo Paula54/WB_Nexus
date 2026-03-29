@@ -214,25 +214,32 @@ Deno.serve(async (req) => {
       console.log("[domain-register] Response is not JSON, proceeding with defaults");
     }
 
-    // --- 5. Debit wallet ---
+    // --- 5. Debit wallet (charge the SALE price to user) ---
     await adminClient.from("wallet_transactions").insert({
       user_id: user.id,
-      amount: -price,
+      amount: -salePrice,
       type: "domain_purchase",
       description: `Registo de domínio: ${domain}`,
       reference_id: domain,
     });
 
-    // --- 6. Save to domain_registrations ---
+    // --- 6. Save to domain_registrations (sale price + cost price for profit tracking) ---
     const expiryDate = new Date();
     expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+
+    // Estimate cost price by reversing markup
+    const rule = MARKUP_RULES[tld.toLowerCase()] || DEFAULT_MARKUP;
+    // cost ≈ (salePrice - rule.fixed) / (1 + rule.percent)
+    const estimatedCost = Math.max(0, (salePrice - rule.fixed) / (1 + rule.percent));
+
+    console.log(`[domain-register] Profit breakdown: sale=${salePrice}€, estCost=${estimatedCost.toFixed(2)}€, profit=${(salePrice - estimatedCost).toFixed(2)}€`);
 
     await adminClient.from("domain_registrations").insert({
       user_id: user.id,
       domain_name: domain,
       status: "active",
-      purchase_price: price,
-      cost_price: price,
+      purchase_price: salePrice,
+      cost_price: parseFloat(estimatedCost.toFixed(2)),
       porkbun_id: registerData.id || `hostinger-${Date.now()}`,
       nameservers: registerData.nameservers || ["ns1.hostinger.com", "ns2.hostinger.com"],
       expiry_date: registerData.expiry_date || expiryDate.toISOString(),
