@@ -8,6 +8,32 @@ const corsHeaders = {
 
 const HOSTINGER_API_BASE = "https://developers.hostinger.com";
 
+// ── Markup / Profit Rules (must match domain-search) ──
+const MARKUP_RULES: Record<string, { fixed: number; percent: number; minSale: number }> = {
+  ai:   { fixed: 15, percent: 0.30, minSale: 69.99 },
+  io:   { fixed: 12, percent: 0.25, minSale: 49.99 },
+  dev:  { fixed: 10, percent: 0.25, minSale: 24.99 },
+  app:  { fixed: 10, percent: 0.25, minSale: 24.99 },
+  tech: { fixed: 8,  percent: 0.20, minSale: 19.99 },
+  com:  { fixed: 5,  percent: 0.20, minSale: 14.99 },
+  net:  { fixed: 5,  percent: 0.20, minSale: 14.99 },
+  org:  { fixed: 5,  percent: 0.20, minSale: 14.99 },
+  pt:   { fixed: 5,  percent: 0.20, minSale: 12.99 },
+  eu:   { fixed: 5,  percent: 0.20, minSale: 12.99 },
+  me:   { fixed: 4,  percent: 0.15, minSale: 9.99 },
+  co:   { fixed: 5,  percent: 0.20, minSale: 14.99 },
+  xyz:  { fixed: 3,  percent: 0.15, minSale: 5.99 },
+  site: { fixed: 3,  percent: 0.15, minSale: 5.99 },
+};
+const DEFAULT_MARKUP = { fixed: 5, percent: 0.20, minSale: 14.99 };
+
+function applyMarkup(costPrice: number, tld: string): number {
+  const rule = MARKUP_RULES[tld.toLowerCase()] || DEFAULT_MARKUP;
+  const calculated = costPrice + rule.fixed + (costPrice * rule.percent);
+  const final = Math.max(calculated, rule.minSale);
+  return Math.ceil(final) - 0.01;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
