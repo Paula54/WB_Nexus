@@ -73,7 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
 
       if (session?.user) {
-        setTimeout(() => ensureProfileAndProject(session.user), 0);
+        setTimeout(() => ensureProfileExists(session.user), 0);
       }
     });
 
