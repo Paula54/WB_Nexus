@@ -8,6 +8,32 @@ const corsHeaders = {
 
 const HOSTINGER_API_BASE = "https://developers.hostinger.com";
 
+// ── Markup / Profit Rules (must match domain-search) ──
+const MARKUP_RULES: Record<string, { fixed: number; percent: number; minSale: number }> = {
+  ai:   { fixed: 15, percent: 0.30, minSale: 69.99 },
+  io:   { fixed: 12, percent: 0.25, minSale: 49.99 },
+  dev:  { fixed: 10, percent: 0.25, minSale: 24.99 },
+  app:  { fixed: 10, percent: 0.25, minSale: 24.99 },
+  tech: { fixed: 8,  percent: 0.20, minSale: 19.99 },
+  com:  { fixed: 5,  percent: 0.20, minSale: 14.99 },
+  net:  { fixed: 5,  percent: 0.20, minSale: 14.99 },
+  org:  { fixed: 5,  percent: 0.20, minSale: 14.99 },
+  pt:   { fixed: 5,  percent: 0.20, minSale: 12.99 },
+  eu:   { fixed: 5,  percent: 0.20, minSale: 12.99 },
+  me:   { fixed: 4,  percent: 0.15, minSale: 9.99 },
+  co:   { fixed: 5,  percent: 0.20, minSale: 14.99 },
+  xyz:  { fixed: 3,  percent: 0.15, minSale: 5.99 },
+  site: { fixed: 3,  percent: 0.15, minSale: 5.99 },
+};
+const DEFAULT_MARKUP = { fixed: 5, percent: 0.20, minSale: 14.99 };
+
+function applyMarkup(costPrice: number, tld: string): number {
+  const rule = MARKUP_RULES[tld.toLowerCase()] || DEFAULT_MARKUP;
+  const calculated = costPrice + rule.fixed + (costPrice * rule.percent);
+  const final = Math.max(calculated, rule.minSale);
+  return Math.ceil(final) - 0.01;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -51,7 +77,11 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`[domain-register] User ${user.id} requesting domain: ${domain}, price: ${price}`);
+    // Calculate cost price (reverse the markup to store real cost)
+    const tld = domain.includes(".") ? domain.split(".").slice(1).join(".") : "com";
+    const salePrice = price; // price sent from frontend is already the markup price
+
+    console.log(`[domain-register] User ${user.id} requesting domain: ${domain}, salePrice: ${salePrice}€`);
 
     // --- 1. Verify wallet balance ---
     const { data: transactions } = await adminClient
@@ -184,25 +214,32 @@ Deno.serve(async (req) => {
       console.log("[domain-register] Response is not JSON, proceeding with defaults");
     }
 
-    // --- 5. Debit wallet ---
+    // --- 5. Debit wallet (charge the SALE price to user) ---
     await adminClient.from("wallet_transactions").insert({
       user_id: user.id,
-      amount: -price,
+      amount: -salePrice,
       type: "domain_purchase",
       description: `Registo de domínio: ${domain}`,
       reference_id: domain,
     });
 
-    // --- 6. Save to domain_registrations ---
+    // --- 6. Save to domain_registrations (sale price + cost price for profit tracking) ---
     const expiryDate = new Date();
     expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+
+    // Estimate cost price by reversing markup
+    const rule = MARKUP_RULES[tld.toLowerCase()] || DEFAULT_MARKUP;
+    // cost ≈ (salePrice - rule.fixed) / (1 + rule.percent)
+    const estimatedCost = Math.max(0, (salePrice - rule.fixed) / (1 + rule.percent));
+
+    console.log(`[domain-register] Profit breakdown: sale=${salePrice}€, estCost=${estimatedCost.toFixed(2)}€, profit=${(salePrice - estimatedCost).toFixed(2)}€`);
 
     await adminClient.from("domain_registrations").insert({
       user_id: user.id,
       domain_name: domain,
       status: "active",
-      purchase_price: price,
-      cost_price: price,
+      purchase_price: salePrice,
+      cost_price: parseFloat(estimatedCost.toFixed(2)),
       porkbun_id: registerData.id || `hostinger-${Date.now()}`,
       nameservers: registerData.nameservers || ["ns1.hostinger.com", "ns2.hostinger.com"],
       expiry_date: registerData.expiry_date || expiryDate.toISOString(),
@@ -237,7 +274,7 @@ Deno.serve(async (req) => {
         success: true,
         domain,
         message: `Domínio ${domain} registado com sucesso!`,
-        newBalance: balance - price,
+        newBalance: balance - salePrice,
         redirect: "https://app.wbnexus.pt/dashboard",
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
