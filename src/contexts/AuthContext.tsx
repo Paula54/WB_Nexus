@@ -25,9 +25,10 @@ if (localStorage.getItem(STORAGE_VERSION_KEY) !== CURRENT_VERSION) {
   console.log("[Auth] Cleared stale localStorage tokens");
 }
 
-async function ensureProfileAndProject(user: User) {
+async function ensureProfileExists(user: User) {
   try {
-    // Check if profile exists
+    // Profile should already exist from the marketing site registration.
+    // Only create if missing (safety net).
     const { data: existingProfile } = await supabase
       .from("profiles")
       .select("id")
@@ -40,25 +41,10 @@ async function ensureProfileAndProject(user: User) {
         full_name: user.user_metadata?.full_name || null,
         contact_email: user.email || null,
       });
-      console.log("[Auth] Profile created for", user.id);
-    }
-
-    // Check if project exists
-    const { data: existingProject } = await supabase
-      .from("projects")
-      .select("id")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    if (!existingProject) {
-      await supabase.from("projects").insert({
-        user_id: user.id,
-        name: "Meu Projeto",
-      });
-      console.log("[Auth] Project created for", user.id);
+      console.log("[Auth] Profile created (fallback) for", user.id);
     }
   } catch (err) {
-    console.error("[Auth] Error ensuring profile/project:", err);
+    console.error("[Auth] Error ensuring profile:", err);
   }
 }
 
@@ -76,8 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         // On first sign-in or sign-up, ensure profile & project exist
         if (session?.user && (event === "SIGNED_IN" || event === "SIGNED_UP" || event === "TOKEN_REFRESHED")) {
-          // Use setTimeout to avoid Supabase deadlock with auth state
-          setTimeout(() => ensureProfileAndProject(session.user), 0);
+          setTimeout(() => ensureProfileExists(session.user), 0);
         }
       }
     );
@@ -88,7 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
 
       if (session?.user) {
-        setTimeout(() => ensureProfileAndProject(session.user), 0);
+        setTimeout(() => ensureProfileExists(session.user), 0);
       }
     });
 

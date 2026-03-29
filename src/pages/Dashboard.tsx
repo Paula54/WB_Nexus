@@ -16,8 +16,7 @@ export default function Dashboard() {
     );
   }
 
-  // TODO: TEMPORARY — force onboarding view for demo. Remove this line to restore normal behavior.
-  const onboardingComplete = false; // socialConnected && whatsappConnected && firstCampaignLaunched;
+  const onboardingComplete = socialConnected && whatsappConnected && firstCampaignLaunched;
 
   return (
     <div className="space-y-6">
