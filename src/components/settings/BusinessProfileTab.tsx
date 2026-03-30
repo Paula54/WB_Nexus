@@ -171,7 +171,8 @@ export default function BusinessProfileTab() {
     }
 
     if (error) {
-      toast({ variant: "destructive", title: "Erro", description: "Não foi possível guardar o perfil." });
+      console.error("[BusinessProfile] Save error:", JSON.stringify(error));
+      toast({ variant: "destructive", title: "Erro", description: `Não foi possível guardar o perfil: ${error.message}` });
     } else {
       try {
         const { data: sessionData } = await supabase.auth.getSession();
