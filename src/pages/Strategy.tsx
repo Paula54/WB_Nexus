@@ -149,13 +149,13 @@ export default function Strategy() {
       </div>
 
       {/* Business Profile Summary */}
-      {business && (business.trade_name || business.legal_name) ? (
+      {business && (business.business_name || business.legal_name) ? (
         <Card className="glass border-primary/20 bg-primary/5">
           <CardContent className="p-4 flex items-center gap-3">
             <Building2 className="h-5 w-5 text-primary shrink-0" />
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-sm font-medium">{business.trade_name || business.legal_name}</span>
+                <span className="text-sm font-medium">{business.business_name || business.legal_name}</span>
                 {business.nif && (
                   <Badge variant="secondary" className="text-xs">NIF {business.nif}</Badge>
                 )}

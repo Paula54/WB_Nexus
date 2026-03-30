@@ -27,14 +27,14 @@ const PAGE_LABELS: Record<PageType, string> = {
 };
 
 function generateTemplate(type: PageType, data: BusinessData): string {
-  const name = data.trade_name || data.legal_name || "[Nome da Empresa]";
+  const name = data.business_name || data.legal_name || "[Nome da Empresa]";
   const legalName = data.legal_name || "[Denominação Social]";
   const nif = data.nif || "[NIF]";
   const address = [data.address_line1, data.postal_code, data.city, data.country].filter(Boolean).join(", ") || "[Morada]";
-  const email = data.email || "[email]";
-  const phone = data.phone || "[telefone]";
-  const website = data.website || "[website]";
-  const complaints = data.complaints_book_url || "https://www.livroreclamacoes.pt";
+  const email = "[email]";
+  const phone = "[telefone]";
+  const website = "[website]";
+  const complaints = "https://www.livroreclamacoes.pt";
 
   if (type === "privacidade") {
     return `# Política de Privacidade — ${name}
