@@ -58,7 +58,7 @@ Deno.serve(async (req) => {
     const sld = parts[0]; // domain name without TLD
     const tld = parts.length >= 2 ? parts.slice(1).join(".") : "com";
 
-    const authHeaders = {
+    const authHeaders: Record<string, string> = {
       "Content-Type": "application/json",
       Authorization: `Bearer ${HOSTINGER_API_TOKEN}`,
       "User-Agent": USER_AGENT,
