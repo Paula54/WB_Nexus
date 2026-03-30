@@ -61,10 +61,11 @@ export default function AssetLibraryTab() {
     }
 
     setUploading(true);
+    const bucket = getBucketForType(selectedType);
     const filePath = `${user.id}/${Date.now()}_${file.name}`;
 
     const { error: uploadError } = await supabase.storage
-      .from("assets")
+      .from(bucket)
       .upload(filePath, file);
 
     if (uploadError) {
@@ -73,7 +74,7 @@ export default function AssetLibraryTab() {
       return;
     }
 
-    const { data: urlData } = supabase.storage.from("assets").getPublicUrl(filePath);
+    const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(filePath);
 
     const { error: dbError } = await supabase.from("assets" as string).insert({
       user_id: user.id,
