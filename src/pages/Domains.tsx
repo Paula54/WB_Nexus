@@ -10,7 +10,7 @@ import { useSearchParams } from "react-router-dom";
 import {
   Globe, Search, Wallet, Plus, ArrowDownLeft,
   CheckCircle2, XCircle, Loader2, ShoppingCart, CreditCard, Sparkles,
-  AlertTriangle, CalendarClock
+  CalendarClock, AlertTriangle
 } from "lucide-react";
 
 interface SuggestionItem {
