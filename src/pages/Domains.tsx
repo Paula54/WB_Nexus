@@ -303,7 +303,6 @@ export default function Domains() {
                   </div>
                 </CardContent>
               </Card>
-              </Card>
               {/* Suggestions */}
               {result.suggestions.length > 0 && (
                 <Card className="glass">
