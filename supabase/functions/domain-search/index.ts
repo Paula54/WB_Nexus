@@ -66,68 +66,62 @@ Deno.serve(async (req) => {
     };
 
     const popularTlds = ["com", "pt", "ai", "eu", "net", "io", "org", "dev", "app", "me", "xyz", "tech", "site", "co"];
-    const allTlds = [tld, ...popularTlds.filter((t) => t !== tld)];
+    const otherTlds = popularTlds.filter((t) => t !== tld);
 
-    console.log("[domain-search] Searching:", { sld, tld, allTlds });
+    console.log("[domain-search] Searching:", { sld, tld, otherTlds });
 
-    // ── 1. Check availability with retry ──
-    let availText = "";
-    let availOk = false;
-    for (let attempt = 1; attempt <= 3; attempt++) {
-      try {
-        const availRes = await fetch(`${HOSTINGER_API_BASE}/api/domains/v1/availability`, {
-          method: "POST",
-          headers: authHeaders,
-          body: JSON.stringify({
-            domain: sld,
-            tlds: allTlds,
-            with_alternatives: true,
-          }),
-        });
-        availText = await availRes.text();
-        console.log(`[domain-search] Availability attempt ${attempt} [${availRes.status}]:`, availText.slice(0, 500));
-        if (availRes.ok) {
-          availOk = true;
-          break;
-        }
-        if (availRes.status === 503 || availRes.status === 429) {
-          console.log(`[domain-search] Retrying in ${attempt * 2}s...`);
-          await new Promise(r => setTimeout(r, attempt * 2000));
-          continue;
-        }
-        // Other errors - don't retry
-        break;
-      } catch (fetchErr) {
-        console.error(`[domain-search] Fetch error attempt ${attempt}:`, fetchErr);
-        if (attempt < 3) await new Promise(r => setTimeout(r, attempt * 2000));
-      }
-    }
-
-    if (!availOk) {
-      // Return graceful fallback - show domain as "check manually" instead of crashing
-      console.error(`[domain-search] Hostinger API unavailable after retries`);
-      return new Response(
-        JSON.stringify({
-          domain: cleanDomain,
-          available: null,
-          price: 0,
-          costPrice: 0,
-          tld,
-          itemId: "",
-          suggestions: [],
-          error: "Serviço de domínios temporariamente indisponível. Tenta novamente em alguns minutos.",
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const availData = JSON.parse(availText);
-    const results: Array<{
+    // ── 1a. Check primary TLD with alternatives (single TLD required for alternatives) ──
+    let results: Array<{
       domain: string;
       is_available: boolean;
       is_alternative: boolean;
       restriction: string | null;
-    }> = Array.isArray(availData) ? availData : [];
+    }> = [];
+
+    try {
+      const primaryRes = await fetch(`${HOSTINGER_API_BASE}/api/domains/v1/availability`, {
+        method: "POST",
+        headers: authHeaders,
+        body: JSON.stringify({ domain: sld, tlds: [tld], with_alternatives: true }),
+      });
+      const primaryText = await primaryRes.text();
+      console.log(`[domain-search] Primary .${tld} [${primaryRes.status}]:`, primaryText.slice(0, 500));
+      if (primaryRes.ok) {
+        const parsed = JSON.parse(primaryText);
+        results = Array.isArray(parsed) ? parsed : [];
+      }
+    } catch (e) {
+      console.error("[domain-search] Primary check error:", e);
+    }
+
+    // ── 1b. Check other popular TLDs (no alternatives needed, batch allowed) ──
+    try {
+      const otherRes = await fetch(`${HOSTINGER_API_BASE}/api/domains/v1/availability`, {
+        method: "POST",
+        headers: authHeaders,
+        body: JSON.stringify({ domain: sld, tlds: otherTlds }),
+      });
+      const otherText = await otherRes.text();
+      console.log(`[domain-search] Other TLDs [${otherRes.status}]:`, otherText.slice(0, 300));
+      if (otherRes.ok) {
+        const parsed = JSON.parse(otherText);
+        const otherResults = Array.isArray(parsed) ? parsed : [];
+        results = [...results, ...otherResults];
+      }
+    } catch (e) {
+      console.error("[domain-search] Other TLDs check error:", e);
+    }
+
+    if (results.length === 0) {
+      console.error("[domain-search] No results from Hostinger API");
+      return new Response(
+        JSON.stringify({ domain: cleanDomain, available: false, price: 0, costPrice: 0, tld, itemId: "", suggestions: [] }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log(`[domain-search] Got ${results.length} results`);
+    const allTlds = [tld, ...otherTlds];
 
     // ── 2. Get pricing from catalog (GET /api/billing/v1/catalog?category=DOMAIN) ──
     // Official API: category=DOMAIN, name=.COM* (wildcard search)
