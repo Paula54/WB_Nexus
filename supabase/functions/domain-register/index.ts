@@ -27,13 +27,6 @@ const MARKUP_RULES: Record<string, { fixed: number; percent: number; minSale: nu
 };
 const DEFAULT_MARKUP = { fixed: 5, percent: 0.20, minSale: 14.99 };
 
-function applyMarkup(costPrice: number, tld: string): number {
-  const rule = MARKUP_RULES[tld.toLowerCase()] || DEFAULT_MARKUP;
-  const calculated = costPrice + rule.fixed + (costPrice * rule.percent);
-  const final = Math.max(calculated, rule.minSale);
-  return Math.ceil(final) - 0.01;
-}
-
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -48,7 +41,7 @@ Deno.serve(async (req) => {
       throw new Error("HOSTINGER_API_TOKEN not configured");
     }
 
-    // --- Auth ---
+    // ── Auth ──
     const authHeader = req.headers.get("authorization");
     if (!authHeader) {
       return new Response(
@@ -68,7 +61,7 @@ Deno.serve(async (req) => {
     }
 
     const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-    const { domain, price } = await req.json();
+    const { domain, price, itemId } = await req.json();
 
     if (!domain || !price) {
       return new Response(
@@ -77,13 +70,12 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Calculate cost price (reverse the markup to store real cost)
     const tld = domain.includes(".") ? domain.split(".").slice(1).join(".") : "com";
-    const salePrice = price; // price sent from frontend is already the markup price
+    const salePrice = price;
 
-    console.log(`[domain-register] User ${user.id} requesting domain: ${domain}, salePrice: ${salePrice}€`);
+    console.log(`[domain-register] User ${user.id} requesting: ${domain}, sale: ${salePrice}€, itemId: ${itemId || "auto"}`);
 
-    // --- 1. Verify wallet balance ---
+    // ── 1. Verify wallet balance ──
     const { data: transactions } = await adminClient
       .from("wallet_transactions")
       .select("amount")
@@ -98,7 +90,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // --- 2. Get registrant data from profiles + business_profiles ---
+    // ── 2. Get registrant data from profiles + business_profiles ──
     const [profileRes, businessRes] = await Promise.all([
       adminClient.from("profiles").select("full_name, contact_email").eq("user_id", user.id).maybeSingle(),
       adminClient.from("business_profiles").select("legal_name, email, phone, address_line1, city, postal_code, country, nif").eq("user_id", user.id).maybeSingle(),
@@ -109,87 +101,71 @@ Deno.serve(async (req) => {
 
     const registrantName = business?.legal_name || profile?.full_name || user.email?.split("@")[0] || "Domain Owner";
     const registrantEmail = business?.email || profile?.contact_email || user.email || "";
-    const registrantPhone = business?.phone || "";
-    const registrantAddress = business?.address_line1 || "";
+    const registrantPhone = business?.phone || "+351000000000";
+    const registrantAddress = business?.address_line1 || "Rua Exemplo 1";
     const registrantCity = business?.city || "Lisboa";
     const registrantZip = business?.postal_code || "1000-001";
-    const registrantCountry = business?.country || "PT";
+    const registrantCountry = (business?.country === "Portugal" ? "PT" : business?.country) || "PT";
 
     console.log(`[domain-register] Registrant: ${registrantName}, ${registrantEmail}`);
 
-    // --- 3. Get catalog item_id for the TLD ---
-    const tld = domain.includes(".") ? domain.split(".").slice(1).join(".") : "com";
+    // ── 3. Get catalog item_id if not provided ──
+    let catalogItemId = itemId || null;
 
-    const catalogRes = await fetch(`${HOSTINGER_API_BASE}/api/billing/v1/catalog?category=DOMAIN&name=.${tld.toUpperCase()}*`, {
-      headers: {
-        Authorization: `Bearer ${HOSTINGER_API_TOKEN}`,
-      },
-    });
+    if (!catalogItemId) {
+      console.log(`[domain-register] No itemId provided, fetching from catalog for .${tld}...`);
+      const catalogRes = await fetch(
+        `${HOSTINGER_API_BASE}/api/billing/v1/catalog?category=DOMAIN&name=.${tld.toUpperCase()}*`,
+        { headers: { Authorization: `Bearer ${HOSTINGER_API_TOKEN}` } }
+      );
 
-    let itemId: string | null = null;
+      if (catalogRes.ok) {
+        const catalogData = await catalogRes.json();
+        console.log(`[domain-register] Catalog .${tld}:`, JSON.stringify(catalogData).slice(0, 500));
 
-    if (catalogRes.ok) {
-      const catalogData = await catalogRes.json();
-      console.log(`[domain-register] Catalog response for .${tld}:`, JSON.stringify(catalogData).substring(0, 500));
-
-      // Find the matching catalog item — look for registration items
-      if (Array.isArray(catalogData)) {
-        const match = catalogData.find((item: any) =>
-          item.name?.toLowerCase().includes(tld.toLowerCase()) &&
-          (item.name?.toLowerCase().includes("register") || item.category === "DOMAIN")
-        );
-        if (match) {
-          itemId = match.id || match.item_id;
+        const items = Array.isArray(catalogData) ? catalogData : catalogData.data || [];
+        if (items.length > 0) {
+          // Pick first matching registration item
+          const match = items.find((item: any) =>
+            (item.name || "").toLowerCase().includes(tld.toLowerCase())
+          );
+          catalogItemId = (match || items[0]).id || (match || items[0]).item_id;
         }
-        // Fallback: just take the first domain item
-        if (!itemId && catalogData.length > 0) {
-          itemId = catalogData[0].id || catalogData[0].item_id;
-        }
-      } else if (catalogData?.data && Array.isArray(catalogData.data)) {
-        const match = catalogData.data.find((item: any) =>
-          item.name?.toLowerCase().includes(tld.toLowerCase())
-        );
-        if (match) {
-          itemId = match.id || match.item_id;
-        }
-        if (!itemId && catalogData.data.length > 0) {
-          itemId = catalogData.data[0].id || catalogData.data[0].item_id;
-        }
+      } else {
+        console.error(`[domain-register] Catalog fetch failed [${catalogRes.status}]:`, await catalogRes.text());
       }
-    } else {
-      console.error(`[domain-register] Catalog fetch failed: ${catalogRes.status}`, await catalogRes.text());
     }
 
-    if (!itemId) {
-      console.error(`[domain-register] Could not find catalog item_id for TLD: .${tld}`);
+    if (!catalogItemId) {
       return new Response(
         JSON.stringify({ error: `Não foi possível encontrar o item de catálogo para .${tld}. Contacta o suporte.` }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log(`[domain-register] Using catalog item_id: ${itemId} for domain: ${domain}`);
+    console.log(`[domain-register] Using itemId: ${catalogItemId}`);
 
-    // --- 4. Purchase domain via Hostinger API (POST /api/domains/v1/portfolio) ---
-    const purchaseBody: Record<string, any> = {
+    // ── 4. Purchase domain (POST /api/domains/v1/portfolio) ──
+    // Official Hostinger API: { domain, item_id, domain_contacts: { owner: {...} } }
+    const purchaseBody = {
       domain,
-      item_id: itemId,
+      item_id: catalogItemId,
       domain_contacts: {
         owner: {
           first_name: registrantName.split(" ")[0],
           last_name: registrantName.split(" ").slice(1).join(" ") || registrantName.split(" ")[0],
           email: registrantEmail,
-          phone: registrantPhone || "+351000000000",
-          address: registrantAddress || "Rua Exemplo 1",
+          phone: registrantPhone,
+          address: registrantAddress,
           city: registrantCity,
           zip: registrantZip,
-          country: registrantCountry === "Portugal" ? "PT" : registrantCountry,
+          country: registrantCountry,
           company: business?.legal_name || "",
         },
       },
     };
 
-    console.log(`[domain-register] Purchase request body:`, JSON.stringify(purchaseBody));
+    console.log(`[domain-register] Purchase body:`, JSON.stringify(purchaseBody));
 
     const registerRes = await fetch(`${HOSTINGER_API_BASE}/api/domains/v1/portfolio`, {
       method: "POST",
@@ -214,7 +190,7 @@ Deno.serve(async (req) => {
       console.log("[domain-register] Response is not JSON, proceeding with defaults");
     }
 
-    // --- 5. Debit wallet (charge the SALE price to user) ---
+    // ── 5. Debit wallet ──
     await adminClient.from("wallet_transactions").insert({
       user_id: user.id,
       amount: -salePrice,
@@ -223,16 +199,14 @@ Deno.serve(async (req) => {
       reference_id: domain,
     });
 
-    // --- 6. Save to domain_registrations (sale price + cost price for profit tracking) ---
+    // ── 6. Save to domain_registrations (sale + cost for profit tracking) ──
     const expiryDate = new Date();
     expiryDate.setFullYear(expiryDate.getFullYear() + 1);
 
-    // Estimate cost price by reversing markup
     const rule = MARKUP_RULES[tld.toLowerCase()] || DEFAULT_MARKUP;
-    // cost ≈ (salePrice - rule.fixed) / (1 + rule.percent)
     const estimatedCost = Math.max(0, (salePrice - rule.fixed) / (1 + rule.percent));
 
-    console.log(`[domain-register] Profit breakdown: sale=${salePrice}€, estCost=${estimatedCost.toFixed(2)}€, profit=${(salePrice - estimatedCost).toFixed(2)}€`);
+    console.log(`[domain-register] Profit: sale=${salePrice}€, estCost=${estimatedCost.toFixed(2)}€, profit=${(salePrice - estimatedCost).toFixed(2)}€`);
 
     await adminClient.from("domain_registrations").insert({
       user_id: user.id,
@@ -245,7 +219,7 @@ Deno.serve(async (req) => {
       expiry_date: registerData.expiry_date || expiryDate.toISOString(),
     });
 
-    // --- 7. Upsert domain into projects table ---
+    // ── 7. Upsert project ──
     const { data: existingProject } = await adminClient
       .from("projects")
       .select("id")
