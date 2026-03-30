@@ -22,10 +22,11 @@ interface SuggestionItem {
 
 interface DomainResult {
   domain: string;
-  available: boolean;
+  available: boolean | null;
   price: number;
   tld: string;
   suggestions: SuggestionItem[];
+  error?: string;
 }
 
 interface Transaction {
@@ -112,6 +113,9 @@ export default function Domains() {
         body: { domain: query.includes(".") ? query : `${query}.com` },
       });
       if (error) throw error;
+      if (data?.error) {
+        toast.error(data.error);
+      }
       setResult(data);
     } catch (e: any) {
       toast.error("Erro na pesquisa: " + (e.message || "Tenta novamente"));
@@ -254,6 +258,20 @@ export default function Domains() {
           {/* Search Results */}
           {result && (
             <div className="space-y-4 animate-fade-in">
+              {result.available === null && result.error && (
+                <Card className="glass border border-yellow-500/30">
+                  <CardContent className="p-5">
+                    <div className="flex items-center gap-3">
+                      <AlertTriangle className="h-6 w-6 text-yellow-500" />
+                      <div>
+                        <p className="font-semibold text-foreground">Serviço temporariamente indisponível</p>
+                        <p className="text-sm text-muted-foreground">{result.error}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+              {result.available !== null && (
               <Card className={`glass border ${result.available ? "border-neon-green/30" : "border-destructive/30"}`}>
                 <CardContent className="p-5">
                   <div className="flex items-center justify-between">
@@ -300,6 +318,7 @@ export default function Domains() {
                   </div>
                 </CardContent>
               </Card>
+              )}
 
               {/* Suggestions */}
               {result.suggestions.length > 0 && (

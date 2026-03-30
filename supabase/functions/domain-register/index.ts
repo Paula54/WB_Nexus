@@ -7,6 +7,7 @@ const corsHeaders = {
 };
 
 const HOSTINGER_API_BASE = "https://developers.hostinger.com";
+const USER_AGENT = "NexusMachine/1.0 (Domain Reseller; contact@web-business.pt)";
 
 // ── Markup / Profit Rules (must match domain-search) ──
 const MARKUP_RULES: Record<string, { fixed: number; percent: number; minSale: number }> = {
@@ -116,7 +117,7 @@ Deno.serve(async (req) => {
       console.log(`[domain-register] No itemId provided, fetching from catalog for .${tld}...`);
       const catalogRes = await fetch(
         `${HOSTINGER_API_BASE}/api/billing/v1/catalog?category=DOMAIN&name=.${tld.toUpperCase()}*`,
-        { headers: { Authorization: `Bearer ${HOSTINGER_API_TOKEN}` } }
+        { headers: { Authorization: `Bearer ${HOSTINGER_API_TOKEN}`, "User-Agent": USER_AGENT, "Accept": "application/json" } }
       );
 
       if (catalogRes.ok) {
@@ -167,19 +168,26 @@ Deno.serve(async (req) => {
 
     console.log(`[domain-register] Purchase body:`, JSON.stringify(purchaseBody));
 
-    const registerRes = await fetch(`${HOSTINGER_API_BASE}/api/domains/v1/portfolio`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${HOSTINGER_API_TOKEN}`,
-      },
-      body: JSON.stringify(purchaseBody),
-    });
+    let registerRes: Response | null = null;
+    let registerText = "";
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      registerRes = await fetch(`${HOSTINGER_API_BASE}/api/domains/v1/portfolio`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${HOSTINGER_API_TOKEN}`,
+          "User-Agent": USER_AGENT,
+          "Accept": "application/json",
+        },
+        body: JSON.stringify(purchaseBody),
+      });
+      registerText = await registerRes.text();
+      console.log(`[domain-register] Hostinger attempt ${attempt} [${registerRes.status}]:`, registerText.slice(0, 500));
+      if (registerRes.ok || (registerRes.status !== 503 && registerRes.status !== 429)) break;
+      if (attempt < 3) await new Promise(r => setTimeout(r, attempt * 2000));
+    }
 
-    const registerText = await registerRes.text();
-    console.log(`[domain-register] Hostinger response [${registerRes.status}]:`, registerText);
-
-    if (!registerRes.ok) {
+    if (!registerRes || !registerRes.ok) {
       throw new Error(`Erro Hostinger (${registerRes.status}): ${registerText}`);
     }
 

@@ -5,6 +5,7 @@ const corsHeaders = {
 };
 
 const HOSTINGER_API_BASE = "https://developers.hostinger.com";
+const USER_AGENT = "NexusMachine/1.0 (Domain Reseller; contact@web-business.pt)";
 
 // ── Markup / Profit Rules ──
 // Sale price = Hostinger cost + margin
@@ -60,6 +61,8 @@ Deno.serve(async (req) => {
     const authHeaders = {
       "Content-Type": "application/json",
       Authorization: `Bearer ${HOSTINGER_API_TOKEN}`,
+      "User-Agent": USER_AGENT,
+      "Accept": "application/json",
     };
 
     const popularTlds = ["com", "pt", "ai", "eu", "net", "io", "org", "dev", "app", "me", "xyz", "tech", "site", "co"];
@@ -67,23 +70,55 @@ Deno.serve(async (req) => {
 
     console.log("[domain-search] Searching:", { sld, tld, allTlds });
 
-    // ── 1. Check availability (POST /api/domains/v1/availability) ──
-    // Official API: body = { domain: "sld", tlds: ["com","net"], with_alternatives: true }
-    const availRes = await fetch(`${HOSTINGER_API_BASE}/api/domains/v1/availability`, {
-      method: "POST",
-      headers: authHeaders,
-      body: JSON.stringify({
-        domain: sld,
-        tlds: allTlds,
-        with_alternatives: true,
-      }),
-    });
+    // ── 1. Check availability with retry ──
+    let availText = "";
+    let availOk = false;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const availRes = await fetch(`${HOSTINGER_API_BASE}/api/domains/v1/availability`, {
+          method: "POST",
+          headers: authHeaders,
+          body: JSON.stringify({
+            domain: sld,
+            tlds: allTlds,
+            with_alternatives: true,
+          }),
+        });
+        availText = await availRes.text();
+        console.log(`[domain-search] Availability attempt ${attempt} [${availRes.status}]:`, availText.slice(0, 500));
+        if (availRes.ok) {
+          availOk = true;
+          break;
+        }
+        if (availRes.status === 503 || availRes.status === 429) {
+          console.log(`[domain-search] Retrying in ${attempt * 2}s...`);
+          await new Promise(r => setTimeout(r, attempt * 2000));
+          continue;
+        }
+        // Other errors - don't retry
+        break;
+      } catch (fetchErr) {
+        console.error(`[domain-search] Fetch error attempt ${attempt}:`, fetchErr);
+        if (attempt < 3) await new Promise(r => setTimeout(r, attempt * 2000));
+      }
+    }
 
-    const availText = await availRes.text();
-    console.log(`[domain-search] Availability RAW [${availRes.status}]:`, availText);
-
-    if (!availRes.ok) {
-      throw new Error(`Hostinger availability error ${availRes.status}: ${availText}`);
+    if (!availOk) {
+      // Return graceful fallback - show domain as "check manually" instead of crashing
+      console.error(`[domain-search] Hostinger API unavailable after retries`);
+      return new Response(
+        JSON.stringify({
+          domain: cleanDomain,
+          available: null,
+          price: 0,
+          costPrice: 0,
+          tld,
+          itemId: "",
+          suggestions: [],
+          error: "Serviço de domínios temporariamente indisponível. Tenta novamente em alguns minutos.",
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     const availData = JSON.parse(availText);
@@ -99,10 +134,9 @@ Deno.serve(async (req) => {
     // Prices are in CENTS (e.g. 1799 = 17.99€)
     const priceMap: Record<string, { costPrice: number; itemId: string }> = {};
 
-    // Fetch catalog for each TLD in parallel for better matching
     const catalogQueries = allTlds.map((t) =>
       fetch(`${HOSTINGER_API_BASE}/api/billing/v1/catalog?category=DOMAIN&name=.${t.toUpperCase()}*`, {
-        headers: { Authorization: `Bearer ${HOSTINGER_API_TOKEN}` },
+        headers: { Authorization: `Bearer ${HOSTINGER_API_TOKEN}`, "User-Agent": USER_AGENT, "Accept": "application/json" },
       })
     );
 
@@ -146,8 +180,8 @@ Deno.serve(async (req) => {
     if (Object.keys(priceMap).length === 0) {
       console.log("[domain-search] Per-TLD catalog empty, trying bulk DOMAIN catalog...");
       try {
-        const bulkRes = await fetch(`${HOSTINGER_API_BASE}/api/billing/v1/catalog?category=DOMAIN`, {
-          headers: { Authorization: `Bearer ${HOSTINGER_API_TOKEN}` },
+      const bulkRes = await fetch(`${HOSTINGER_API_BASE}/api/billing/v1/catalog?category=DOMAIN`, {
+          headers: { Authorization: `Bearer ${HOSTINGER_API_TOKEN}`, "User-Agent": USER_AGENT, "Accept": "application/json" },
         });
         const bulkText = await bulkRes.text();
         console.log(`[domain-search] Bulk catalog [${bulkRes.status}]:`, bulkText.slice(0, 2000));
