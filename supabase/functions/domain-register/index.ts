@@ -94,15 +94,15 @@ Deno.serve(async (req) => {
     // ── 2. Get registrant data from profiles + business_profiles ──
     const [profileRes, businessRes] = await Promise.all([
       adminClient.from("profiles").select("full_name, contact_email").eq("user_id", user.id).maybeSingle(),
-      adminClient.from("business_profiles").select("legal_name, email, phone, address_line1, city, postal_code, country, nif").eq("user_id", user.id).maybeSingle(),
+      adminClient.from("business_profiles").select("business_name, legal_name, address_line1, city, postal_code, country, nif").eq("user_id", user.id).maybeSingle(),
     ]);
 
     const profile = profileRes.data;
     const business = businessRes.data;
 
-    const registrantName = business?.legal_name || profile?.full_name || user.email?.split("@")[0] || "Domain Owner";
-    const registrantEmail = business?.email || profile?.contact_email || user.email || "";
-    const registrantPhone = business?.phone || "+351000000000";
+    const registrantName = business?.legal_name || business?.business_name || profile?.full_name || user.email?.split("@")[0] || "Domain Owner";
+    const registrantEmail = profile?.contact_email || user.email || "";
+    const registrantPhone = "+351000000000";
     const registrantAddress = business?.address_line1 || "Rua Exemplo 1";
     const registrantCity = business?.city || "Lisboa";
     const registrantZip = business?.postal_code || "1000-001";

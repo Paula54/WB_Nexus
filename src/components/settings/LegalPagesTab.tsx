@@ -10,16 +10,12 @@ import { FileText, Eye, Save, Loader2, AlertTriangle } from "lucide-react";
 
 interface BusinessData {
   legal_name: string;
-  trade_name: string;
+  business_name: string;
   nif: string;
   address_line1: string;
   postal_code: string;
   city: string;
   country: string;
-  email: string;
-  phone: string;
-  website: string;
-  complaints_book_url: string;
 }
 
 type PageType = "privacidade" | "termos" | "cookies";
@@ -31,14 +27,14 @@ const PAGE_LABELS: Record<PageType, string> = {
 };
 
 function generateTemplate(type: PageType, data: BusinessData): string {
-  const name = data.trade_name || data.legal_name || "[Nome da Empresa]";
+  const name = data.business_name || data.legal_name || "[Nome da Empresa]";
   const legalName = data.legal_name || "[Denominação Social]";
   const nif = data.nif || "[NIF]";
   const address = [data.address_line1, data.postal_code, data.city, data.country].filter(Boolean).join(", ") || "[Morada]";
-  const email = data.email || "[email]";
-  const phone = data.phone || "[telefone]";
-  const website = data.website || "[website]";
-  const complaints = data.complaints_book_url || "https://www.livroreclamacoes.pt";
+  const email = "[email]";
+  const phone = "[telefone]";
+  const website = "[website]";
+  const complaints = "https://www.livroreclamacoes.pt";
 
   if (type === "privacidade") {
     return `# Política de Privacidade — ${name}
@@ -177,22 +173,17 @@ export default function LegalPagesTab() {
         const d = data as Record<string, unknown>;
         setBusinessData({
           legal_name: (d.legal_name as string) || "",
-          trade_name: (d.trade_name as string) || "",
+          business_name: (d.business_name as string) || "",
           nif: (d.nif as string) || "",
           address_line1: (d.address_line1 as string) || "",
           postal_code: (d.postal_code as string) || "",
           city: (d.city as string) || "",
           country: (d.country as string) || "",
-          email: (d.email as string) || "",
-          phone: (d.phone as string) || "",
-          website: (d.website as string) || "",
-          complaints_book_url: (d.complaints_book_url as string) || "",
         });
       } else {
         setBusinessData({
-          legal_name: "", trade_name: "", nif: "", address_line1: "",
-          postal_code: "", city: "", country: "Portugal", email: "",
-          phone: "", website: "", complaints_book_url: "",
+          legal_name: "", business_name: "", nif: "", address_line1: "",
+          postal_code: "", city: "", country: "Portugal",
         });
       }
       setLoading(false);
