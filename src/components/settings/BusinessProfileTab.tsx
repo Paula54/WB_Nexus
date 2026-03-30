@@ -9,38 +9,25 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { Building2, MapPin, Phone, Globe, Save, Loader2, AlertTriangle } from "lucide-react";
 
+// Mapped to the REAL columns on production hqyuxponbobmuletqshq
 interface BusinessProfile {
+  business_name: string;
   legal_name: string;
-  trade_name: string;
   nif: string;
   address_line1: string;
-  address_line2: string;
   postal_code: string;
   city: string;
   country: string;
-  phone: string;
-  email: string;
-  website: string;
-  facebook_url: string;
-  instagram_url: string;
-  linkedin_url: string;
 }
 
 const EMPTY_PROFILE: BusinessProfile = {
+  business_name: "",
   legal_name: "",
-  trade_name: "",
   nif: "",
   address_line1: "",
-  address_line2: "",
   postal_code: "",
   city: "",
   country: "Portugal",
-  phone: "",
-  email: "",
-  website: "",
-  facebook_url: "",
-  instagram_url: "",
-  linkedin_url: "",
 };
 
 const COMPANY_TYPES = [
@@ -66,26 +53,19 @@ export default function BusinessProfileTab() {
     (async () => {
       const { data } = await supabase
         .from("business_profiles" as string)
-        .select("*")
+        .select("business_name, legal_name, nif, address_line1, postal_code, city, country")
         .eq("user_id", user.id)
         .maybeSingle();
       if (data) {
         const d = data as Record<string, unknown>;
         setProfile({
+          business_name: (d.business_name as string) || "",
           legal_name: (d.legal_name as string) || "",
-          trade_name: (d.trade_name as string) || "",
           nif: (d.nif as string) || "",
           address_line1: (d.address_line1 as string) || "",
-          address_line2: (d.address_line2 as string) || "",
           postal_code: (d.postal_code as string) || "",
           city: (d.city as string) || "",
           country: (d.country as string) || "Portugal",
-          phone: (d.phone as string) || "",
-          email: (d.email as string) || "",
-          website: (d.website as string) || "",
-          facebook_url: (d.facebook_url as string) || "",
-          instagram_url: (d.instagram_url as string) || "",
-          linkedin_url: (d.linkedin_url as string) || "",
         });
       }
       setLoading(false);
@@ -148,8 +128,13 @@ export default function BusinessProfileTab() {
     setSaving(true);
 
     const payload = { ...profile } as Record<string, unknown>;
+    // Remove empty strings → null for nullable columns
+    for (const key of Object.keys(payload)) {
+      if (payload[key] === "") payload[key] = null;
+    }
+    // country defaults
+    if (!payload.country) payload.country = "Portugal";
 
-    // Check if profile already exists
     const { data: existing } = await supabase
       .from("business_profiles" as string)
       .select("id")
@@ -174,6 +159,7 @@ export default function BusinessProfileTab() {
       console.error("[BusinessProfile] Save error:", JSON.stringify(error));
       toast({ variant: "destructive", title: "Erro", description: `Não foi possível guardar o perfil: ${error.message}` });
     } else {
+      // Stripe sync — send only what exists
       try {
         const { data: sessionData } = await supabase.auth.getSession();
         const accessToken = sessionData?.session?.access_token;
@@ -190,12 +176,9 @@ export default function BusinessProfileTab() {
                 legal_name: profile.legal_name,
                 nif: profile.nif,
                 address_line1: profile.address_line1,
-                address_line2: profile.address_line2,
                 postal_code: profile.postal_code,
                 city: profile.city,
                 country: profile.country,
-                phone: profile.phone,
-                email: profile.email,
               }),
             }
           );
@@ -203,7 +186,7 @@ export default function BusinessProfileTab() {
       } catch (syncErr) {
         console.warn("Stripe sync skipped:", syncErr);
       }
-      toast({ title: "Perfil guardado ✅", description: "Os dados da empresa foram atualizados e sincronizados." });
+      toast({ title: "Perfil guardado ✅", description: "Os dados da empresa foram atualizados." });
     }
     setSaving(false);
   }
@@ -245,7 +228,7 @@ export default function BusinessProfileTab() {
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Nome Legal / Denominação Social <span className="text-destructive">*</span></Label>
+              <Label>Denominação Social <span className="text-destructive">*</span></Label>
               <Input
                 value={profile.legal_name}
                 onChange={update("legal_name")}
@@ -256,10 +239,10 @@ export default function BusinessProfileTab() {
             </div>
             <div className="space-y-2">
               <Label>Nome Comercial</Label>
-              <Input value={profile.trade_name} onChange={update("trade_name")} placeholder="Ex: Nexus Machine" />
+              <Input value={profile.business_name} onChange={update("business_name")} placeholder="Ex: Nexus Machine" />
             </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>NIF / NIPC <span className="text-destructive">*</span></Label>
               <Input
@@ -270,19 +253,6 @@ export default function BusinessProfileTab() {
                 className={errors.nif ? "border-destructive" : ""}
               />
               {errors.nif && <p className="text-xs text-destructive">{errors.nif}</p>}
-            </div>
-            <div className="space-y-2">
-              <Label>Tipo de Empresa</Label>
-              <Select value={companyType} onValueChange={setCompanyType}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecionar tipo..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {COMPANY_TYPES.map((t) => (
-                    <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </div>
             <div className="space-y-2">
               <Label>País</Label>
@@ -303,18 +273,14 @@ export default function BusinessProfileTab() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label>Linha de Endereço 1 <span className="text-destructive">*</span></Label>
+            <Label>Morada Fiscal <span className="text-destructive">*</span></Label>
             <Input
               value={profile.address_line1}
               onChange={update("address_line1")}
-              placeholder="Rua, número, andar"
+              placeholder="Rua, número, andar, complemento"
               className={errors.address_line1 ? "border-destructive" : ""}
             />
             {errors.address_line1 && <p className="text-xs text-destructive">{errors.address_line1}</p>}
-          </div>
-          <div className="space-y-2">
-            <Label>Linha de Endereço 2</Label>
-            <Input value={profile.address_line2} onChange={update("address_line2")} placeholder="Complemento (opcional)" />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -336,46 +302,6 @@ export default function BusinessProfileTab() {
                 className={errors.city ? "border-destructive" : ""}
               />
               {errors.city && <p className="text-xs text-destructive">{errors.city}</p>}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Contactos */}
-      <Card className="glass">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Phone className="h-5 w-5 text-primary" />
-            Contactos & Redes Sociais
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label>Telefone</Label>
-              <Input value={profile.phone} onChange={update("phone")} placeholder="+351 912 345 678" />
-            </div>
-            <div className="space-y-2">
-              <Label>Email</Label>
-              <Input type="email" value={profile.email} onChange={update("email")} placeholder="geral@empresa.pt" />
-            </div>
-            <div className="space-y-2">
-              <Label>Website</Label>
-              <Input value={profile.website} onChange={update("website")} placeholder="https://empresa.pt" />
-            </div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label>Facebook</Label>
-              <Input value={profile.facebook_url} onChange={update("facebook_url")} placeholder="https://facebook.com/..." />
-            </div>
-            <div className="space-y-2">
-              <Label>Instagram</Label>
-              <Input value={profile.instagram_url} onChange={update("instagram_url")} placeholder="https://instagram.com/..." />
-            </div>
-            <div className="space-y-2">
-              <Label>LinkedIn</Label>
-              <Input value={profile.linkedin_url} onChange={update("linkedin_url")} placeholder="https://linkedin.com/..." />
             </div>
           </div>
         </CardContent>
