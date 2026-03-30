@@ -221,6 +221,57 @@ export default function BusinessProfileTab() {
         </Card>
       )}
 
+      {/* Logótipo */}
+      <Card className="glass border-primary/20">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Upload className="h-5 w-5 text-primary" />
+            Logótipo da Empresa
+          </CardTitle>
+          <CardDescription>Carrega o logótipo oficial (PNG, JPG, SVG — máx. 2MB)</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-6">
+            {logoUrl ? (
+              <div className="relative group">
+                <div className="w-24 h-24 rounded-lg border border-border overflow-hidden bg-muted/50 flex items-center justify-center">
+                  <img src={logoUrl} alt="Logótipo" className="w-full h-full object-contain" />
+                </div>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="icon"
+                  className="absolute -top-2 -right-2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={handleLogoRemove}
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              </div>
+            ) : (
+              <div className="w-24 h-24 rounded-lg border-2 border-dashed border-muted-foreground/30 flex items-center justify-center">
+                <Image className="h-8 w-8 text-muted-foreground/30" />
+              </div>
+            )}
+            <label className="flex-1">
+              <div className="border-2 border-dashed border-primary/30 rounded-lg p-4 text-center cursor-pointer hover:border-primary/60 transition-colors">
+                {uploadingLogo ? (
+                  <div className="flex items-center justify-center gap-2 text-primary">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span className="text-sm">A carregar...</span>
+                  </div>
+                ) : (
+                  <div className="text-muted-foreground">
+                    <Upload className="h-6 w-6 mx-auto mb-1 text-primary/50" />
+                    <p className="text-sm">Clica para carregar o logótipo</p>
+                  </div>
+                )}
+              </div>
+              <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} disabled={uploadingLogo} />
+            </label>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Identidade Fiscal */}
       <Card className="glass border-primary/20">
         <CardHeader>
