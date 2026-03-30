@@ -1,6 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Crown, Zap, Rocket, CalendarDays, CheckCircle, AlertTriangle } from "lucide-react";
+import { Crown, Zap, Rocket, CalendarDays, CheckCircle, AlertTriangle, ExternalLink } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { SubscriptionData } from "@/hooks/useSubscription";
 
@@ -56,9 +57,7 @@ export function CurrentPlanCard({ subscription }: CurrentPlanCardProps) {
               {plan.label}
             </p>
             <p className="text-xs text-muted-foreground">
-              {subscription.plan_name === "START" && "790€ ativação + 49€/mês"}
-              {subscription.plan_name === "GROWTH" && "1.490€ ativação + 149€/mês"}
-              {subscription.plan_name === "NEXUS_OS" && "2.490€ ativação + 299€/mês"}
+              Gerido pelo site principal
             </p>
           </div>
         </div>
@@ -83,6 +82,12 @@ export function CurrentPlanCard({ subscription }: CurrentPlanCardProps) {
               Próxima faturação: {periodEnd.toLocaleDateString("pt-PT")}
             </div>
           )}
+          <Button asChild variant="ghost" size="sm" className="gap-1.5 text-xs mt-1">
+            <a href="https://site.web-business.pt/#pricing" target="_blank" rel="noopener noreferrer">
+              <ExternalLink className="h-3 w-3" />
+              Alterar plano no site
+            </a>
+          </Button>
         </div>
       </CardContent>
     </Card>
