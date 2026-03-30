@@ -14,7 +14,7 @@ import { StrategyResults } from "@/components/strategy/StrategyResults";
 import type { MarketingStrategyInput, MarketingStrategyResult } from "@/types/nexus";
 
 interface BusinessSummary {
-  trade_name: string | null;
+  business_name: string | null;
   legal_name: string | null;
   nif: string | null;
 }
@@ -40,22 +40,22 @@ export default function Strategy() {
     (async () => {
       const { data } = await supabase
         .from("business_profiles" as string)
-        .select("trade_name, legal_name, nif")
+        .select("business_name, legal_name, nif")
         .eq("user_id", user.id)
         .maybeSingle();
       if (data) {
         const d = data as Record<string, unknown>;
         const biz: BusinessSummary = {
-          trade_name: (d.trade_name as string) || null,
+          business_name: (d.business_name as string) || null,
           legal_name: (d.legal_name as string) || null,
           nif: (d.nif as string) || null,
         };
         setBusiness(biz);
         // Pre-fill client name from business profile
-        if (biz.trade_name || biz.legal_name) {
+        if (biz.business_name || biz.legal_name) {
           setFormData((prev) => ({
             ...prev,
-            clientName: prev.clientName || biz.trade_name || biz.legal_name || "",
+            clientName: prev.clientName || biz.business_name || biz.legal_name || "",
           }));
         }
       }
