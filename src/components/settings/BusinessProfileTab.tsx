@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { supabase } from "@/lib/supabaseCustom";
+import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { Building2, MapPin, Phone, Globe, Save, Loader2, AlertTriangle } from "lucide-react";
@@ -179,7 +179,7 @@ export default function BusinessProfileTab() {
         const accessToken = sessionData?.session?.access_token;
         if (accessToken) {
           await fetch(
-            `https://hqyuxponbobmuletqshq.supabase.co/functions/v1/sync-stripe-customer`,
+            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/sync-stripe-customer`,
             {
               method: "POST",
               headers: {
