@@ -22,11 +22,10 @@ interface SuggestionItem {
 
 interface DomainResult {
   domain: string;
-  available: boolean | null;
+  available: boolean;
   price: number;
   tld: string;
   suggestions: SuggestionItem[];
-  error?: string;
 }
 
 interface Transaction {
