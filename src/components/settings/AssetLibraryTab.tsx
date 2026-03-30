@@ -19,11 +19,15 @@ interface Asset {
 }
 
 const FILE_TYPE_OPTIONS = [
-  { value: "logo", label: "Logótipo" },
-  { value: "product_image", label: "Imagem de Produto" },
-  { value: "document", label: "Documento" },
-  { value: "other", label: "Outro" },
+  { value: "logo", label: "Logótipo", bucket: "logos" },
+  { value: "product_image", label: "Imagem de Produto", bucket: "products" },
+  { value: "document", label: "Documento", bucket: "documents" },
+  { value: "other", label: "Outro", bucket: "others" },
 ];
+
+function getBucketForType(fileType: string): string {
+  return FILE_TYPE_OPTIONS.find((o) => o.value === fileType)?.bucket || "others";
+}
 
 export default function AssetLibraryTab() {
   const { user } = useAuth();
@@ -57,10 +61,11 @@ export default function AssetLibraryTab() {
     }
 
     setUploading(true);
+    const bucket = getBucketForType(selectedType);
     const filePath = `${user.id}/${Date.now()}_${file.name}`;
 
     const { error: uploadError } = await supabase.storage
-      .from("assets")
+      .from(bucket)
       .upload(filePath, file);
 
     if (uploadError) {
@@ -69,7 +74,7 @@ export default function AssetLibraryTab() {
       return;
     }
 
-    const { data: urlData } = supabase.storage.from("assets").getPublicUrl(filePath);
+    const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(filePath);
 
     const { error: dbError } = await supabase.from("assets" as string).insert({
       user_id: user.id,
@@ -92,7 +97,8 @@ export default function AssetLibraryTab() {
   }
 
   async function handleDelete(asset: Asset) {
-    await supabase.storage.from("assets").remove([asset.file_path]);
+    const bucket = getBucketForType(asset.file_type);
+    await supabase.storage.from(bucket).remove([asset.file_path]);
     await supabase.from("assets" as string).delete().eq("id", asset.id);
     toast({ title: "Ficheiro removido", description: asset.file_name });
     setAssets((prev) => prev.filter((a) => a.id !== asset.id));
