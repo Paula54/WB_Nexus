@@ -19,11 +19,15 @@ interface Asset {
 }
 
 const FILE_TYPE_OPTIONS = [
-  { value: "logo", label: "Logótipo" },
-  { value: "product_image", label: "Imagem de Produto" },
-  { value: "document", label: "Documento" },
-  { value: "other", label: "Outro" },
+  { value: "logo", label: "Logótipo", bucket: "logos" },
+  { value: "product_image", label: "Imagem de Produto", bucket: "products" },
+  { value: "document", label: "Documento", bucket: "documents" },
+  { value: "other", label: "Outro", bucket: "others" },
 ];
+
+function getBucketForType(fileType: string): string {
+  return FILE_TYPE_OPTIONS.find((o) => o.value === fileType)?.bucket || "others";
+}
 
 export default function AssetLibraryTab() {
   const { user } = useAuth();
