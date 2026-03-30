@@ -97,7 +97,8 @@ export default function AssetLibraryTab() {
   }
 
   async function handleDelete(asset: Asset) {
-    await supabase.storage.from("assets").remove([asset.file_path]);
+    const bucket = getBucketForType(asset.file_type);
+    await supabase.storage.from(bucket).remove([asset.file_path]);
     await supabase.from("assets" as string).delete().eq("id", asset.id);
     toast({ title: "Ficheiro removido", description: asset.file_name });
     setAssets((prev) => prev.filter((a) => a.id !== asset.id));
