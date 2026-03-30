@@ -3,11 +3,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/lib/supabaseCustom";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
-import { Building2, MapPin, Phone, Globe, Save, Loader2, AlertTriangle } from "lucide-react";
+import { Building2, MapPin, Save, Loader2, AlertTriangle } from "lucide-react";
 
 // Mapped to the REAL columns on production hqyuxponbobmuletqshq
 interface BusinessProfile {
@@ -30,20 +29,9 @@ const EMPTY_PROFILE: BusinessProfile = {
   country: "Portugal",
 };
 
-const COMPANY_TYPES = [
-  { value: "unipessoal", label: "Sociedade Unipessoal por Quotas (Lda.)" },
-  { value: "quotas", label: "Sociedade por Quotas (Lda.)" },
-  { value: "anonima", label: "Sociedade Anónima (S.A.)" },
-  { value: "eni", label: "Empresário em Nome Individual" },
-  { value: "freelancer", label: "Trabalhador Independente" },
-  { value: "associacao", label: "Associação" },
-  { value: "outro", label: "Outro" },
-];
-
 export default function BusinessProfileTab() {
   const { user } = useAuth();
   const [profile, setProfile] = useState<BusinessProfile>(EMPTY_PROFILE);
-  const [companyType, setCompanyType] = useState("");
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [errors, setErrors] = useState<Record<string, string>>({});
