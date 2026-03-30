@@ -37,6 +37,8 @@ const ALL_FIELDS = Object.keys(EMPTY_PROFILE) as (keyof BusinessProfile)[];
 export default function BusinessProfileTab() {
   const { user } = useAuth();
   const [profile, setProfile] = useState<BusinessProfile>(EMPTY_PROFILE);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -46,7 +48,7 @@ export default function BusinessProfileTab() {
     (async () => {
       const { data } = await supabase
         .from("business_profiles" as string)
-        .select(ALL_FIELDS.join(", "))
+        .select([...ALL_FIELDS, "logo_url"].join(", "))
         .eq("user_id", user.id)
         .maybeSingle();
       if (data) {
@@ -56,10 +58,67 @@ export default function BusinessProfileTab() {
           if (d[key] != null) restored[key] = String(d[key]);
         }
         setProfile(restored);
+        if (d.logo_url) setLogoUrl(String(d.logo_url));
       }
       setLoading(false);
     })();
   }, [user]);
+
+  async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    if (!user || !e.target.files?.length) return;
+    const file = e.target.files[0];
+    if (file.size > 2 * 1024 * 1024) {
+      toast({ variant: "destructive", title: "Ficheiro demasiado grande", description: "O logótipo deve ter no máximo 2MB." });
+      return;
+    }
+    if (!file.type.startsWith("image/")) {
+      toast({ variant: "destructive", title: "Formato inválido", description: "Envia uma imagem (PNG, JPG, SVG, WebP)." });
+      return;
+    }
+    setUploadingLogo(true);
+    const ext = file.name.split(".").pop() || "png";
+    const filePath = `${user.id}/logo_${Date.now()}.${ext}`;
+
+    const { error: uploadError } = await supabase.storage.from("logos").upload(filePath, file, { upsert: true });
+    if (uploadError) {
+      toast({ variant: "destructive", title: "Erro no upload", description: uploadError.message });
+      setUploadingLogo(false);
+      return;
+    }
+
+    const { data: urlData } = supabase.storage.from("logos").getPublicUrl(filePath);
+    const newUrl = urlData.publicUrl;
+
+    // Save logo_url to business_profiles
+    const { data: existing } = await supabase
+      .from("business_profiles" as string)
+      .select("id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (existing) {
+      await supabase.from("business_profiles" as string).update({ logo_url: newUrl } as Record<string, unknown>).eq("user_id", user.id);
+    } else {
+      await supabase.from("business_profiles" as string).insert({ user_id: user.id, logo_url: newUrl } as Record<string, unknown>);
+    }
+
+    setLogoUrl(newUrl);
+    toast({ title: "Logótipo carregado ✅" });
+    setUploadingLogo(false);
+    e.target.value = "";
+  }
+
+  async function handleLogoRemove() {
+    if (!user || !logoUrl) return;
+    // Extract path from URL
+    const urlParts = logoUrl.split("/logos/");
+    if (urlParts[1]) {
+      await supabase.storage.from("logos").remove([decodeURIComponent(urlParts[1])]);
+    }
+    await supabase.from("business_profiles" as string).update({ logo_url: null } as Record<string, unknown>).eq("user_id", user.id);
+    setLogoUrl(null);
+    toast({ title: "Logótipo removido" });
+  }
 
   function validateNIF(nif: string): boolean {
     if (!nif || nif.length !== 9) return false;
