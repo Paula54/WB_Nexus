@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/lib/supabaseCustom";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
-import { Building2, MapPin, Save, Loader2, AlertTriangle, Phone, Globe } from "lucide-react";
+import { Building2, MapPin, Save, Loader2, AlertTriangle, Phone, Upload, Trash2, Image } from "lucide-react";
 
 interface BusinessProfile {
   business_name: string;
