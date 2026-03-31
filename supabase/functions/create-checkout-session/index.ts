@@ -69,6 +69,22 @@ serve(async (req) => {
     const user = userData.user;
     const { planType, projectId, successUrl, cancelUrl } = await req.json();
 
+    // Fetch profile data for prefilling checkout
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('full_name')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    const { data: bizData } = await supabase
+      .from('business_profiles')
+      .select('phone')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    const customerName = profileData?.full_name || undefined;
+    const customerPhone = bizData?.phone || undefined;
+
     if (!planType || !PLAN_CONFIG[planType]) {
       return new Response(JSON.stringify({ error: 'Invalid plan type. Use START, GROWTH, or NEXUS_OS.' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -92,16 +108,26 @@ serve(async (req) => {
     }
 
     // Checkout with subscription + one-time setup fee in a single session
+    // If existing customer, update name/phone on Stripe customer object
+    if (customerId && (customerName || customerPhone)) {
+      await stripe.customers.update(customerId, {
+        ...(customerName ? { name: customerName } : {}),
+        ...(customerPhone ? { phone: customerPhone } : {}),
+      });
+    }
+
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       customer_email: customerId ? undefined : user.email!,
+      ...(customerId ? {} : {
+        customer_creation: 'always',
+      }),
       locale: 'pt',
       mode: 'subscription',
       payment_method_types: ['card'],
+      phone_number_collection: { enabled: true },
       line_items: [
-        // Recurring subscription
         { price: plan.subscription_price_id, quantity: 1 },
-        // One-time setup fee (Taxa de Ativação)
         { price: plan.setup_price_id, quantity: 1 },
       ],
       subscription_data: {
