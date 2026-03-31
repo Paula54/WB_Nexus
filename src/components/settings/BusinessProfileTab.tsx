@@ -307,9 +307,6 @@ export default function BusinessProfileTab() {
           toast({ title: "Logótipo atualizado ✅" });
         }}
       />
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Identidade Fiscal */}
       <Card className="glass border-primary/20">
