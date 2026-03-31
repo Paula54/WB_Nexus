@@ -43,6 +43,7 @@ export default function BusinessProfileTab() {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [showPicker, setShowPicker] = useState(false);
 
   useEffect(() => {
     if (!user) return;
