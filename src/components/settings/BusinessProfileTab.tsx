@@ -6,7 +6,8 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/lib/supabaseCustom";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
-import { Building2, MapPin, Save, Loader2, AlertTriangle, Phone, Upload, Trash2, Image } from "lucide-react";
+import AssetPickerModal from "@/components/media/AssetPickerModal";
+import { Building2, MapPin, Save, Loader2, AlertTriangle, Phone, Upload, Trash2, Image, FolderOpen } from "lucide-react";
 
 interface BusinessProfile {
   business_name: string;
