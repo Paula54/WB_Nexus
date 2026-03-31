@@ -76,21 +76,30 @@ export default function AssetLibraryTab() {
 
     const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(filePath);
 
-    const { error: dbError } = await supabase.from("assets" as string).insert({
-      user_id: user.id,
-      file_name: file.name,
-      file_path: filePath,
-      file_type: selectedType,
-      mime_type: file.type,
-      file_size: file.size,
-      public_url: urlData.publicUrl,
-    } as Record<string, unknown>);
+    try {
+      const insertPayload = {
+        user_id: user.id,
+        file_name: file.name,
+        file_path: filePath,
+        file_type: selectedType,
+        mime_type: file.type,
+        file_size: file.size,
+        public_url: urlData.publicUrl,
+      };
+      console.log("[AssetLibrary] Insert payload:", insertPayload);
 
-    if (dbError) {
-      toast({ variant: "destructive", title: "Erro", description: "Upload feito mas metadados falharam." });
-    } else {
-      toast({ title: "Ficheiro carregado ✅", description: `${file.name} adicionado à biblioteca.` });
-      fetchAssets();
+      const { error: dbError } = await supabase.from("assets" as string).insert(insertPayload as Record<string, unknown>);
+
+      if (dbError) {
+        console.error("[AssetLibrary] DB insert error:", JSON.stringify(dbError));
+        toast({ variant: "destructive", title: "Erro nos metadados", description: `${dbError.message} (code: ${dbError.code})` });
+      } else {
+        toast({ title: "Ficheiro carregado ✅", description: `${file.name} adicionado à biblioteca.` });
+        fetchAssets();
+      }
+    } catch (err: unknown) {
+      console.error("[AssetLibrary] Unexpected error:", err);
+      toast({ variant: "destructive", title: "Erro inesperado", description: String(err) });
     }
     setUploading(false);
     e.target.value = "";
