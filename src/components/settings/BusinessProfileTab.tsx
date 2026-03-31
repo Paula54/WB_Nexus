@@ -254,22 +254,59 @@ export default function BusinessProfileTab() {
                 <Image className="h-8 w-8 text-muted-foreground/30" />
               </div>
             )}
-            <label className="flex-1">
-              <div className="border-2 border-dashed border-primary/30 rounded-lg p-4 text-center cursor-pointer hover:border-primary/60 transition-colors">
-                {uploadingLogo ? (
-                  <div className="flex items-center justify-center gap-2 text-primary">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span className="text-sm">A carregar...</span>
-                  </div>
-                ) : (
-                  <div className="text-muted-foreground">
-                    <Upload className="h-6 w-6 mx-auto mb-1 text-primary/50" />
-                    <p className="text-sm">Clica para carregar o logótipo</p>
-                  </div>
-                )}
-              </div>
-              <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} disabled={uploadingLogo} />
-            </label>
+            <div className="flex flex-col gap-2 flex-1">
+              <label>
+                <div className="border-2 border-dashed border-primary/30 rounded-lg p-4 text-center cursor-pointer hover:border-primary/60 transition-colors">
+                  {uploadingLogo ? (
+                    <div className="flex items-center justify-center gap-2 text-primary">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span className="text-sm">A carregar...</span>
+                    </div>
+                  ) : (
+                    <div className="text-muted-foreground">
+                      <Upload className="h-6 w-6 mx-auto mb-1 text-primary/50" />
+                      <p className="text-sm">Clica para carregar o logótipo</p>
+                    </div>
+                  )}
+                </div>
+                <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} disabled={uploadingLogo} />
+              </label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowPicker(true)}
+                className="w-full"
+              >
+                <FolderOpen className="h-4 w-4 mr-2" />
+                Escolher da Biblioteca
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <AssetPickerModal
+        open={showPicker}
+        onClose={() => setShowPicker(false)}
+        filterType="logo"
+        onSelect={async (url) => {
+          setLogoUrl(url);
+          // Sync to business_profiles
+          const { data: existing } = await supabase
+            .from("business_profiles" as string)
+            .select("id")
+            .eq("user_id", user!.id)
+            .maybeSingle();
+          const payload = { logo_url: url } as Record<string, unknown>;
+          if (existing) {
+            await supabase.from("business_profiles" as string).update(payload).eq("user_id", user!.id);
+          } else {
+            await supabase.from("business_profiles" as string).insert({ user_id: user!.id, ...payload });
+          }
+          toast({ title: "Logótipo atualizado ✅" });
+        }}
+      />
           </div>
         </CardContent>
       </Card>
