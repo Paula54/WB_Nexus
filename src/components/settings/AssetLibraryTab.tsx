@@ -5,7 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/lib/supabaseCustom";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
-import { Upload, Trash2, Image, FileText, Loader2 } from "lucide-react";
+import { compressImage } from "@/lib/imageCompression";
+import { Upload, Trash2, Image, FileText, Loader2, ImagePlus } from "lucide-react";
 
 interface Asset {
   id: string;
@@ -29,11 +30,17 @@ function getBucketForType(fileType: string): string {
   return FILE_TYPE_OPTIONS.find((o) => o.value === fileType)?.bucket || "others";
 }
 
+// Map file_type → business_profiles column
+const TYPE_TO_COLUMN: Record<string, string> = {
+  logo: "logo_url",
+};
+
 export default function AssetLibraryTab() {
   const { user } = useAuth();
   const [assets, setAssets] = useState<Asset[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [selectedType, setSelectedType] = useState("logo");
 
   const fetchAssets = useCallback(async () => {
@@ -51,31 +58,79 @@ export default function AssetLibraryTab() {
     fetchAssets();
   }, [fetchAssets]);
 
+  async function syncBusinessProfile(fileType: string, publicUrl: string) {
+    if (!user) return;
+    const column = TYPE_TO_COLUMN[fileType];
+    if (!column) return;
+
+    try {
+      const { data: existing } = await supabase
+        .from("business_profiles" as string)
+        .select("id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      const payload = { [column]: publicUrl } as Record<string, unknown>;
+      if (existing) {
+        await supabase.from("business_profiles" as string).update(payload).eq("user_id", user.id);
+      } else {
+        await supabase.from("business_profiles" as string).insert({ user_id: user.id, ...payload });
+      }
+    } catch (err) {
+      console.warn("[AssetLibrary] Sync to business_profiles skipped:", err);
+    }
+  }
+
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     if (!user || !e.target.files?.length) return;
-    const file = e.target.files[0];
+    let file = e.target.files[0];
 
+    setUploading(true);
+    setUploadProgress(0);
+
+    // Compress images automatically (skip SVGs / PDFs)
+    if (file.type.startsWith("image/") && file.type !== "image/svg+xml") {
+      try {
+        setUploadProgress(5);
+        file = await compressImage(
+          file,
+          selectedType as "logo" | "product_image" | "other",
+          (p) => setUploadProgress(Math.min(p * 0.5, 45))
+        );
+      } catch (err) {
+        console.warn("[AssetLibrary] Compression failed, using original:", err);
+      }
+    }
+
+    // After compression, enforce 5MB limit
     if (file.size > 5 * 1024 * 1024) {
-      toast({ variant: "destructive", title: "Ficheiro demasiado grande", description: "Máximo 5MB." });
+      toast({ variant: "destructive", title: "Ficheiro demasiado grande", description: "Máximo 5MB após compressão." });
+      setUploading(false);
+      setUploadProgress(0);
       return;
     }
 
-    setUploading(true);
+    setUploadProgress(50);
     const bucket = getBucketForType(selectedType);
-    const filePath = `${user.id}/${Date.now()}_${file.name}`;
+    const ext = file.name.split(".").pop() || "bin";
+    const filePath = `${user.id}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}.${ext}`;
 
     const { error: uploadError } = await supabase.storage
       .from(bucket)
-      .upload(filePath, file);
+      .upload(filePath, file, { upsert: true });
 
     if (uploadError) {
       toast({ variant: "destructive", title: "Erro no upload", description: uploadError.message });
       setUploading(false);
+      setUploadProgress(0);
       return;
     }
 
+    setUploadProgress(75);
     const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(filePath);
+    const publicUrl = urlData.publicUrl;
 
+    // Save metadata to assets table
     try {
       const insertPayload = {
         user_id: user.id,
@@ -84,16 +139,21 @@ export default function AssetLibraryTab() {
         file_type: selectedType,
         mime_type: file.type,
         file_size: file.size,
-        public_url: urlData.publicUrl,
+        public_url: publicUrl,
       };
-      console.log("[AssetLibrary] Insert payload:", insertPayload);
 
-      const { error: dbError } = await supabase.from("assets" as string).insert(insertPayload as Record<string, unknown>);
+      const { error: dbError } = await supabase
+        .from("assets" as string)
+        .insert(insertPayload as Record<string, unknown>);
 
       if (dbError) {
         console.error("[AssetLibrary] DB insert error:", JSON.stringify(dbError));
-        toast({ variant: "destructive", title: "Erro nos metadados", description: `${dbError.message} (code: ${dbError.code})` });
+        toast({ variant: "destructive", title: "Metadados falharam", description: `${dbError.message} (${dbError.code})` });
       } else {
+        setUploadProgress(90);
+        // Sync to business_profiles if applicable
+        await syncBusinessProfile(selectedType, publicUrl);
+        setUploadProgress(100);
         toast({ title: "Ficheiro carregado ✅", description: `${file.name} adicionado à biblioteca.` });
         fetchAssets();
       }
@@ -101,7 +161,9 @@ export default function AssetLibraryTab() {
       console.error("[AssetLibrary] Unexpected error:", err);
       toast({ variant: "destructive", title: "Erro inesperado", description: String(err) });
     }
+
     setUploading(false);
+    setTimeout(() => setUploadProgress(0), 1000);
     e.target.value = "";
   }
 
@@ -109,6 +171,16 @@ export default function AssetLibraryTab() {
     const bucket = getBucketForType(asset.file_type);
     await supabase.storage.from(bucket).remove([asset.file_path]);
     await supabase.from("assets" as string).delete().eq("id", asset.id);
+
+    // Clear from business_profiles if applicable
+    const column = TYPE_TO_COLUMN[asset.file_type];
+    if (column && user) {
+      await supabase
+        .from("business_profiles" as string)
+        .update({ [column]: null } as Record<string, unknown>)
+        .eq("user_id", user.id);
+    }
+
     toast({ title: "Ficheiro removido", description: asset.file_name });
     setAssets((prev) => prev.filter((a) => a.id !== asset.id));
   }
@@ -130,10 +202,10 @@ export default function AssetLibraryTab() {
       <Card className="glass border-primary/20">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
-            <Upload className="h-5 w-5 text-primary" />
-            Carregar Ficheiro
+            <ImagePlus className="h-5 w-5 text-primary" />
+            Nexus Media Engine
           </CardTitle>
-          <CardDescription>Logótipos, imagens de produto ou documentos (máx. 5MB)</CardDescription>
+          <CardDescription>Carrega ficheiros com compressão automática. Imagens são otimizadas para WebP.</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col sm:flex-row gap-4 items-start">
@@ -149,15 +221,27 @@ export default function AssetLibraryTab() {
             <label className="flex-1">
               <div className="border-2 border-dashed border-primary/30 rounded-lg p-6 text-center cursor-pointer hover:border-primary/60 transition-colors">
                 {uploading ? (
-                  <div className="flex items-center justify-center gap-2 text-primary">
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                    <span>A carregar...</span>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-center gap-2 text-primary">
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                      <span className="text-sm">
+                        {uploadProgress < 50 ? "A comprimir..." : uploadProgress < 90 ? "A carregar..." : "A finalizar..."}
+                      </span>
+                    </div>
+                    {/* Progress bar */}
+                    <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-primary rounded-full transition-all duration-300"
+                        style={{ width: `${uploadProgress}%` }}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">{uploadProgress}%</p>
                   </div>
                 ) : (
                   <div className="text-muted-foreground">
                     <Upload className="h-8 w-8 mx-auto mb-2 text-primary/50" />
                     <p className="text-sm">Clica ou arrasta um ficheiro</p>
-                    <p className="text-xs mt-1">PNG, JPG, SVG, PDF — máx. 5MB</p>
+                    <p className="text-xs mt-1">Imagens são automaticamente comprimidas e convertidas para WebP</p>
                   </div>
                 )}
               </div>
@@ -173,7 +257,7 @@ export default function AssetLibraryTab() {
         </CardContent>
       </Card>
 
-      {/* Asset grid */}
+      {/* Asset grid with thumbnails */}
       {assets.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
           <Image className="h-12 w-12 mx-auto mb-3 opacity-30" />
@@ -181,15 +265,16 @@ export default function AssetLibraryTab() {
           <p className="text-xs mt-1">Carrega o teu logótipo para começar</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
           {assets.map((asset) => (
             <Card key={asset.id} className="glass overflow-hidden group">
-              <div className="aspect-video bg-muted/50 flex items-center justify-center overflow-hidden">
+              <div className="aspect-square bg-muted/50 flex items-center justify-center overflow-hidden">
                 {asset.mime_type?.startsWith("image/") && asset.public_url ? (
                   <img
                     src={asset.public_url}
                     alt={asset.file_name}
-                    className="w-full h-full object-contain"
+                    className="w-full h-full object-cover"
+                    loading="lazy"
                   />
                 ) : (
                   <FileText className="h-12 w-12 text-muted-foreground/30" />
@@ -198,21 +283,21 @@ export default function AssetLibraryTab() {
               <CardContent className="p-3">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium truncate">{asset.file_name}</p>
+                    <p className="text-xs font-medium truncate" title={asset.file_name}>{asset.file_name}</p>
                     <div className="flex items-center gap-2 mt-1">
-                      <Badge variant="secondary" className="text-xs">
+                      <Badge variant="secondary" className="text-[10px] px-1.5">
                         {FILE_TYPE_OPTIONS.find((o) => o.value === asset.file_type)?.label || asset.file_type}
                       </Badge>
-                      <span className="text-xs text-muted-foreground">{formatSize(asset.file_size)}</span>
+                      <span className="text-[10px] text-muted-foreground">{formatSize(asset.file_size)}</span>
                     </div>
                   </div>
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="h-7 w-7 text-destructive opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
                     onClick={() => handleDelete(asset)}
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <Trash2 className="h-3.5 w-3.5" />
                   </Button>
                 </div>
               </CardContent>
