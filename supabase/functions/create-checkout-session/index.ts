@@ -69,6 +69,22 @@ serve(async (req) => {
     const user = userData.user;
     const { planType, projectId, successUrl, cancelUrl } = await req.json();
 
+    // Fetch profile data for prefilling checkout
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('full_name')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    const { data: bizData } = await supabase
+      .from('business_profiles')
+      .select('phone')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    const customerName = profileData?.full_name || undefined;
+    const customerPhone = bizData?.phone || undefined;
+
     if (!planType || !PLAN_CONFIG[planType]) {
       return new Response(JSON.stringify({ error: 'Invalid plan type. Use START, GROWTH, or NEXUS_OS.' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
