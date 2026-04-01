@@ -39,7 +39,7 @@ export function useStripeCheckout() {
           body: JSON.stringify({
             planType,
             projectId,
-            successUrl: `https://nexus.web-business.pt/dashboard?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+            successUrl: `https://nexus.web-business.pt/success?session_id={CHECKOUT_SESSION_ID}`,
             cancelUrl: `https://nexus.web-business.pt/strategy?checkout=cancel`,
           }),
         }
