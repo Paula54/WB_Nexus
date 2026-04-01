@@ -142,8 +142,8 @@ serve(async (req) => {
         user_id: user.id,
         plan_type: planType,
       },
-      success_url: successUrl || 'https://nexus.web-business.pt/dashboard?checkout=success&session_id={CHECKOUT_SESSION_ID}',
-      cancel_url: cancelUrl || 'https://nexus.web-business.pt/settings/subscription?checkout=cancel',
+      success_url: 'https://nexus.web-business.pt/success?session_id={CHECKOUT_SESSION_ID}',
+      cancel_url: cancelUrl || 'https://nexus.web-business.pt/strategy?checkout=cancel',
       allow_promotion_codes: true,
     });
 
