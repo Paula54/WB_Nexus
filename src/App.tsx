@@ -35,6 +35,8 @@ import FreelancerDashboard from "@/pages/FreelancerDashboard";
 import Admin from "@/pages/Admin";
 import Blog from "@/pages/Blog";
 import SessionLanding from "@/pages/SessionLanding";
+import AuthConfirm from "@/pages/AuthConfirm";
+import BusinessSetup from "@/pages/BusinessSetup";
 
 // Legal Pages
 import Privacidade from "@/pages/legal/Privacidade";
@@ -76,6 +78,8 @@ function AppRoutes() {
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/session" element={<SessionLanding />} />
+      <Route path="/auth/confirm" element={<AuthConfirm />} />
+      <Route path="/setup" element={<BusinessSetup />} />
 
       {/* Protected Routes */}
       <Route
