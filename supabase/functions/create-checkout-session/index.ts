@@ -143,7 +143,7 @@ serve(async (req) => {
         plan_type: planType,
       },
       success_url: 'https://nexus.web-business.pt/success?session_id={CHECKOUT_SESSION_ID}',
-      cancel_url: cancelUrl || 'https://nexus.web-business.pt/strategy?checkout=cancel',
+      cancel_url: 'https://nexus.web-business.pt/planos',
       allow_promotion_codes: true,
     });
 
