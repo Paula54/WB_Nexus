@@ -257,7 +257,7 @@ Deno.serve(async (req) => {
         domain,
         message: `Domínio ${domain} registado com sucesso!`,
         newBalance: balance - salePrice,
-        redirect: "https://app.wbnexus.pt/dashboard",
+        redirect: "https://nexus.web-business.pt/dashboard",
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
