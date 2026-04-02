@@ -37,6 +37,7 @@ import Blog from "@/pages/Blog";
 import SessionLanding from "@/pages/SessionLanding";
 import AuthConfirm from "@/pages/AuthConfirm";
 import BusinessSetup from "@/pages/BusinessSetup";
+import Success from "@/pages/Success";
 
 // Legal Pages
 import Privacidade from "@/pages/legal/Privacidade";
