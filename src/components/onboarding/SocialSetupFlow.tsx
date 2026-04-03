@@ -73,7 +73,7 @@ function fbLogin(): Promise<{ accessToken: string; userID: string }> {
       },
       {
         scope:
-          "pages_show_list,pages_read_engagement,instagram_basic,ads_management,business_management,pages_manage_posts,instagram_content_publish",
+          "ads_management,ads_read,pages_manage_posts,pages_read_engagement,pages_show_list,instagram_basic,instagram_content_publish,business_management",
       }
     );
   });
