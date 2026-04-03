@@ -172,7 +172,7 @@ Deno.serve(async (req) => {
         body: JSON.stringify({
           name: `Nexus Creative - ${new Date().toISOString().split("T")[0]}`,
           object_story_spec: {
-            page_id: "", // This would need to be provided by the user
+            page_id: facebook_page_id,
             link_data: {
               message: ad_copy,
               link: "https://example.com", // User should provide
