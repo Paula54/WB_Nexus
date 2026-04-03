@@ -683,9 +683,11 @@ export type Database = {
           ad_account_id: string | null
           connection_type: string
           created_at: string
+          facebook_page_id: string | null
           id: string
           instagram_business_id: string | null
           is_active: boolean
+          page_access_token: string | null
           project_id: string
           updated_at: string
           user_id: string
@@ -695,9 +697,11 @@ export type Database = {
           ad_account_id?: string | null
           connection_type?: string
           created_at?: string
+          facebook_page_id?: string | null
           id?: string
           instagram_business_id?: string | null
           is_active?: boolean
+          page_access_token?: string | null
           project_id: string
           updated_at?: string
           user_id: string
@@ -707,9 +711,11 @@ export type Database = {
           ad_account_id?: string | null
           connection_type?: string
           created_at?: string
+          facebook_page_id?: string | null
           id?: string
           instagram_business_id?: string | null
           is_active?: boolean
+          page_access_token?: string | null
           project_id?: string
           updated_at?: string
           user_id?: string
