@@ -53,7 +53,7 @@ Deno.serve(async (req) => {
     const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     const { data: project, error: projectError } = await adminClient
       .from("projects")
-      .select("meta_ads_account_id, meta_access_token")
+      .select("meta_ads_account_id, meta_access_token, facebook_page_id")
       .eq("id", project_id)
       .eq("user_id", userId)
       .single();
@@ -65,13 +65,23 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { meta_ads_account_id } = project;
+    const { meta_ads_account_id, facebook_page_id } = project;
 
     if (!meta_ads_account_id || !project.meta_access_token) {
       return new Response(
         JSON.stringify({
           success: false,
           error: "Meta Ads não está conectado. Conecta a API primeiro.",
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!facebook_page_id) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Nenhuma Página de Facebook selecionada. Configura nas definições.",
         }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
