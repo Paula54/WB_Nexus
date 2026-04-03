@@ -199,6 +199,24 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Encrypt page access token if we have a page
+    let encryptedPageToken: string | null = null;
+    if (facebookPageId && longLivedToken) {
+      try {
+        log("📘 Fetching page access token...");
+        const pageTokenRes = await fetch(
+          `https://graph.facebook.com/v21.0/${facebookPageId}?fields=access_token&access_token=${longLivedToken}`
+        );
+        const pageTokenData = await pageTokenRes.json();
+        if (pageTokenData.access_token) {
+          encryptedPageToken = await encryptToken(pageTokenData.access_token);
+          log("✅ Page access token encrypted");
+        }
+      } catch (e) {
+        logError("Error fetching page token", e);
+      }
+    }
+
     // Save meta_connection via upsert
     const serviceClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
     await serviceClient.from("meta_connections").update({ is_active: false }).eq("user_id", user.id).eq("project_id", project.id);
@@ -208,6 +226,8 @@ Deno.serve(async (req) => {
       ad_account_id: adAccountId,
       connection_type: connectionType,
       instagram_business_id: instagramBusinessId,
+      facebook_page_id: facebookPageId,
+      page_access_token: encryptedPageToken,
       is_active: true,
     }, { onConflict: "project_id,user_id" }).select();
 

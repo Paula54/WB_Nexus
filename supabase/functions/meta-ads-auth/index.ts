@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
       client_id: META_APP_ID,
       redirect_uri: redirectUri,
       response_type: "code",
-      scope: "ads_management,ads_read,pages_manage_posts,pages_read_engagement,instagram_basic,instagram_content_publish,business_management",
+      scope: "ads_management,ads_read,pages_manage_posts,pages_read_engagement,pages_show_list,instagram_basic,instagram_content_publish,business_management",
       state,
     });
 

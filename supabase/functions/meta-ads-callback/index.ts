@@ -100,9 +100,6 @@ Deno.serve(async (req) => {
 
     const updatePayload: Record<string, any> = {
       meta_access_token: encryptedToken,
-      meta_ads_account_id: adAccounts.length === 1 ? adAccounts[0].id : null,
-      facebook_page_id: facebookPageId,
-      instagram_business_id: instagramBusinessId,
       whatsapp_business_id: whatsappBusinessId,
     };
 
@@ -115,14 +112,27 @@ Deno.serve(async (req) => {
       return Response.redirect(`${returnUrl}?meta_ads_error=${encodeURIComponent("Erro ao gravar: " + updateError.message)}`, 302);
     }
 
-    console.log(`✅ Meta connected for user ${userId} (fb=${facebookPageId}, ig=${instagramBusinessId}, wa=${whatsappBusinessId})`);
-
-    if (adAccounts.length === 1) {
-      return Response.redirect(`${returnUrl}?meta_ads_connected=true&meta_account_name=${encodeURIComponent(adAccounts[0].name || adAccounts[0].id)}`, 302);
+    // Fetch pages for selection
+    let pages: any[] = [];
+    try {
+      const pagesRes = await fetch(
+        `https://graph.facebook.com/v21.0/me/accounts?fields=id,name,instagram_business_account{id,username}&access_token=${longLivedToken}`
+      );
+      const pagesData = await pagesRes.json();
+      pages = (pagesData.data || []).map((p: any) => ({
+        id: p.id, name: p.name,
+        ig_id: p.instagram_business_account?.id || null,
+      }));
+    } catch (e) {
+      console.error("Error fetching pages:", e);
     }
 
+    console.log(`✅ Meta connected for user ${userId} (pages=${pages.length}, adAccounts=${adAccounts.length})`);
+
+    // Always redirect with pick params so the user confirms selection
     const accountsParam = encodeURIComponent(JSON.stringify(adAccounts));
-    return Response.redirect(`${returnUrl}?meta_ads_pick_account=true&meta_accounts=${accountsParam}`, 302);
+    const pagesParam = encodeURIComponent(JSON.stringify(pages));
+    return Response.redirect(`${returnUrl}?meta_ads_pick_account=true&meta_accounts=${accountsParam}&meta_pages=${pagesParam}`, 302);
   } catch (err) {
     console.error("meta-ads-callback error:", err);
     return Response.redirect("https://nexus.web-business.pt/settings?meta_ads_error=Erro+interno+no+servidor", 302);
