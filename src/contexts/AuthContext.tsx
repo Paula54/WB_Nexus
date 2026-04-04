@@ -54,30 +54,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
+    let isMounted = true;
 
-        // On first sign-in or sign-up, ensure profile & project exist
-        if (session?.user && (event === "SIGNED_IN" || event === "SIGNED_UP" || event === "TOKEN_REFRESHED")) {
-          setTimeout(() => ensureProfileExists(session.user), 0);
+    const applySession = (nextSession: Session | null) => {
+      if (!isMounted) return;
+      setSession(nextSession);
+      setUser(nextSession?.user ?? null);
+    };
+
+    const syncProfile = (nextUser: User | null | undefined) => {
+      if (!nextUser) return;
+      setTimeout(() => {
+        void ensureProfileExists(nextUser);
+      }, 0);
+    };
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, nextSession) => {
+        applySession(nextSession);
+
+        if (nextSession?.user && (event === "SIGNED_IN" || event === "SIGNED_UP" || event === "TOKEN_REFRESHED" || event === "PASSWORD_RECOVERY")) {
+          syncProfile(nextSession.user);
         }
       }
     );
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
+    void supabase.auth.getSession()
+      .then(({ data: { session: nextSession } }) => {
+        applySession(nextSession);
+        syncProfile(nextSession?.user);
+      })
+      .catch((error) => {
+        console.error("[Auth] Error restoring session:", error);
+      })
+      .finally(() => {
+        if (isMounted) {
+          setLoading(false);
+        }
+      });
 
-      if (session?.user) {
-        setTimeout(() => ensureProfileExists(session.user), 0);
-      }
-    });
-
-    return () => subscription.unsubscribe();
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {
