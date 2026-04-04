@@ -68,7 +68,7 @@ export default function ResetPassword() {
         title: "Password alterada com sucesso",
         description: "Já pode entrar com a nova password.",
       });
-      navigate("/login");
+      navigate("/auth");
     }
     setLoading(false);
   };
@@ -84,7 +84,7 @@ export default function ResetPassword() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button className="w-full" onClick={() => navigate("/login")}>
+            <Button className="w-full" onClick={() => navigate("/auth")}>
               Voltar ao Login
             </Button>
           </CardContent>

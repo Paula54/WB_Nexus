@@ -82,7 +82,7 @@ export default function ForgotPassword() {
               </Button>
             )}
             <p className="text-center text-sm text-muted-foreground mt-4">
-              <Link to="/login" className="text-primary hover:underline inline-flex items-center gap-1">
+              <Link to="/auth" className="text-primary hover:underline inline-flex items-center gap-1">
                 <ArrowLeft className="h-3 w-3" /> Voltar ao Login
               </Link>
             </p>

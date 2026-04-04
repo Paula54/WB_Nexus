@@ -13,7 +13,7 @@ export default function SessionLanding() {
 
     if (!access_token || !refresh_token) {
       console.warn("[SessionLanding] Missing tokens, redirecting to login");
-      navigate("/login", { replace: true });
+      navigate("/auth", { replace: true });
       return;
     }
 
@@ -27,7 +27,7 @@ export default function SessionLanding() {
         if (error) {
           console.error("[SessionLanding] setSession failed:", error.message);
           setError(error.message);
-          setTimeout(() => navigate("/login", { replace: true }), 2000);
+          setTimeout(() => navigate("/auth", { replace: true }), 2000);
           return;
         }
 
@@ -38,7 +38,7 @@ export default function SessionLanding() {
       } catch (err: any) {
         console.error("[SessionLanding] Unexpected error:", err);
         setError(err.message || "Erro inesperado");
-        setTimeout(() => navigate("/login", { replace: true }), 2000);
+        setTimeout(() => navigate("/auth", { replace: true }), 2000);
       }
     })();
   }, [searchParams, navigate]);

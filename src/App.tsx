@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { HelmetProvider } from "react-helmet-async";
 
@@ -49,10 +49,9 @@ import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
 
-const EXTERNAL_LOGIN_URL = "https://site.web-business.pt/login";
-
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
+  const location = useLocation();
 
   if (loading) {
     return (
@@ -63,8 +62,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (!user) {
-    window.location.href = EXTERNAL_LOGIN_URL;
-    return null;
+    return <Navigate to="/auth" replace state={{ from: location }} />;
   }
 
   return <>{children}</>;
@@ -74,7 +72,8 @@ function AppRoutes() {
   return (
     <Routes>
       {/* Auth Routes */}
-      <Route path="/login" element={<Login />} />
+        <Route path="/auth" element={<Login />} />
+        <Route path="/login" element={<Navigate to="/auth" replace />} />
       <Route path="/register" element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />

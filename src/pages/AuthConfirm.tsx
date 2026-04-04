@@ -71,7 +71,7 @@ export default function AuthConfirm() {
         <div className="text-center space-y-4 max-w-md px-4">
           <p className="text-destructive font-semibold">Erro na confirmação</p>
           <p className="text-muted-foreground">{errorMsg}</p>
-          <a href="/login" className="text-primary underline">Ir para Login</a>
+          <a href="/auth" className="text-primary underline">Ir para Login</a>
         </div>
       )}
     </div>

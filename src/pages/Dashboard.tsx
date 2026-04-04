@@ -3,12 +3,14 @@ import { OnboardingDashboard } from "@/components/onboarding/OnboardingDashboard
 import { RegularDashboard } from "@/components/dashboard/RegularDashboard";
 import { NoPlanBanner } from "@/components/dashboard/NoPlanBanner";
 import { useSubscription } from "@/hooks/useSubscription";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function Dashboard() {
+  const { loading: authLoading } = useAuth();
   const { socialConnected, whatsappConnected, firstCampaignLaunched, loading } = useOnboardingStatus();
   const { subscription, isLoading: subLoading, hasSubscription } = useSubscription();
 
-  if (loading || subLoading) {
+  if (authLoading || loading || subLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
