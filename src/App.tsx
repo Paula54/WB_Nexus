@@ -93,6 +93,7 @@ function AppRoutes() {
         }
       >
         <Route index element={<Dashboard />} />
+        <Route path="dashboard" element={<Navigate to="/" replace />} />
         <Route path="builder" element={<SiteBuilder />} />
         <Route path="strategy" element={<Strategy />} />
         <Route path="crm" element={<CRM />} />
