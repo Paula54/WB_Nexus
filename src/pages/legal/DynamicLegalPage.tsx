@@ -18,12 +18,14 @@ const SLUG_MAP: Record<string, string> = {
   terms: "terms",
   termos: "terms",
   devolucoes: "devolucoes",
+  cookies: "cookies",
 };
 
 export default function DynamicLegalPage() {
   const location = useLocation();
   const pathSlug = location.pathname.replace(/^\//, "");
   const slug = SLUG_MAP[pathSlug] || pathSlug;
+  const [data, setData] = useState<LegalContent | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 

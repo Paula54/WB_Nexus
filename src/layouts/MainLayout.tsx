@@ -105,6 +105,8 @@ export default function MainLayout() {
               <span>·</span>
               <Link to="/devolucoes" className="hover:text-foreground transition-colors">Devoluções</Link>
               <span>·</span>
+              <Link to="/cookies" className="hover:text-foreground transition-colors">Cookies</Link>
+              <span>·</span>
               <Link to="/contacto" className="hover:text-foreground transition-colors">Contacto</Link>
             </div>
             <p>Nexus Machine © 2026 | Powered by <a href="https://web-business.pt" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Web Business</a> – Um produto Astrolábio Mágico Investimentos LDA.</p>
