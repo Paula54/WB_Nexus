@@ -78,8 +78,9 @@ serve(async (req) => {
     }
 
     // Update customer with fiscal data
+    // full_name → Stripe name field; company goes to metadata only
     await stripe.customers.update(customerId, {
-      name: legal_name || undefined,
+      name: customerDisplayName,
       phone: phone || undefined,
       address: {
         line1: address_line1 || "",
@@ -92,8 +93,8 @@ serve(async (req) => {
         user_id: user.id,
         nif: nif || "",
         legal_name: legal_name || "",
+        company_name: companyDisplayName || "",
       },
-      tax_id_data: undefined, // We'll add tax ID separately
     });
 
     // Add or update VAT tax ID if NIF provided

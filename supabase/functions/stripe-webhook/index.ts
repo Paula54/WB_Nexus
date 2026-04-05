@@ -121,6 +121,9 @@ serve(async (req) => {
 
         const subscription = await stripe.subscriptions.retrieve(session.subscription as string);
 
+        // Map Stripe status to our status — ensure 'active' after successful payment
+        const mappedStatus = subscription.status === 'trialing' ? 'trialing' : 'active';
+
         const { error: subError } = await supabase
           .from('subscriptions')
           .upsert({
@@ -128,7 +131,7 @@ serve(async (req) => {
             project_id: projectId,
             stripe_customer_id: session.customer as string,
             stripe_subscription_id: session.subscription as string,
-            status: subscription.status === 'trialing' ? 'trialing' : 'active',
+            status: mappedStatus,
             plan_type: planType,
             trial_ends_at: subscription.trial_end
               ? new Date(subscription.trial_end * 1000).toISOString()
