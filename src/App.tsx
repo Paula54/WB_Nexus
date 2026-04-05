@@ -155,6 +155,7 @@ function AppRoutes() {
       <Route path="/terms" element={<DynamicLegalPage />} />
       <Route path="/termos" element={<DynamicLegalPage />} />
       <Route path="/devolucoes" element={<DynamicLegalPage />} />
+      <Route path="/cookies" element={<DynamicLegalPage />} />
       <Route path="/contacto" element={<Contacto />} />
 
       {/* 404 */}
