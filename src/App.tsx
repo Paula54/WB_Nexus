@@ -150,11 +150,11 @@ function AppRoutes() {
         <Route path="admin" element={<Admin />} />
       </Route>
       {/* Legal Routes (Public) */}
-      <Route path="/privacy" element={<Privacidade />} />
-      <Route path="/privacidade" element={<Navigate to="/privacy" replace />} />
-      <Route path="/terms" element={<Termos />} />
-      <Route path="/termos" element={<Navigate to="/terms" replace />} />
-      <Route path="/devolucoes" element={<Devolucoes />} />
+      <Route path="/privacy" element={<DynamicLegalPage />} />
+      <Route path="/privacidade" element={<DynamicLegalPage />} />
+      <Route path="/terms" element={<DynamicLegalPage />} />
+      <Route path="/termos" element={<DynamicLegalPage />} />
+      <Route path="/devolucoes" element={<DynamicLegalPage />} />
       <Route path="/contacto" element={<Contacto />} />
 
       {/* 404 */}
