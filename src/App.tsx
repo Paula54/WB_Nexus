@@ -52,6 +52,7 @@ const queryClient = new QueryClient();
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const location = useLocation();
+  const [timedOut, setTimedOut] = useState(false);
 
   // Check if URL has auth tokens that Supabase needs to process
   const hasAuthTokensInUrl =
@@ -60,7 +61,27 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     window.location.search.includes("type=recovery") ||
     window.location.search.includes("token_hash");
 
-  if (loading || (hasAuthTokensInUrl && !user)) {
+  useEffect(() => {
+    if (hasAuthTokensInUrl) {
+      console.log("[ProtectedRoute] Auth tokens detected in URL, waiting for session...");
+      console.log("[ProtectedRoute] Hash:", window.location.hash.substring(0, 80));
+      console.log("[ProtectedRoute] Search:", window.location.search.substring(0, 80));
+    }
+  }, []);
+
+  // Timeout: if auth tokens are in URL but session never resolves, stop waiting after 5s
+  useEffect(() => {
+    if (!hasAuthTokensInUrl || user) return;
+    const timer = setTimeout(() => {
+      console.warn("[ProtectedRoute] Session not resolved after 5s — redirecting to /auth");
+      setTimedOut(true);
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [hasAuthTokensInUrl, user]);
+
+  const isWaiting = loading || (hasAuthTokensInUrl && !user && !timedOut);
+
+  if (isWaiting) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">
@@ -72,7 +93,13 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (!user) {
-    return <Navigate to="/auth" replace state={{ from: location }} />;
+    return (
+      <Navigate
+        to="/auth"
+        replace
+        state={{ from: location, message: timedOut ? "A processar o seu acesso, por favor aguarde ou faça login" : undefined }}
+      />
+    );
   }
 
   return <>{children}</>;
