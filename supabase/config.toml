@@ -92,3 +92,6 @@ verify_jwt = false
 
 [functions.sync-stripe-customer]
 verify_jwt = false
+
+[functions.generate-stripe-session]
+verify_jwt = false
