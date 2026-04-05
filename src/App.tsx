@@ -41,9 +41,7 @@ import BusinessSetup from "@/pages/BusinessSetup";
 import Success from "@/pages/Success";
 
 // Legal Pages
-import Privacidade from "@/pages/legal/Privacidade";
-import Termos from "@/pages/legal/Termos";
-import Devolucoes from "@/pages/legal/Devolucoes";
+import DynamicLegalPage from "@/pages/legal/DynamicLegalPage";
 import Contacto from "@/pages/legal/Contacto";
 
 import NotFound from "@/pages/NotFound";
