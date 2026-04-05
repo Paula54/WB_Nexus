@@ -46,7 +46,14 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    const { legal_name, nif, address_line1, address_line2, postal_code, city, country, phone, email } = body;
+    const { legal_name, trade_name, nif, address_line1, address_line2, postal_code, city, country, phone, email, full_name, company_name } = body;
+
+    // Data mapping:
+    // full_name → client's personal name (for Stripe customer name)
+    // company_name / trade_name / legal_name → company name (for Stripe metadata)
+    // nif → tax_id only (NOT stored in name fields)
+    const customerDisplayName = full_name || legal_name || undefined;
+    const companyDisplayName = company_name || trade_name || legal_name || undefined;
 
     const stripe = new Stripe(stripeSecretKey, {
       apiVersion: "2023-10-16",
@@ -71,8 +78,9 @@ serve(async (req) => {
     }
 
     // Update customer with fiscal data
+    // full_name → Stripe name field; company goes to metadata only
     await stripe.customers.update(customerId, {
-      name: legal_name || undefined,
+      name: customerDisplayName,
       phone: phone || undefined,
       address: {
         line1: address_line1 || "",
@@ -85,8 +93,8 @@ serve(async (req) => {
         user_id: user.id,
         nif: nif || "",
         legal_name: legal_name || "",
+        company_name: companyDisplayName || "",
       },
-      tax_id_data: undefined, // We'll add tax ID separately
     });
 
     // Add or update VAT tax ID if NIF provided

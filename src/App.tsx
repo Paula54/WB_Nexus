@@ -53,10 +53,20 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const location = useLocation();
 
-  if (loading) {
+  // Check if URL has auth tokens that Supabase needs to process
+  const hasAuthTokensInUrl =
+    window.location.hash.includes("access_token") ||
+    window.location.search.includes("access_token") ||
+    window.location.search.includes("type=recovery") ||
+    window.location.search.includes("token_hash");
+
+  if (loading || (hasAuthTokensInUrl && !user)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="animate-pulse-glow w-16 h-16 rounded-full bg-primary/20" />
+        <div className="flex flex-col items-center gap-3">
+          <div className="animate-pulse-glow w-16 h-16 rounded-full bg-primary/20" />
+          <p className="text-sm text-muted-foreground">A carregar dashboard...</p>
+        </div>
       </div>
     );
   }
