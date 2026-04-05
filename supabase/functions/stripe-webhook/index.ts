@@ -154,6 +154,63 @@ serve(async (req) => {
           .update({ selected_plan: planType, trial_expires_at: trialEndsAt })
           .eq('id', projectId);
 
+        // ── Sync customer details from Stripe to Supabase ──
+        try {
+          const customerDetails = session.customer_details;
+          const customerName = customerDetails?.name || null;
+          const customerEmail = customerDetails?.email || null;
+          const customerPhone = customerDetails?.phone || null;
+
+          // Extract NIF from tax_ids (format: PT123456789 → 123456789)
+          let nifValue: string | null = null;
+          if (customerDetails?.tax_ids && customerDetails.tax_ids.length > 0) {
+            const euVat = customerDetails.tax_ids.find((t: any) => t.type === 'eu_vat');
+            if (euVat?.value) {
+              nifValue = euVat.value.replace(/^PT/i, '');
+            }
+          }
+
+          // Update profiles: full_name + contact_email
+          if (customerName || customerEmail) {
+            await supabase
+              .from('profiles')
+              .update({
+                ...(customerName ? { full_name: customerName } : {}),
+                ...(customerEmail ? { contact_email: customerEmail } : {}),
+              })
+              .eq('user_id', userId);
+          }
+
+          // Update business_profiles: nif, phone, legal_name
+          const bizUpdate: Record<string, string | null> = {};
+          if (nifValue) bizUpdate.nif = nifValue;
+          if (customerPhone) bizUpdate.phone = customerPhone;
+          if (customerName) bizUpdate.legal_name = customerName;
+
+          if (Object.keys(bizUpdate).length > 0) {
+            const { data: existingBiz } = await supabase
+              .from('business_profiles')
+              .select('id')
+              .eq('user_id', userId)
+              .maybeSingle();
+
+            if (existingBiz) {
+              await supabase
+                .from('business_profiles')
+                .update(bizUpdate)
+                .eq('user_id', userId);
+            } else {
+              await supabase
+                .from('business_profiles')
+                .insert({ user_id: userId, ...bizUpdate });
+            }
+          }
+
+          console.log(`Customer details synced: name=${customerName}, email=${customerEmail}, nif=${nifValue}`);
+        } catch (syncErr) {
+          console.warn('Non-blocking customer sync error:', syncErr);
+        }
+
         console.log(`Checkout completed: user=${userId}, project=${projectId}, plan=${planType}`);
         break;
       }
