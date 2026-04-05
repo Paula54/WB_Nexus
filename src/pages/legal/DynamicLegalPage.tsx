@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft } from "lucide-react";
@@ -21,9 +21,9 @@ const SLUG_MAP: Record<string, string> = {
 };
 
 export default function DynamicLegalPage() {
-  const { slug: rawSlug } = useParams<{ slug: string }>();
-  const slug = SLUG_MAP[rawSlug || ""] || rawSlug || "";
-  const [data, setData] = useState<LegalContent | null>(null);
+  const location = useLocation();
+  const pathSlug = location.pathname.replace(/^\//, "");
+  const slug = SLUG_MAP[pathSlug] || pathSlug;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
