@@ -206,9 +206,40 @@ serve(async (req) => {
             }
           }
 
-          console.log(`Customer details synced: name=${customerName}, email=${customerEmail}, nif=${nifValue}`);
+        console.log(`Customer details synced: name=${customerName}, email=${customerEmail}, nif=${nifValue}`);
         } catch (syncErr) {
           console.warn('Non-blocking customer sync error:', syncErr);
+        }
+
+        // ── Invite user via Supabase Auth (universal onboarding) ──
+        try {
+          const inviteEmail = session.customer_details?.email || session.customer_email;
+          if (inviteEmail) {
+            // Check if user already has a password set (existing user)
+            const { data: existingUser } = await supabase.auth.admin.getUserById(userId);
+            const hasPassword = existingUser?.user?.email_confirmed_at;
+
+            if (!hasPassword) {
+              const { error: inviteError } = await supabase.auth.admin.inviteUserByEmail(inviteEmail, {
+                redirectTo: 'https://nexus.web-business.pt/auth/set-password',
+                data: {
+                  project_id: projectId,
+                  plan_type: planType,
+                },
+              });
+
+              if (inviteError) {
+                // User may already exist — not critical
+                console.warn('Invite email warning:', inviteError.message);
+              } else {
+                console.log(`Invite sent to ${inviteEmail}`);
+              }
+            } else {
+              console.log(`User ${inviteEmail} already confirmed, skipping invite`);
+            }
+          }
+        } catch (inviteErr) {
+          console.warn('Non-blocking invite error:', inviteErr);
         }
 
         console.log(`Checkout completed: user=${userId}, project=${projectId}, plan=${planType}`);

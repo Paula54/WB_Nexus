@@ -39,6 +39,7 @@ import SessionLanding from "@/pages/SessionLanding";
 import AuthConfirm from "@/pages/AuthConfirm";
 import BusinessSetup from "@/pages/BusinessSetup";
 import Success from "@/pages/Success";
+import SetPassword from "@/pages/SetPassword";
 
 // Legal Pages
 import DynamicLegalPage from "@/pages/legal/DynamicLegalPage";
