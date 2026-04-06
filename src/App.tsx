@@ -117,7 +117,7 @@ function AppRoutes() {
       <Route path="/session" element={<SessionLanding />} />
       <Route path="/auth/confirm" element={<AuthConfirm />} />
       <Route path="/auth/set-password" element={<SetPassword />} />
-      <Route path="/setup" element={<BusinessSetup />} />
+      <Route path="/setup" element={<ProtectedRoute><BusinessSetup /></ProtectedRoute>} />
       <Route path="/success" element={<Success />} />
 
       {/* Protected Routes */}
