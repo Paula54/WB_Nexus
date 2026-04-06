@@ -39,6 +39,7 @@ import SessionLanding from "@/pages/SessionLanding";
 import AuthConfirm from "@/pages/AuthConfirm";
 import BusinessSetup from "@/pages/BusinessSetup";
 import Success from "@/pages/Success";
+import SetPassword from "@/pages/SetPassword";
 
 // Legal Pages
 import DynamicLegalPage from "@/pages/legal/DynamicLegalPage";
@@ -115,6 +116,7 @@ function AppRoutes() {
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/session" element={<SessionLanding />} />
       <Route path="/auth/confirm" element={<AuthConfirm />} />
+      <Route path="/auth/set-password" element={<SetPassword />} />
       <Route path="/setup" element={<BusinessSetup />} />
       <Route path="/success" element={<Success />} />
 
