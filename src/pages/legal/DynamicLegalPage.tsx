@@ -12,19 +12,21 @@ interface LegalContent {
   updated_at: string;
 }
 
-const SLUG_MAP: Record<string, string> = {
-  privacy: "privacy",
-  privacidade: "privacy",
-  terms: "terms",
-  termos: "terms",
-  devolucoes: "devolucoes",
-  cookies: "cookies",
+const SLUG_MAP: Record<string, { slug: string; lang: string }> = {
+  privacy: { slug: "privacy", lang: "en" },
+  privacidade: { slug: "privacy", lang: "pt" },
+  terms: { slug: "terms", lang: "en" },
+  termos: { slug: "terms", lang: "pt" },
+  devolucoes: { slug: "devolucoes", lang: "pt" },
+  cookies: { slug: "cookies", lang: "pt" },
 };
 
 export default function DynamicLegalPage() {
   const location = useLocation();
   const pathSlug = location.pathname.replace(/^\//, "");
-  const slug = SLUG_MAP[pathSlug] || pathSlug;
+  const mapped = SLUG_MAP[pathSlug];
+  const slug = mapped?.slug || pathSlug;
+  const lang = mapped?.lang || "pt";
   const [data, setData] = useState<LegalContent | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -38,6 +40,7 @@ export default function DynamicLegalPage() {
       .from("legal_contents")
       .select("title, content, updated_at")
       .eq("slug", slug)
+      .eq("language", lang)
       .maybeSingle()
       .then(({ data: row, error: err }) => {
         if (err || !row) {
@@ -48,7 +51,7 @@ export default function DynamicLegalPage() {
         }
         setLoading(false);
       });
-  }, [slug]);
+  }, [slug, lang]);
 
   return (
     <div className="min-h-screen bg-background">
