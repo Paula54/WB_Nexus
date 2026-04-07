@@ -19,10 +19,6 @@ const SLUG_MAP: Record<string, { slug: string; lang: string }> = {
   termos: { slug: "terms", lang: "pt" },
   devolucoes: { slug: "devolucoes", lang: "pt" },
   cookies: { slug: "cookies", lang: "pt" },
-  "cancellation-policy": { slug: "cancellation-policy", lang: "en" },
-  "politica-cancelamento": { slug: "cancellation-policy", lang: "pt" },
-  "annual-contract": { slug: "annual-contract", lang: "en" },
-  "contrato-anual": { slug: "annual-contract", lang: "pt" },
 };
 
 export default function DynamicLegalPage() {
@@ -30,7 +26,7 @@ export default function DynamicLegalPage() {
   const pathSlug = location.pathname.replace(/^\//, "");
   const mapped = SLUG_MAP[pathSlug];
   const slug = mapped?.slug || pathSlug;
-  const lang = (mapped?.lang || "pt").replace(/['"]/g, "");
+  const lang = mapped?.lang || "pt";
   const [data, setData] = useState<LegalContent | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
