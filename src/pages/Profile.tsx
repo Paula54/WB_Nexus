@@ -6,12 +6,14 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/lib/supabaseCustom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
+import { useSubscription } from "@/hooks/useSubscription";
 import { toast } from "@/hooks/use-toast";
-import { User, Camera, Save, Loader2, Building2, Mail, Lock } from "lucide-react";
+import { User, Camera, Save, Loader2, Building2, Mail, Lock, CreditCard } from "lucide-react";
 
 export default function Profile() {
   const { user } = useAuth();
   const { profile, loading, refetch } = useProfile();
+  const { hasSubscription } = useSubscription();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [fullName, setFullName] = useState("");
@@ -19,6 +21,24 @@ export default function Profile() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [portalLoading, setPortalLoading] = useState(false);
+
+  const openBillingPortal = async () => {
+    setPortalLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("create-billing-portal");
+      if (error) throw error;
+      if (data?.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error("URL não recebido");
+      }
+    } catch (err: any) {
+      toast({ title: "Erro ao abrir portal", description: err?.message || "Tenta novamente.", variant: "destructive" });
+    } finally {
+      setPortalLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (profile) {
@@ -210,6 +230,22 @@ export default function Profile() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Billing Portal */}
+      {hasSubscription && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Faturação & Assinatura</CardTitle>
+            <CardDescription>Gere os teus pagamentos, faturas e plano diretamente no Stripe</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button onClick={openBillingPortal} disabled={portalLoading} variant="outline" className="gap-2">
+              {portalLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
+              Gerir Faturas e Assinatura
+            </Button>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
