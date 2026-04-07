@@ -13,6 +13,29 @@ const SITE_PRICING_URL = "https://site.web-business.pt/#pricing";
 export default function Subscription() {
   const navigate = useNavigate();
   const { subscription, isLoading: subLoading, hasSubscription } = useSubscription();
+  const [portalLoading, setPortalLoading] = useState(false);
+
+  const openBillingPortal = async () => {
+    setPortalLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("create-billing-portal");
+      if (error) throw error;
+      if (data?.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error("URL não recebido");
+      }
+    } catch (err: any) {
+      console.error("Billing portal error:", err);
+      toast({
+        title: "Erro ao abrir portal",
+        description: err?.message || "Tenta novamente mais tarde.",
+        variant: "destructive",
+      });
+    } finally {
+      setPortalLoading(false);
+    }
+  };
 
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
