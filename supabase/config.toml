@@ -95,3 +95,6 @@ verify_jwt = false
 
 [functions.generate-stripe-session]
 verify_jwt = false
+
+[functions.create-billing-portal]
+verify_jwt = false

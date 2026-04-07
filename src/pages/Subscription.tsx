@@ -1,15 +1,41 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, Wallet, Globe } from "lucide-react";
+import { ExternalLink, Wallet, Globe, CreditCard, Loader2 } from "lucide-react";
 import { useSubscription } from "@/hooks/useSubscription";
 import { CurrentPlanCard } from "@/components/subscription/CurrentPlanCard";
+import { supabase } from "@/lib/supabaseCustom";
+import { toast } from "@/hooks/use-toast";
 
 const SITE_PRICING_URL = "https://site.web-business.pt/#pricing";
 
 export default function Subscription() {
   const navigate = useNavigate();
   const { subscription, isLoading: subLoading, hasSubscription } = useSubscription();
+  const [portalLoading, setPortalLoading] = useState(false);
+
+  const openBillingPortal = async () => {
+    setPortalLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("create-billing-portal");
+      if (error) throw error;
+      if (data?.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error("URL não recebido");
+      }
+    } catch (err: any) {
+      console.error("Billing portal error:", err);
+      toast({
+        title: "Erro ao abrir portal",
+        description: err?.message || "Tenta novamente mais tarde.",
+        variant: "destructive",
+      });
+    } finally {
+      setPortalLoading(false);
+    }
+  };
 
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
@@ -27,7 +53,26 @@ export default function Subscription() {
         <Card className="glass animate-pulse h-32" />
       ) : hasSubscription && subscription ? (
         <CurrentPlanCard subscription={subscription} />
-      ) : (
+      ) : null}
+
+      {/* Billing Portal button */}
+      {hasSubscription && (
+        <Button
+          onClick={openBillingPortal}
+          disabled={portalLoading}
+          variant="outline"
+          className="gap-2 w-full sm:w-auto"
+        >
+          {portalLoading ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <CreditCard className="h-4 w-4" />
+          )}
+          Gerir Faturas e Assinatura
+        </Button>
+      )}
+
+      {!hasSubscription && !subLoading && (
         <Card className="glass border-dashed border-muted-foreground/20">
           <CardContent className="py-8 text-center space-y-3">
             <p className="text-muted-foreground text-sm">
