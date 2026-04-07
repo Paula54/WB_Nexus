@@ -110,13 +110,86 @@ serve(async (req) => {
           break;
         }
 
-        // ── Handle subscription checkout ──
-        const projectId = session.metadata?.project_id;
+        // ── Handle subscription checkout (supports guest purchases) ──
+        let resolvedUserId = userId;
+        let projectId = session.metadata?.project_id;
         const planType = session.metadata?.plan_type || 'START';
+        const customerEmail = session.customer_details?.email || session.customer_email;
 
-        if (!projectId || !userId) {
-          console.error('Missing metadata in checkout session:', session.id);
+        // If no user_id in metadata, find or create user from Stripe email
+        if (!resolvedUserId && customerEmail) {
+          console.log(`[webhook] No user_id in metadata, resolving from email: ${customerEmail}`);
+
+          // Check if user exists in Supabase Auth
+          const { data: existingUsers } = await supabase.auth.admin.listUsers();
+          const existingUser = existingUsers?.users?.find(
+            (u: any) => u.email?.toLowerCase() === customerEmail.toLowerCase()
+          );
+
+          if (existingUser) {
+            resolvedUserId = existingUser.id;
+            console.log(`[webhook] Found existing user: ${resolvedUserId}`);
+          } else {
+            // Create new user with temp password
+            const tempPassword = crypto.randomUUID() + 'Aa1!';
+            const { data: newUser, error: createErr } = await supabase.auth.admin.createUser({
+              email: customerEmail,
+              password: tempPassword,
+              email_confirm: true,
+              user_metadata: {
+                full_name: session.customer_details?.name || null,
+              },
+            });
+            if (createErr || !newUser?.user) {
+              console.error('[webhook] Failed to create user:', createErr);
+              break;
+            }
+            resolvedUserId = newUser.user.id;
+            console.log(`[webhook] Created new user: ${resolvedUserId}`);
+
+            // Create profile for new user
+            await supabase.from('profiles').upsert({
+              user_id: resolvedUserId,
+              full_name: session.customer_details?.name || null,
+              contact_email: customerEmail,
+            }, { onConflict: 'user_id' });
+          }
+        }
+
+        if (!resolvedUserId) {
+          console.error('[webhook] Could not resolve user for checkout:', session.id);
           break;
+        }
+
+        // If no project_id, create a default project for the user
+        if (!projectId) {
+          const { data: existingProject } = await supabase
+            .from('projects')
+            .select('id')
+            .eq('user_id', resolvedUserId)
+            .limit(1)
+            .maybeSingle();
+
+          if (existingProject) {
+            projectId = existingProject.id;
+          } else {
+            const { data: newProject, error: projErr } = await supabase
+              .from('projects')
+              .insert({
+                user_id: resolvedUserId,
+                name: 'Meu Projeto',
+                project_type: 'website',
+              })
+              .select('id')
+              .single();
+
+            if (projErr || !newProject) {
+              console.error('[webhook] Failed to create project:', projErr);
+              break;
+            }
+            projectId = newProject.id;
+          }
+          console.log(`[webhook] Resolved project: ${projectId}`);
         }
 
         const subscription = await stripe.subscriptions.retrieve(session.subscription as string);
@@ -127,7 +200,7 @@ serve(async (req) => {
         const { error: subError } = await supabase
           .from('subscriptions')
           .upsert({
-            user_id: userId,
+            user_id: resolvedUserId,
             project_id: projectId,
             stripe_customer_id: session.customer as string,
             stripe_subscription_id: session.subscription as string,
@@ -158,7 +231,7 @@ serve(async (req) => {
         try {
           const customerDetails = session.customer_details;
           const customerName = customerDetails?.name || null;
-          const customerEmail = customerDetails?.email || null;
+          const syncEmail = customerDetails?.email || null;
           const customerPhone = customerDetails?.phone || null;
 
           // Extract NIF from tax_ids (format: PT123456789 → 123456789)
@@ -171,14 +244,14 @@ serve(async (req) => {
           }
 
           // Update profiles: full_name + contact_email
-          if (customerName || customerEmail) {
+          if (customerName || syncEmail) {
             await supabase
               .from('profiles')
               .update({
                 ...(customerName ? { full_name: customerName } : {}),
-                ...(customerEmail ? { contact_email: customerEmail } : {}),
+                ...(syncEmail ? { contact_email: syncEmail } : {}),
               })
-              .eq('user_id', userId);
+              .eq('user_id', resolvedUserId);
           }
 
           // Update business_profiles: nif, phone, legal_name
@@ -191,22 +264,22 @@ serve(async (req) => {
             const { data: existingBiz } = await supabase
               .from('business_profiles')
               .select('id')
-              .eq('user_id', userId)
+              .eq('user_id', resolvedUserId)
               .maybeSingle();
 
             if (existingBiz) {
               await supabase
                 .from('business_profiles')
                 .update(bizUpdate)
-                .eq('user_id', userId);
+                .eq('user_id', resolvedUserId);
             } else {
               await supabase
                 .from('business_profiles')
-                .insert({ user_id: userId, ...bizUpdate });
+                .insert({ user_id: resolvedUserId, ...bizUpdate });
             }
           }
 
-        console.log(`Customer details synced: name=${customerName}, email=${customerEmail}, nif=${nifValue}`);
+          console.log(`Customer details synced: name=${customerName}, email=${syncEmail}, nif=${nifValue}`);
         } catch (syncErr) {
           console.warn('Non-blocking customer sync error:', syncErr);
         }
@@ -216,7 +289,7 @@ serve(async (req) => {
           const inviteEmail = session.customer_details?.email || session.customer_email;
           if (inviteEmail) {
             // Check if user already has a password set (existing user)
-            const { data: existingUser } = await supabase.auth.admin.getUserById(userId);
+            const { data: existingUser } = await supabase.auth.admin.getUserById(resolvedUserId);
             const hasPassword = existingUser?.user?.email_confirmed_at;
 
             if (!hasPassword) {
@@ -229,7 +302,6 @@ serve(async (req) => {
               });
 
               if (inviteError) {
-                // User may already exist — not critical
                 console.warn('Invite email warning:', inviteError.message);
               } else {
                 console.log(`Invite sent to ${inviteEmail}`);
@@ -242,7 +314,7 @@ serve(async (req) => {
           console.warn('Non-blocking invite error:', inviteErr);
         }
 
-        console.log(`Checkout completed: user=${userId}, project=${projectId}, plan=${planType}`);
+        console.log(`Checkout completed: user=${resolvedUserId}, project=${projectId}, plan=${planType}`);
         break;
       }
 
