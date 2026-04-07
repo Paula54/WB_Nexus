@@ -158,6 +158,10 @@ function AppRoutes() {
       <Route path="/termos" element={<DynamicLegalPage />} />
       <Route path="/devolucoes" element={<DynamicLegalPage />} />
       <Route path="/cookies" element={<DynamicLegalPage />} />
+      <Route path="/cancellation-policy" element={<DynamicLegalPage />} />
+      <Route path="/politica-cancelamento" element={<DynamicLegalPage />} />
+      <Route path="/annual-contract" element={<DynamicLegalPage />} />
+      <Route path="/contrato-anual" element={<DynamicLegalPage />} />
       <Route path="/contacto" element={<Contacto />} />
 
       {/* 404 */}
