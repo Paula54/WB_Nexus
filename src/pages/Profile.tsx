@@ -6,8 +6,9 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/lib/supabaseCustom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
+import { useSubscription } from "@/hooks/useSubscription";
 import { toast } from "@/hooks/use-toast";
-import { User, Camera, Save, Loader2, Building2, Mail, Lock } from "lucide-react";
+import { User, Camera, Save, Loader2, Building2, Mail, Lock, CreditCard } from "lucide-react";
 
 export default function Profile() {
   const { user } = useAuth();
