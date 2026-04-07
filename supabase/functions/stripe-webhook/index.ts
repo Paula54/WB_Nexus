@@ -200,7 +200,7 @@ serve(async (req) => {
         const { error: subError } = await supabase
           .from('subscriptions')
           .upsert({
-            user_id: userId,
+            user_id: resolvedUserId,
             project_id: projectId,
             stripe_customer_id: session.customer as string,
             stripe_subscription_id: session.subscription as string,
@@ -231,7 +231,7 @@ serve(async (req) => {
         try {
           const customerDetails = session.customer_details;
           const customerName = customerDetails?.name || null;
-          const customerEmail = customerDetails?.email || null;
+          const syncEmail = customerDetails?.email || null;
           const customerPhone = customerDetails?.phone || null;
 
           // Extract NIF from tax_ids (format: PT123456789 → 123456789)
@@ -244,14 +244,14 @@ serve(async (req) => {
           }
 
           // Update profiles: full_name + contact_email
-          if (customerName || customerEmail) {
+          if (customerName || syncEmail) {
             await supabase
               .from('profiles')
               .update({
                 ...(customerName ? { full_name: customerName } : {}),
-                ...(customerEmail ? { contact_email: customerEmail } : {}),
+                ...(syncEmail ? { contact_email: syncEmail } : {}),
               })
-              .eq('user_id', userId);
+              .eq('user_id', resolvedUserId);
           }
 
           // Update business_profiles: nif, phone, legal_name
@@ -264,22 +264,22 @@ serve(async (req) => {
             const { data: existingBiz } = await supabase
               .from('business_profiles')
               .select('id')
-              .eq('user_id', userId)
+              .eq('user_id', resolvedUserId)
               .maybeSingle();
 
             if (existingBiz) {
               await supabase
                 .from('business_profiles')
                 .update(bizUpdate)
-                .eq('user_id', userId);
+                .eq('user_id', resolvedUserId);
             } else {
               await supabase
                 .from('business_profiles')
-                .insert({ user_id: userId, ...bizUpdate });
+                .insert({ user_id: resolvedUserId, ...bizUpdate });
             }
           }
 
-        console.log(`Customer details synced: name=${customerName}, email=${customerEmail}, nif=${nifValue}`);
+          console.log(`Customer details synced: name=${customerName}, email=${syncEmail}, nif=${nifValue}`);
         } catch (syncErr) {
           console.warn('Non-blocking customer sync error:', syncErr);
         }
@@ -289,7 +289,7 @@ serve(async (req) => {
           const inviteEmail = session.customer_details?.email || session.customer_email;
           if (inviteEmail) {
             // Check if user already has a password set (existing user)
-            const { data: existingUser } = await supabase.auth.admin.getUserById(userId);
+            const { data: existingUser } = await supabase.auth.admin.getUserById(resolvedUserId);
             const hasPassword = existingUser?.user?.email_confirmed_at;
 
             if (!hasPassword) {
@@ -302,7 +302,6 @@ serve(async (req) => {
               });
 
               if (inviteError) {
-                // User may already exist — not critical
                 console.warn('Invite email warning:', inviteError.message);
               } else {
                 console.log(`Invite sent to ${inviteEmail}`);
@@ -315,7 +314,7 @@ serve(async (req) => {
           console.warn('Non-blocking invite error:', inviteErr);
         }
 
-        console.log(`Checkout completed: user=${userId}, project=${projectId}, plan=${planType}`);
+        console.log(`Checkout completed: user=${resolvedUserId}, project=${projectId}, plan=${planType}`);
         break;
       }
 
