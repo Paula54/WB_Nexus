@@ -1,9 +1,12 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, Wallet, Globe } from "lucide-react";
+import { ExternalLink, Wallet, Globe, CreditCard, Loader2 } from "lucide-react";
 import { useSubscription } from "@/hooks/useSubscription";
 import { CurrentPlanCard } from "@/components/subscription/CurrentPlanCard";
+import { supabase } from "@/lib/supabaseCustom";
+import { toast } from "@/hooks/use-toast";
 
 const SITE_PRICING_URL = "https://site.web-business.pt/#pricing";
 
