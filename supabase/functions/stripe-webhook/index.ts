@@ -110,13 +110,86 @@ serve(async (req) => {
           break;
         }
 
-        // ── Handle subscription checkout ──
-        const projectId = session.metadata?.project_id;
+        // ── Handle subscription checkout (supports guest purchases) ──
+        let resolvedUserId = userId;
+        let projectId = session.metadata?.project_id;
         const planType = session.metadata?.plan_type || 'START';
+        const customerEmail = session.customer_details?.email || session.customer_email;
 
-        if (!projectId || !userId) {
-          console.error('Missing metadata in checkout session:', session.id);
+        // If no user_id in metadata, find or create user from Stripe email
+        if (!resolvedUserId && customerEmail) {
+          console.log(`[webhook] No user_id in metadata, resolving from email: ${customerEmail}`);
+
+          // Check if user exists in Supabase Auth
+          const { data: existingUsers } = await supabase.auth.admin.listUsers();
+          const existingUser = existingUsers?.users?.find(
+            (u: any) => u.email?.toLowerCase() === customerEmail.toLowerCase()
+          );
+
+          if (existingUser) {
+            resolvedUserId = existingUser.id;
+            console.log(`[webhook] Found existing user: ${resolvedUserId}`);
+          } else {
+            // Create new user with temp password
+            const tempPassword = crypto.randomUUID() + 'Aa1!';
+            const { data: newUser, error: createErr } = await supabase.auth.admin.createUser({
+              email: customerEmail,
+              password: tempPassword,
+              email_confirm: true,
+              user_metadata: {
+                full_name: session.customer_details?.name || null,
+              },
+            });
+            if (createErr || !newUser?.user) {
+              console.error('[webhook] Failed to create user:', createErr);
+              break;
+            }
+            resolvedUserId = newUser.user.id;
+            console.log(`[webhook] Created new user: ${resolvedUserId}`);
+
+            // Create profile for new user
+            await supabase.from('profiles').upsert({
+              user_id: resolvedUserId,
+              full_name: session.customer_details?.name || null,
+              contact_email: customerEmail,
+            }, { onConflict: 'user_id' });
+          }
+        }
+
+        if (!resolvedUserId) {
+          console.error('[webhook] Could not resolve user for checkout:', session.id);
           break;
+        }
+
+        // If no project_id, create a default project for the user
+        if (!projectId) {
+          const { data: existingProject } = await supabase
+            .from('projects')
+            .select('id')
+            .eq('user_id', resolvedUserId)
+            .limit(1)
+            .maybeSingle();
+
+          if (existingProject) {
+            projectId = existingProject.id;
+          } else {
+            const { data: newProject, error: projErr } = await supabase
+              .from('projects')
+              .insert({
+                user_id: resolvedUserId,
+                name: 'Meu Projeto',
+                project_type: 'website',
+              })
+              .select('id')
+              .single();
+
+            if (projErr || !newProject) {
+              console.error('[webhook] Failed to create project:', projErr);
+              break;
+            }
+            projectId = newProject.id;
+          }
+          console.log(`[webhook] Resolved project: ${projectId}`);
         }
 
         const subscription = await stripe.subscriptions.retrieve(session.subscription as string);
