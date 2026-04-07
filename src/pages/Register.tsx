@@ -9,7 +9,9 @@ import { toast } from "@/hooks/use-toast";
 import { Zap, Eye, EyeOff } from "lucide-react";
 
 export default function Register() {
-  const [email, setEmail] = useState("");
+  const [searchParams] = useSearchParams();
+  const prefillEmail = searchParams.get("email") || "";
+  const [email, setEmail] = useState(prefillEmail);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
