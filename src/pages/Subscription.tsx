@@ -73,7 +73,6 @@ export default function Subscription() {
       )}
 
       {!hasSubscription && !subLoading && (
-      ) : (
         <Card className="glass border-dashed border-muted-foreground/20">
           <CardContent className="py-8 text-center space-y-3">
             <p className="text-muted-foreground text-sm">
