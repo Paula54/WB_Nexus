@@ -53,6 +53,26 @@ export default function Subscription() {
         <Card className="glass animate-pulse h-32" />
       ) : hasSubscription && subscription ? (
         <CurrentPlanCard subscription={subscription} />
+      ) : null}
+
+      {/* Billing Portal button */}
+      {hasSubscription && (
+        <Button
+          onClick={openBillingPortal}
+          disabled={portalLoading}
+          variant="outline"
+          className="gap-2 w-full sm:w-auto"
+        >
+          {portalLoading ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <CreditCard className="h-4 w-4" />
+          )}
+          Gerir Faturas e Assinatura
+        </Button>
+      )}
+
+      {!hasSubscription && !subLoading && (
       ) : (
         <Card className="glass border-dashed border-muted-foreground/20">
           <CardContent className="py-8 text-center space-y-3">
