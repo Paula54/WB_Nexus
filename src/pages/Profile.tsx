@@ -13,6 +13,7 @@ import { User, Camera, Save, Loader2, Building2, Mail, Lock, CreditCard } from "
 export default function Profile() {
   const { user } = useAuth();
   const { profile, loading, refetch } = useProfile();
+  const { hasSubscription } = useSubscription();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [fullName, setFullName] = useState("");
