@@ -24,7 +24,7 @@ interface CurrentPlanCardProps {
 }
 
 export function CurrentPlanCard({ subscription }: CurrentPlanCardProps) {
-  const plan = PLAN_META[subscription.plan_name] ?? PLAN_META.START;
+  const plan = PLAN_META[subscription.plan_type] ?? PLAN_META.START;
   const status = STATUS_MAP[subscription.status] ?? STATUS_MAP.active;
 
   const trialEnd = subscription.trial_ends_at ? new Date(subscription.trial_ends_at) : null;
@@ -48,7 +48,7 @@ export function CurrentPlanCard({ subscription }: CurrentPlanCardProps) {
         <div className="flex items-center gap-3">
           <div className={cn(
             "h-12 w-12 rounded-xl flex items-center justify-center",
-            subscription.plan_name === "NEXUS_OS" ? "bg-nexus-gold/15" : "bg-primary/15"
+            subscription.plan_type === "NEXUS_OS" ? "bg-nexus-gold/15" : "bg-primary/15"
           )}>
             <span className={plan.color}>{plan.icon}</span>
           </div>

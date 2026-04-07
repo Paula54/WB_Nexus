@@ -4,12 +4,14 @@ import { useAuth } from "@/contexts/AuthContext";
 
 export interface SubscriptionData {
   id: string;
-  plan_name: string;
+  plan_type: string;
   status: string;
   trial_ends_at: string | null;
   current_period_end: string | null;
   current_period_start: string | null;
   stripe_subscription_id: string | null;
+  stripe_customer_id: string | null;
+  project_id: string | null;
 }
 
 export function useSubscription() {

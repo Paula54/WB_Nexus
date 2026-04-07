@@ -56,7 +56,7 @@ export function MyUsage() {
             Quotas do Plano
           </CardTitle>
           <Badge variant="secondary" className="text-xs">
-            {PLAN_LABELS[quota.plan_name] ?? quota.plan_name}
+            {PLAN_LABELS[quota.plan_type] ?? quota.plan_type}
           </Badge>
         </div>
       </CardHeader>
