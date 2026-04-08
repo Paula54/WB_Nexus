@@ -110,7 +110,7 @@ export default function Login() {
           </CardContent>
         </Card>
 
-        <p className="text-center text-xs text-muted-foreground mt-6">
+        <p className="text-center text-xs text-muted-foreground mt-8">
           © 2026 Astrolábio Mágico Investimentos, Lda. Todos os direitos reservados.
         </p>
       </div>
