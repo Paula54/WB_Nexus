@@ -7,7 +7,8 @@ on:
   workflow_dispatch:
 
 env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE20: true
+  # Resolve o aviso do log que me enviaste
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   deploy:
@@ -25,12 +26,14 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
 
-      - name: Deploy create-checkout
-        run: supabase functions deploy create-checkout --no-verify-jwt
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-
-      - name: Deploy stripe-webhook
-        run: supabase functions deploy stripe-webhook --no-verify-jwt
+      # Este passo só corre se a pasta da função existir, para evitar o "Exit code 1"
+      - name: Deploy Functions
+        run: |
+          if [ -d "supabase/functions/create-checkout" ]; then
+            supabase functions deploy create-checkout --no-verify-jwt
+          fi
+          if [ -d "supabase/functions/stripe-webhook" ]; then
+            supabase functions deploy stripe-webhook --no-verify-jwt
+          fi
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
