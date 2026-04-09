@@ -88,15 +88,20 @@ export default function Register() {
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">Email</Label>
                 <Input
                   id="email"
                   type="email"
                   placeholder="seu@email.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  readOnly={!!prefillEmail}
+                  className={prefillEmail ? "bg-muted cursor-not-allowed" : ""}
                   required
                 />
+                {prefillEmail && (
+                  <p className="text-xs text-muted-foreground">Email associado à tua compra.</p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>

@@ -38,7 +38,9 @@ export function useSubscription() {
   const isTrialing = subscription?.status === "trialing";
   const isActive = subscription?.status === "active";
   const isCanceled = subscription?.status === "canceled";
-  const hasSubscription = !!subscription && !isCanceled;
+  const validPlans = ["start", "growth", "nexus_os", "nexus-os", "START", "GROWTH", "NEXUS_OS"];
+  const hasValidPlan = !!subscription?.plan_type && validPlans.includes(subscription.plan_type);
+  const hasSubscription = (!!subscription && !isCanceled) || hasValidPlan;
 
   return {
     subscription,
