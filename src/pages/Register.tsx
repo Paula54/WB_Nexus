@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,7 @@ import { Zap, Eye, EyeOff } from "lucide-react";
 
 export default function Register() {
   const [searchParams] = useSearchParams();
-  const prefillEmail = searchParams.get("email") || "";
+  const prefillEmail = (searchParams.get("email") || new URLSearchParams(window.location.search).get("email") || "").trim();
   const [email, setEmail] = useState(prefillEmail);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -18,6 +18,12 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const { signUp } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (prefillEmail) {
+      setEmail(prefillEmail);
+    }
+  }, [prefillEmail]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
