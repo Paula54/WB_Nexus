@@ -143,6 +143,29 @@ export default function Register() {
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
+                {password && (() => {
+                  const { score, label, color, checks } = getPasswordStrength(password);
+                  return (
+                    <div className="space-y-2 pt-1">
+                      <div className="flex gap-1">
+                        {[1, 2, 3, 4, 5].map((i) => (
+                          <div key={i} className={`h-1.5 flex-1 rounded-full transition-colors ${i <= score ? color : "bg-muted"}`} />
+                        ))}
+                      </div>
+                      <p className={`text-xs font-medium ${score <= 2 ? "text-destructive" : "text-muted-foreground"}`}>
+                        Força: {label}
+                      </p>
+                      <ul className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
+                        {([["length", "8+ caracteres"], ["lowercase", "Minúscula"], ["uppercase", "Maiúscula"], ["number", "Número"], ["special", "Carácter especial"]] as const).map(([key, lbl]) => (
+                          <li key={key} className="flex items-center gap-1">
+                            {checks[key] ? <Check className="h-3 w-3 text-emerald-500" /> : <X className="h-3 w-3 text-muted-foreground/50" />}
+                            {lbl}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  );
+                })()}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="confirmPassword">Confirmar Password</Label>
