@@ -6,7 +6,22 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
-import { Zap, Eye, EyeOff } from "lucide-react";
+import { Zap, Eye, EyeOff, Check, X } from "lucide-react";
+
+function getPasswordStrength(pw: string) {
+  let score = 0;
+  const checks = {
+    length: pw.length >= 8,
+    lowercase: /[a-z]/.test(pw),
+    uppercase: /[A-Z]/.test(pw),
+    number: /[0-9]/.test(pw),
+    special: /[^A-Za-z0-9]/.test(pw),
+  };
+  score = Object.values(checks).filter(Boolean).length;
+  const label = score <= 1 ? "Fraca" : score <= 2 ? "Razoável" : score <= 3 ? "Média" : score <= 4 ? "Forte" : "Excelente";
+  const color = score <= 1 ? "bg-destructive" : score <= 2 ? "bg-orange-500" : score <= 3 ? "bg-yellow-500" : score <= 4 ? "bg-emerald-400" : "bg-emerald-600";
+  return { score, label, color, checks };
+}
 
 export default function Register() {
   const [searchParams] = useSearchParams();
