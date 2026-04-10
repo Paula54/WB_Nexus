@@ -6,7 +6,22 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
-import { Zap, Eye, EyeOff } from "lucide-react";
+import { Zap, Eye, EyeOff, Check, X } from "lucide-react";
+
+function getPasswordStrength(pw: string) {
+  let score = 0;
+  const checks = {
+    length: pw.length >= 8,
+    lowercase: /[a-z]/.test(pw),
+    uppercase: /[A-Z]/.test(pw),
+    number: /[0-9]/.test(pw),
+    special: /[^A-Za-z0-9]/.test(pw),
+  };
+  score = Object.values(checks).filter(Boolean).length;
+  const label = score <= 1 ? "Fraca" : score <= 2 ? "Razoável" : score <= 3 ? "Média" : score <= 4 ? "Forte" : "Excelente";
+  const color = score <= 1 ? "bg-destructive" : score <= 2 ? "bg-orange-500" : score <= 3 ? "bg-yellow-500" : score <= 4 ? "bg-emerald-400" : "bg-emerald-600";
+  return { score, label, color, checks };
+}
 
 export default function Register() {
   const [searchParams] = useSearchParams();
@@ -128,6 +143,29 @@ export default function Register() {
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
+                {password && (() => {
+                  const { score, label, color, checks } = getPasswordStrength(password);
+                  return (
+                    <div className="space-y-2 pt-1">
+                      <div className="flex gap-1">
+                        {[1, 2, 3, 4, 5].map((i) => (
+                          <div key={i} className={`h-1.5 flex-1 rounded-full transition-colors ${i <= score ? color : "bg-muted"}`} />
+                        ))}
+                      </div>
+                      <p className={`text-xs font-medium ${score <= 2 ? "text-destructive" : "text-muted-foreground"}`}>
+                        Força: {label}
+                      </p>
+                      <ul className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
+                        {([["length", "8+ caracteres"], ["lowercase", "Minúscula"], ["uppercase", "Maiúscula"], ["number", "Número"], ["special", "Carácter especial"]] as const).map(([key, lbl]) => (
+                          <li key={key} className="flex items-center gap-1">
+                            {checks[key] ? <Check className="h-3 w-3 text-emerald-500" /> : <X className="h-3 w-3 text-muted-foreground/50" />}
+                            {lbl}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  );
+                })()}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="confirmPassword">Confirmar Password</Label>
