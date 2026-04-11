@@ -41,12 +41,19 @@ export default function Register() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { signUp } = useAuth();
+  const { user, signUp } = useAuth();
   const navigate = useNavigate();
 
   const [sessionValidation, setSessionValidation] = useState<SessionValidation>(
     sessionId ? { status: "validating" } : { status: "idle" }
   );
+
+  // Redirect authenticated users (without session_id) to dashboard
+  useEffect(() => {
+    if (user && !sessionId) {
+      navigate("/", { replace: true });
+    }
+  }, [user, sessionId, navigate]);
 
   useEffect(() => {
     if (prefillEmail) {
