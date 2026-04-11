@@ -130,9 +130,9 @@ Formato de resposta obrigatório (JSON):
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
-    console.error("generate-blog-post error:", err);
+    console.error("[generate-blog-post] internal error:", err);
     return new Response(
-      JSON.stringify({ error: err instanceof Error ? err.message : "Erro desconhecido" }),
+      JSON.stringify({ error: "Ocorreu um erro interno ao gerar o artigo." }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
