@@ -60,15 +60,23 @@ export default function Ads() {
 
   const fetchMetaStatus = useCallback(async () => {
     if (!user) return;
-    const { data } = await supabase
+    // Get project id
+    const { data: proj } = await supabase
       .from("projects")
-      .select("id, meta_ads_account_id, meta_access_token")
+      .select("id")
       .limit(1)
       .maybeSingle();
 
-    if (data) {
-      setProjectId(data.id);
-      setMetaConnected(!!data.meta_ads_account_id && !!data.meta_access_token);
+    if (proj) {
+      setProjectId(proj.id);
+      // Check credentials from project_credentials
+      const { data: creds } = await supabase
+        .from("project_credentials" as any)
+        .select("meta_ads_account_id, meta_access_token")
+        .eq("project_id", proj.id)
+        .maybeSingle();
+      const raw = creds as Record<string, unknown> | null;
+      setMetaConnected(!!raw?.meta_ads_account_id && !!raw?.meta_access_token);
     }
   }, [user]);
 

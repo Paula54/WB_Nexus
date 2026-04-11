@@ -98,18 +98,25 @@ Deno.serve(async (req) => {
     const encryptedToken = await encryptToken(longLivedToken);
     const prodClient = createClient(PROD_URL, PROD_KEY);
 
-    const updatePayload: Record<string, any> = {
-      meta_access_token: encryptedToken,
-      whatsapp_business_id: whatsappBusinessId,
-    };
-
-    const { error: updateError } = await prodClient
+    // Find project for user
+    const { data: project } = await prodClient
       .from("projects")
-      .update(updatePayload)
-      .eq("user_id", userId);
+      .select("id")
+      .eq("user_id", userId)
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-    if (updateError) {
-      return Response.redirect(`${returnUrl}?meta_ads_error=${encodeURIComponent("Erro ao gravar: " + updateError.message)}`, 302);
+    if (project) {
+      // Upsert into project_credentials
+      await prodClient
+        .from("project_credentials")
+        .upsert({
+          project_id: project.id,
+          user_id: userId,
+          meta_access_token: encryptedToken,
+          whatsapp_business_id: whatsappBusinessId,
+        }, { onConflict: "project_id" });
     }
 
     // Fetch pages for selection
@@ -129,7 +136,6 @@ Deno.serve(async (req) => {
 
     console.log(`✅ Meta connected for user ${userId} (pages=${pages.length}, adAccounts=${adAccounts.length})`);
 
-    // Always redirect with pick params so the user confirms selection
     const accountsParam = encodeURIComponent(JSON.stringify(adAccounts));
     const pagesParam = encodeURIComponent(JSON.stringify(pages));
     return Response.redirect(`${returnUrl}?meta_ads_pick_account=true&meta_accounts=${accountsParam}&meta_pages=${pagesParam}`, 302);

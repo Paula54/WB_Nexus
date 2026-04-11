@@ -76,22 +76,22 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 3. Encrypt projects.meta_access_token
-    const { data: projects } = await adminClient
-      .from("projects")
+    // 3. Encrypt project_credentials.meta_access_token
+    const { data: credentials } = await adminClient
+      .from("project_credentials")
       .select("id, meta_access_token");
 
-    for (const proj of projects || []) {
-      if (proj.meta_access_token && !isEncrypted(proj.meta_access_token)) {
+    for (const cred of credentials || []) {
+      if (cred.meta_access_token && !isEncrypted(cred.meta_access_token)) {
         try {
-          const encrypted = await encryptToken(proj.meta_access_token);
+          const encrypted = await encryptToken(cred.meta_access_token);
           await adminClient
-            .from("projects")
+            .from("project_credentials")
             .update({ meta_access_token: encrypted })
-            .eq("id", proj.id);
+            .eq("id", cred.id);
           results.meta_projects++;
         } catch (e) {
-          results.errors.push(`project ${proj.id}: ${(e as Error).message}`);
+          results.errors.push(`project_credential ${cred.id}: ${(e as Error).message}`);
         }
       }
     }

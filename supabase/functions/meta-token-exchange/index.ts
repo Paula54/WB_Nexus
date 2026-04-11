@@ -37,7 +37,7 @@ Deno.serve(async (req) => {
     }
 
     const longLivedToken = tokenData.access_token;
-    const expiresIn = tokenData.expires_in; // seconds (typically ~5184000 = 60 days)
+    const expiresIn = tokenData.expires_in;
 
     // Step 2: Get Instagram Business Account ID
     const pagesResponse = await fetch(
@@ -68,10 +68,10 @@ Deno.serve(async (req) => {
 
     let adAccountId: string | null = null;
     if (adAccountsData.data && adAccountsData.data.length > 0) {
-      adAccountId = adAccountsData.data[0].id; // e.g. "act_123456"
+      adAccountId = adAccountsData.data[0].id;
     }
 
-    // Step 4: Store in the user's project
+    // Step 4: Store in project_credentials
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(
@@ -91,18 +91,29 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Update the project with Meta credentials
     const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-    const { error: updateError } = await adminClient
-      .from("projects")
-      .update({
-        meta_access_token: longLivedToken,
-        meta_ads_account_id: adAccountId,
-      })
-      .eq("user_id", user.id);
 
-    if (updateError) {
-      console.error("Error updating project:", updateError);
+    // Find project
+    const { data: project } = await adminClient
+      .from("projects")
+      .select("id")
+      .eq("user_id", user.id)
+      .limit(1)
+      .maybeSingle();
+
+    if (project) {
+      const { error: updateError } = await adminClient
+        .from("project_credentials")
+        .upsert({
+          project_id: project.id,
+          user_id: user.id,
+          meta_access_token: longLivedToken,
+          meta_ads_account_id: adAccountId,
+        }, { onConflict: "project_id" });
+
+      if (updateError) {
+        console.error("Error updating project_credentials:", updateError);
+      }
     }
 
     const expiresAt = new Date(Date.now() + (expiresIn || 5184000) * 1000).toISOString();
