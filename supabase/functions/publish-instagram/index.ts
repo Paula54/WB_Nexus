@@ -59,22 +59,36 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Get Meta credentials from project
+    // Get project
     const { data: project } = await adminClient
       .from("projects")
-      .select("meta_access_token")
+      .select("id")
       .eq("user_id", user.id)
       .limit(1)
       .maybeSingle();
 
-    if (!project?.meta_access_token) {
+    if (!project) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Projeto não encontrado." }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Get Meta credentials from project_credentials
+    const { data: creds } = await adminClient
+      .from("project_credentials")
+      .select("meta_access_token")
+      .eq("project_id", project.id)
+      .maybeSingle();
+
+    if (!creds?.meta_access_token) {
       return new Response(
         JSON.stringify({ success: false, error: "Meta não conectado. Troca o token primeiro." }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const accessToken = project.meta_access_token;
+    const accessToken = creds.meta_access_token;
 
     // Get Instagram Business Account ID via pages
     const pagesRes = await fetch(
@@ -120,7 +134,6 @@ Deno.serve(async (req) => {
     if (post.image_url) {
       containerBody.image_url = post.image_url;
     } else {
-      // Instagram requires media - if no image, fail gracefully
       await adminClient.from("social_posts").update({
         status: "failed",
         error_log: "Instagram requer uma imagem. Adiciona uma imagem ao post.",
@@ -170,7 +183,7 @@ Deno.serve(async (req) => {
 
     const creationId = containerData.id;
 
-    // Step 2: Poll container status until ready (max 30 seconds)
+    // Step 2: Poll container status until ready
     const maxAttempts = 15;
     for (let i = 0; i < maxAttempts; i++) {
       const statusRes = await fetch(

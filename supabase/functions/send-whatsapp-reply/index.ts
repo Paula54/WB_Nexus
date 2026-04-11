@@ -13,7 +13,6 @@ serve(async (req) => {
   }
 
   try {
-    // Authenticate user via JWT
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(
@@ -24,6 +23,7 @@ serve(async (req) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
     });
@@ -63,22 +63,29 @@ serve(async (req) => {
       }
     }
 
-    // Pull whatsapp_phone_number_id dynamically from the user's project
+    // Get project id first
     const { data: project, error: projectError } = await supabase
       .from("projects")
-      .select("whatsapp_phone_number_id")
+      .select("id")
       .eq("user_id", userId)
       .maybeSingle();
 
-    if (projectError) {
-      console.error("Error fetching project:", projectError);
+    if (projectError || !project) {
       return new Response(
-        JSON.stringify({ error: "Failed to fetch project configuration", details: projectError.message }),
+        JSON.stringify({ error: "Projeto não encontrado." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const phoneNumberId = project?.whatsapp_phone_number_id;
+    // Pull whatsapp_phone_number_id from project_credentials
+    const adminClient = createClient(supabaseUrl, serviceRoleKey);
+    const { data: creds } = await adminClient
+      .from("project_credentials")
+      .select("whatsapp_phone_number_id")
+      .eq("project_id", project.id)
+      .maybeSingle();
+
+    const phoneNumberId = creds?.whatsapp_phone_number_id;
     if (!phoneNumberId) {
       return new Response(
         JSON.stringify({ error: "WhatsApp Phone Number ID not configured in project. Please add it in Settings." }),
@@ -86,7 +93,6 @@ serve(async (req) => {
       );
     }
 
-    // Use META_ACCESS_TOKEN from secrets
     const WHATSAPP_ACCESS_TOKEN = Deno.env.get("META_ACCESS_TOKEN");
     if (!WHATSAPP_ACCESS_TOKEN) {
       console.error("META_ACCESS_TOKEN not configured");
@@ -96,7 +102,7 @@ serve(async (req) => {
       );
     }
 
-    // Format phone: remove spaces, ensure country code, remove '+'
+    // Format phone
     let cleanPhone = phone.replace(/[\s\-()]/g, "");
     if (cleanPhone.startsWith("+")) cleanPhone = cleanPhone.substring(1);
     if (!cleanPhone.startsWith("351") && cleanPhone.startsWith("9")) {

@@ -49,11 +49,11 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Fetch Meta credentials from the project using service role
+    // Verify project ownership
     const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     const { data: project, error: projectError } = await adminClient
       .from("projects")
-      .select("meta_ads_account_id, meta_access_token, facebook_page_id")
+      .select("id")
       .eq("id", project_id)
       .eq("user_id", userId)
       .single();
@@ -65,30 +65,38 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { meta_ads_account_id, facebook_page_id } = project;
+    // Get Meta credentials from project_credentials
+    const { data: creds } = await adminClient
+      .from("project_credentials")
+      .select("meta_ads_account_id, meta_access_token, facebook_page_id")
+      .eq("project_id", project_id)
+      .single();
 
-    if (!meta_ads_account_id || !project.meta_access_token) {
+    if (!creds) {
       return new Response(
-        JSON.stringify({
-          success: false,
-          error: "Meta Ads não está conectado. Conecta a API primeiro.",
-        }),
+        JSON.stringify({ success: false, error: "Credenciais não encontradas." }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const { meta_ads_account_id, facebook_page_id } = creds;
+
+    if (!meta_ads_account_id || !creds.meta_access_token) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Meta Ads não está conectado. Conecta a API primeiro." }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     if (!facebook_page_id) {
       return new Response(
-        JSON.stringify({
-          success: false,
-          error: "Nenhuma Página de Facebook selecionada. Configura nas definições.",
-        }),
+        JSON.stringify({ success: false, error: "Nenhuma Página de Facebook selecionada. Configura nas definições." }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     // Decrypt the Meta access token
-    const meta_access_token = await decryptToken(project.meta_access_token);
+    const meta_access_token = await decryptToken(creds.meta_access_token);
 
     const accountId = meta_ads_account_id.startsWith("act_")
       ? meta_ads_account_id
@@ -115,11 +123,7 @@ Deno.serve(async (req) => {
     if (campaignResult.error) {
       console.error("Meta Campaign Error:", campaignResult.error);
       return new Response(
-        JSON.stringify({
-          success: false,
-          error: `Meta API: ${campaignResult.error.message}`,
-          meta_error: campaignResult.error,
-        }),
+        JSON.stringify({ success: false, error: `Meta API: ${campaignResult.error.message}`, meta_error: campaignResult.error }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -135,13 +139,11 @@ Deno.serve(async (req) => {
         body: JSON.stringify({
           name: `Nexus AdSet - ${target_audience || "Broad"}`,
           campaign_id: metaCampaignId,
-          daily_budget: Math.round((daily_budget || 5) * 100), // in cents
+          daily_budget: Math.round((daily_budget || 5) * 100),
           billing_event: "IMPRESSIONS",
           optimization_goal: "LINK_CLICKS",
           bid_strategy: "LOWEST_COST_WITHOUT_CAP",
-          targeting: {
-            geo_locations: { countries: ["PT"] },
-          },
+          targeting: { geo_locations: { countries: ["PT"] } },
           status: "PAUSED",
           access_token: meta_access_token,
         }),
@@ -153,12 +155,7 @@ Deno.serve(async (req) => {
     if (adSetResult.error) {
       console.error("Meta AdSet Error:", adSetResult.error);
       return new Response(
-        JSON.stringify({
-          success: false,
-          error: `Meta API (AdSet): ${adSetResult.error.message}`,
-          meta_campaign_id: metaCampaignId,
-          meta_error: adSetResult.error,
-        }),
+        JSON.stringify({ success: false, error: `Meta API (AdSet): ${adSetResult.error.message}`, meta_campaign_id: metaCampaignId, meta_error: adSetResult.error }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -175,10 +172,8 @@ Deno.serve(async (req) => {
             page_id: facebook_page_id,
             link_data: {
               message: ad_copy,
-              link: "https://example.com", // User should provide
-              call_to_action: {
-                type: "LEARN_MORE",
-              },
+              link: "https://example.com",
+              call_to_action: { type: "LEARN_MORE" },
             },
           },
           access_token: meta_access_token,
@@ -194,10 +189,7 @@ Deno.serve(async (req) => {
         .from("ads_campaigns")
         .update({
           metrics: {
-            impressions: 0,
-            clicks: 0,
-            conversions: 0,
-            spend: 0,
+            impressions: 0, clicks: 0, conversions: 0, spend: 0,
             meta_campaign_id: metaCampaignId,
             meta_adset_id: adSetResult.id || null,
             meta_creative_id: creativeResult.id || null,
