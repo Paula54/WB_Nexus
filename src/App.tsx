@@ -36,10 +36,8 @@ import FreelancerDashboard from "@/pages/FreelancerDashboard";
 import Admin from "@/pages/Admin";
 import Blog from "@/pages/Blog";
 import SessionLanding from "@/pages/SessionLanding";
-import AuthConfirm from "@/pages/AuthConfirm";
 import BusinessSetup from "@/pages/BusinessSetup";
 import Success from "@/pages/Success";
-import SetPassword from "@/pages/SetPassword";
 
 // Legal Pages
 import DynamicLegalPage from "@/pages/legal/DynamicLegalPage";
@@ -115,8 +113,9 @@ function AppRoutes() {
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/session" element={<SessionLanding />} />
-      <Route path="/auth/confirm" element={<AuthConfirm />} />
-      <Route path="/auth/set-password" element={<SetPassword />} />
+      {/* Legacy routes — redirect to /register */}
+      <Route path="/auth/confirm" element={<Navigate to="/register" replace />} />
+      <Route path="/auth/set-password" element={<Navigate to="/register" replace />} />
       <Route path="/setup" element={<ProtectedRoute><BusinessSetup /></ProtectedRoute>} />
       <Route path="/success" element={<Success />} />
 
