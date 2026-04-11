@@ -39,6 +39,29 @@ const PLAN_CONFIG: Record<
     description: "WhatsApp AI, CRM e Gestão Total — 299€/mês + Taxa de Ativação 2.490€",
   },
 };
+
+function getSafeRedirectUrl(candidate: string | undefined, fallback: string) {
+  if (!candidate) return fallback;
+
+  try {
+    const url = new URL(candidate);
+    const isAllowedHost = url.hostname.endsWith(".lovable.app") || [
+      "localhost",
+      "nexus.web-business.pt",
+      "site.web-business.pt",
+      "marketing-ai-core.lovable.app",
+    ].includes(url.hostname);
+
+    if ((url.protocol === "https:" || url.protocol === "http:") && isAllowedHost) {
+      return url.toString();
+    }
+  } catch {
+    console.warn("Invalid redirect URL received, using fallback");
+  }
+
+  return fallback;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -74,6 +97,14 @@ serve(async (req) => {
 
     const user = userData.user;
     const { planType, projectId, successUrl, cancelUrl } = await req.json();
+    const safeSuccessUrl = getSafeRedirectUrl(
+      successUrl,
+      "https://nexus.web-business.pt/success?session_id={CHECKOUT_SESSION_ID}"
+    );
+    const safeCancelUrl = getSafeRedirectUrl(
+      cancelUrl,
+      "https://nexus.web-business.pt/strategy?checkout=cancel"
+    );
 
     // Fetch profile data for prefilling checkout
     const { data: profileData } = await supabase
@@ -152,8 +183,8 @@ serve(async (req) => {
         user_id: user.id,
         plan_type: planType,
       },
-      success_url: "https://nexus.web-business.pt/success",
-      cancel_url: "https://nexus.web-business.pt/planos",
+      success_url: safeSuccessUrl,
+      cancel_url: safeCancelUrl,
       allow_promotion_codes: true,
     });
 
