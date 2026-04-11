@@ -7,6 +7,38 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, stripe-signature, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
+function getErrorMessage(error: unknown) {
+  if (!error) return '';
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'object' && error && 'message' in error) return String((error as { message?: unknown }).message ?? '');
+  return String(error);
+}
+
+function isMissingColumnError(error: unknown, column: string) {
+  return getErrorMessage(error).toLowerCase().includes(column.toLowerCase());
+}
+
+function buildPlanPayload(payload: Record<string, unknown>, plan: string, useLegacyColumn = false) {
+  return {
+    ...payload,
+    ...(useLegacyColumn ? { plan_type: plan } : { plan_name: plan }),
+  };
+}
+
+async function upsertSubscriptionRecord(supabase: any, payload: Record<string, unknown>, plan: string) {
+  let response = await supabase
+    .from('subscriptions')
+    .upsert(buildPlanPayload(payload, plan), { onConflict: 'stripe_subscription_id' });
+
+  if (response.error && isMissingColumnError(response.error, 'plan_name')) {
+    response = await supabase
+      .from('subscriptions')
+      .upsert(buildPlanPayload(payload, plan, true), { onConflict: 'stripe_subscription_id' });
+  }
+
+  return response;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -113,7 +145,7 @@ serve(async (req) => {
         // ── Handle subscription checkout (supports guest purchases) ──
         let resolvedUserId = userId;
         let projectId = session.metadata?.project_id;
-        const planType = session.metadata?.plan_type || 'START';
+        const planType = session.metadata?.plan_name || session.metadata?.plan_type || 'START';
         const customerEmail = session.customer_details?.email || session.customer_email;
 
         // If no user_id in metadata, find or create user from Stripe email
@@ -197,21 +229,18 @@ serve(async (req) => {
         // Map Stripe status to our status — ensure 'active' after successful payment
         const mappedStatus = subscription.status === 'trialing' ? 'trialing' : 'active';
 
-        const { error: subError } = await supabase
-          .from('subscriptions')
-          .upsert({
-            user_id: resolvedUserId,
-            project_id: projectId,
-            stripe_customer_id: session.customer as string,
-            stripe_subscription_id: session.subscription as string,
-            status: mappedStatus,
-            plan_type: planType,
-            trial_ends_at: subscription.trial_end
-              ? new Date(subscription.trial_end * 1000).toISOString()
-              : null,
-            current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-            current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-          }, { onConflict: 'stripe_subscription_id' });
+        const { error: subError } = await upsertSubscriptionRecord(supabase, {
+          user_id: resolvedUserId,
+          project_id: projectId,
+          stripe_customer_id: session.customer as string,
+          stripe_subscription_id: session.subscription as string,
+          status: mappedStatus,
+          trial_ends_at: subscription.trial_end
+            ? new Date(subscription.trial_end * 1000).toISOString()
+            : null,
+          current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
+          current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+        }, planType);
 
         if (subError) {
           console.error('Error upserting subscription:', subError);

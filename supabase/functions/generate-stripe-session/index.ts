@@ -7,6 +7,38 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+function getErrorMessage(error: unknown) {
+  if (!error) return "";
+  if (error instanceof Error) return error.message;
+  if (typeof error === "object" && error && "message" in error) return String((error as { message?: unknown }).message ?? "");
+  return String(error);
+}
+
+function isMissingColumnError(error: unknown, column: string) {
+  return getErrorMessage(error).toLowerCase().includes(column.toLowerCase());
+}
+
+function buildPlanPayload(payload: Record<string, unknown>, plan: string, useLegacyColumn = false) {
+  return {
+    ...payload,
+    ...(useLegacyColumn ? { plan_type: plan } : { plan_name: plan }),
+  };
+}
+
+async function insertSubscriptionRecord(supabaseAdmin: any, payload: Record<string, unknown>, plan: string) {
+  let response = await supabaseAdmin
+    .from("subscriptions")
+    .insert(buildPlanPayload(payload, plan));
+
+  if (response.error && isMissingColumnError(response.error, "plan_name")) {
+    response = await supabaseAdmin
+      .from("subscriptions")
+      .insert(buildPlanPayload(payload, plan, true));
+  }
+
+  return response;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -106,7 +138,7 @@ Deno.serve(async (req) => {
     }
 
     // 3. Ensure subscription record exists
-    const planType = checkoutSession.metadata?.plan_type || "START";
+    const planType = checkoutSession.metadata?.plan_name || checkoutSession.metadata?.plan_type || "START";
     const stripeSubId = checkoutSession.subscription as string | null;
 
     if (stripeSubId) {
@@ -144,19 +176,18 @@ Deno.serve(async (req) => {
           }
         }
 
-        const { error: subError } = await supabaseAdmin.from("subscriptions").insert({
+        const { error: subError } = await insertSubscriptionRecord(supabaseAdmin, {
           user_id: userId,
           project_id: projectId,
           stripe_customer_id: checkoutSession.customer as string,
           stripe_subscription_id: stripeSubId,
           status: mappedStatus,
-          plan_type: planType,
           trial_ends_at: stripeSub.trial_end
             ? new Date(stripeSub.trial_end * 1000).toISOString()
             : null,
           current_period_start: new Date(stripeSub.current_period_start * 1000).toISOString(),
           current_period_end: new Date(stripeSub.current_period_end * 1000).toISOString(),
-        });
+        }, planType);
 
         if (subError) {
           console.error("[generate-stripe-session] Subscription insert error:", subError);
@@ -207,15 +238,14 @@ Deno.serve(async (req) => {
           projectId = newProject?.id || null;
         }
 
-        await supabaseAdmin.from("subscriptions").insert({
+        await insertSubscriptionRecord(supabaseAdmin, {
           user_id: userId,
           project_id: projectId,
           stripe_customer_id: (checkoutSession.customer as string) || null,
           status: "active",
-          plan_type: planType,
           current_period_start: new Date().toISOString(),
           current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-        });
+        }, planType);
         console.log("[generate-stripe-session] Basic subscription record created for user:", userId);
       }
     }

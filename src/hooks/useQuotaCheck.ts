@@ -19,6 +19,37 @@ interface QuotaData {
   usage_reset_at: string;
 }
 
+interface RawQuotaData extends Omit<QuotaData, "plan_type"> {
+  plan_type?: string | null;
+  plan_name?: string | null;
+}
+
+function normalizePlanType(planType: string | null | undefined) {
+  if (!planType) return null;
+
+  const normalized = planType
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+
+  if (["start", "nexus_start", "nexusstart", "lite"].includes(normalized)) {
+    return "START";
+  }
+
+  if (["growth", "nexus_growth", "nexusgrowth", "business", "pro", "professional"].includes(normalized)) {
+    return "GROWTH";
+  }
+
+  if (["nexus_os", "nexusos", "os", "elite"].includes(normalized)) {
+    return "NEXUS_OS";
+  }
+
+  return null;
+}
+
 const RESOURCE_LABELS: Record<QuotaResource, string> = {
   concierge: "Concierge IA",
   blog: "Posts de Blog",
@@ -37,15 +68,28 @@ export function useQuotaCheck() {
       if (!user) return null;
       const { data, error } = await supabase
         .from("subscriptions")
-        .select(
-          "concierge_used, concierge_limit, blog_used, blog_limit, perf_scan_used, perf_scan_limit, whatsapp_ai_used, whatsapp_ai_limit, plan_type, usage_reset_at"
-        )
+        .select("*")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
       if (error) throw error;
-      return data as QuotaData | null;
+
+      const raw = data as RawQuotaData | null;
+      if (!raw) return null;
+
+      return {
+        concierge_used: raw.concierge_used,
+        concierge_limit: raw.concierge_limit,
+        blog_used: raw.blog_used,
+        blog_limit: raw.blog_limit,
+        perf_scan_used: raw.perf_scan_used,
+        perf_scan_limit: raw.perf_scan_limit,
+        whatsapp_ai_used: raw.whatsapp_ai_used,
+        whatsapp_ai_limit: raw.whatsapp_ai_limit,
+        plan_type: normalizePlanType(raw.plan_name ?? raw.plan_type) ?? raw.plan_name ?? raw.plan_type ?? "START",
+        usage_reset_at: raw.usage_reset_at,
+      };
     },
     enabled: !!user,
   });

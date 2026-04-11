@@ -14,6 +14,11 @@ export interface SubscriptionData {
   project_id: string | null;
 }
 
+interface RawSubscriptionData extends Omit<SubscriptionData, "plan_type"> {
+  plan_type?: string | null;
+  plan_name?: string | null;
+}
+
 interface ProjectPlanData {
   id: string;
   selected_plan: string | null;
@@ -23,6 +28,7 @@ interface ProjectPlanData {
 interface SyncedSubscriptionData {
   id?: string;
   plan_type?: string | null;
+  plan_name?: string | null;
   status?: string | null;
   trial_ends_at?: string | null;
   current_period_end?: string | null;
@@ -50,7 +56,7 @@ function normalizePlanType(planType: string | null | undefined) {
     return "START";
   }
 
-  if (["growth", "nexus_growth", "nexusgrowth", "business"].includes(normalized)) {
+  if (["growth", "nexus_growth", "nexusgrowth", "business", "pro", "professional"].includes(normalized)) {
     return "GROWTH";
   }
 
@@ -61,15 +67,19 @@ function normalizePlanType(planType: string | null | undefined) {
   return null;
 }
 
+function getSubscriptionPlanValue(subscription: { plan_type?: string | null; plan_name?: string | null } | null | undefined) {
+  return subscription?.plan_name ?? subscription?.plan_type ?? null;
+}
+
 function hasFutureAccess(expiresAt: string | null | undefined) {
   if (!expiresAt) return true;
   return new Date(expiresAt).getTime() > Date.now();
 }
 
-function isSubscriptionUsable(subscription: SubscriptionData | null | undefined) {
+function isSubscriptionUsable(subscription: RawSubscriptionData | SubscriptionData | null | undefined) {
   if (!subscription) return false;
 
-  const normalizedPlan = normalizePlanType(subscription.plan_type);
+  const normalizedPlan = normalizePlanType(getSubscriptionPlanValue(subscription));
   const status = subscription.status?.trim().toLowerCase();
 
   if (!normalizedPlan || !status) return false;
@@ -80,7 +90,7 @@ function isSubscriptionUsable(subscription: SubscriptionData | null | undefined)
 }
 
 function coerceSyncedSubscription(subscription: SyncedSubscriptionData | null | undefined): SubscriptionData | null {
-  const normalizedPlan = normalizePlanType(subscription?.plan_type);
+  const normalizedPlan = normalizePlanType(getSubscriptionPlanValue(subscription));
   const status = subscription?.status?.trim().toLowerCase();
 
   if (!subscription || !normalizedPlan || !status) return null;
@@ -125,13 +135,13 @@ export function useSubscription() {
       if (subscriptionRes.error) throw subscriptionRes.error;
       if (projectRes.error) throw projectRes.error;
 
-      const dbSubscriptions = (subscriptionRes.data as SubscriptionData[] | null) ?? [];
+      const dbSubscriptions = (subscriptionRes.data as RawSubscriptionData[] | null) ?? [];
       const dbSubscription = dbSubscriptions[0] ?? null;
       const projectPlan = projectRes.data as ProjectPlanData | null;
 
       const normalizedProjectPlan = normalizePlanType(projectPlan?.selected_plan);
       const usableSubscription = dbSubscriptions.find(isSubscriptionUsable) ?? null;
-      const normalizedSubscriptionPlan = normalizePlanType(usableSubscription?.plan_type);
+      const normalizedSubscriptionPlan = normalizePlanType(getSubscriptionPlanValue(usableSubscription));
       const hasStripeSubscriptionHistory = dbSubscriptions.some(
         (subscription) => !!subscription.stripe_subscription_id || !!subscription.stripe_customer_id,
       );
@@ -160,7 +170,10 @@ export function useSubscription() {
           : dbSubscription
             ? {
                 ...dbSubscription,
-                plan_type: normalizePlanType(dbSubscription.plan_type) ?? dbSubscription.plan_type,
+                plan_type:
+                  normalizePlanType(getSubscriptionPlanValue(dbSubscription)) ??
+                  getSubscriptionPlanValue(dbSubscription) ??
+                  "START",
               }
             : null;
 
@@ -169,7 +182,9 @@ export function useSubscription() {
         (!!resolvedStatus && ACTIVE_SUBSCRIPTION_STATUSES.has(resolvedStatus) && !!normalizePlanType(resolvedSubscription?.plan_type)) ||
         projectPlanIsUsable;
 
-      if (!resolvedHasSubscription) {
+      const shouldSyncSubscription = !usableSubscription || !resolvedHasSubscription;
+
+      if (shouldSyncSubscription) {
         const syncResponse = await supabase.functions.invoke("check-subscription");
 
         if (syncResponse.error) {
