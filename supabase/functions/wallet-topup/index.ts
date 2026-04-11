@@ -103,8 +103,8 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
-    console.error("wallet-topup error:", err);
-    return new Response(JSON.stringify({ error: err.message }), {
+    console.error("[wallet-topup] internal error:", err);
+    return new Response(JSON.stringify({ error: "Ocorreu um erro interno. Tenta novamente." }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

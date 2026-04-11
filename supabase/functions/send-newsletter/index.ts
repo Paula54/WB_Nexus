@@ -146,8 +146,8 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
-    console.error("send-newsletter error:", e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Erro desconhecido" }), {
+    console.error("[send-newsletter] internal error:", e);
+    return new Response(JSON.stringify({ error: "Ocorreu um erro interno ao enviar a newsletter." }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

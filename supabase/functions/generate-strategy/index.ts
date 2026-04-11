@@ -186,9 +186,9 @@ A mensagem CTA final deve ser persuasiva e reforçar o valor do plano escolhido.
     });
 
   } catch (error) {
-    console.error("Strategy generation error:", error);
+    console.error("[generate-strategy] internal error:", error);
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }), 
+      JSON.stringify({ error: "Ocorreu um erro interno ao gerar a estratégia." }), 
       {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },

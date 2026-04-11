@@ -88,8 +88,8 @@ serve(async (req) => {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
-    console.error("buy-credits error:", err);
-    return new Response(JSON.stringify({ error: (err as Error).message }), {
+    console.error("[buy-credits] internal error:", err);
+    return new Response(JSON.stringify({ error: "Ocorreu um erro interno ao processar a compra." }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

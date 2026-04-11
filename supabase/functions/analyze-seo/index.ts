@@ -379,9 +379,9 @@ As keywords devem ser EXTRAÍDAS dos dados reais (título, H1, meta description,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
-    console.error("SEO analysis error:", error);
+    console.error("[analyze-seo] internal error:", error);
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Erro desconhecido" }),
+      JSON.stringify({ error: "Ocorreu um erro interno na análise SEO." }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

@@ -223,9 +223,9 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error("Publish error:", error);
+    console.error("[publish-social-post] internal error:", error);
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
+      JSON.stringify({ error: "Ocorreu um erro interno ao publicar o post." }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
