@@ -39,10 +39,12 @@ serve(async (req) => {
 
     const token = authHeader.replace("Bearer ", "");
     
-    // Allow service role key for internal server-to-server calls
+    // Allow internal function-to-function calls via dedicated secret
+    const INTERNAL_SECRET = Deno.env.get("INTERNAL_FUNCTION_SECRET");
     let userId: string | null = null;
-    if (token === SUPABASE_SERVICE_ROLE_KEY) {
-      // Internal call (e.g., from nexus-concierge) - userId will be extracted from postId lookup
+    
+    if (INTERNAL_SECRET && token === INTERNAL_SECRET) {
+      // Internal call (e.g., from nexus-concierge) — userId resolved from post lookup below
       userId = null;
     } else {
       const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY!);
@@ -223,9 +225,9 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error("Publish error:", error);
+    console.error("[publish-social-post] internal error:", error);
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
+      JSON.stringify({ error: "Ocorreu um erro interno ao publicar o post." }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
