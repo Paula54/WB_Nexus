@@ -23,6 +23,24 @@ type CandidateSubscription = {
   subscription: Stripe.Subscription;
 };
 
+type SubscriptionWritePayload = {
+  user_id: string;
+  project_id: string | null;
+  stripe_customer_id: string | null;
+  stripe_subscription_id: string | null;
+  status: string;
+  plan: PlanType;
+  trial_ends_at: string | null;
+  current_period_start: string | null;
+  current_period_end: string | null;
+};
+
+type ProjectPlanRecord = {
+  id: string;
+  selected_plan: string | null;
+  trial_expires_at: string | null;
+};
+
 function normalizePlanType(planType: string | null | undefined): PlanType | null {
   if (!planType) return null;
 
@@ -38,7 +56,7 @@ function normalizePlanType(planType: string | null | undefined): PlanType | null
     return "START";
   }
 
-  if (["growth", "nexus_growth", "nexusgrowth", "business"].includes(normalized)) {
+  if (["growth", "nexus_growth", "nexusgrowth", "business", "pro", "professional"].includes(normalized)) {
     return "GROWTH";
   }
 
@@ -50,7 +68,7 @@ function normalizePlanType(planType: string | null | undefined): PlanType | null
 }
 
 function resolvePlanType(subscription: Stripe.Subscription): PlanType | null {
-  const metadataPlan = normalizePlanType(subscription.metadata?.plan_type);
+  const metadataPlan = normalizePlanType(subscription.metadata?.plan_name ?? subscription.metadata?.plan_type);
   if (metadataPlan) return metadataPlan;
 
   for (const item of subscription.items.data) {
@@ -63,6 +81,62 @@ function resolvePlanType(subscription: Stripe.Subscription): PlanType | null {
 
 function toIso(timestamp: number | null | undefined) {
   return timestamp ? new Date(timestamp * 1000).toISOString() : null;
+}
+
+function hasFutureAccess(expiresAt: string | null | undefined) {
+  if (!expiresAt) return true;
+  return new Date(expiresAt).getTime() > Date.now();
+}
+
+function getErrorMessage(error: unknown) {
+  if (!error) return "";
+  if (error instanceof Error) return error.message;
+  if (typeof error === "object" && error && "message" in error) return String((error as { message?: unknown }).message ?? "");
+  return String(error);
+}
+
+function isMissingColumnError(error: unknown, column: string) {
+  return getErrorMessage(error).toLowerCase().includes(column.toLowerCase());
+}
+
+function buildPlanNamePayload(payload: SubscriptionWritePayload) {
+  const { plan, ...rest } = payload;
+  return { ...rest, plan_name: plan };
+}
+
+function buildPlanTypePayload(payload: SubscriptionWritePayload) {
+  const { plan, ...rest } = payload;
+  return { ...rest, plan_type: plan };
+}
+
+async function insertSubscriptionRecord(supabaseAdmin: ReturnType<typeof createClient>, payload: SubscriptionWritePayload) {
+  let response = await supabaseAdmin.from("subscriptions").insert(buildPlanNamePayload(payload));
+
+  if (response.error && isMissingColumnError(response.error, "plan_name")) {
+    response = await supabaseAdmin.from("subscriptions").insert(buildPlanTypePayload(payload));
+  }
+
+  return response;
+}
+
+async function updateSubscriptionRecord(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  subscriptionId: string,
+  payload: SubscriptionWritePayload,
+) {
+  let response = await supabaseAdmin
+    .from("subscriptions")
+    .update(buildPlanNamePayload(payload))
+    .eq("id", subscriptionId);
+
+  if (response.error && isMissingColumnError(response.error, "plan_name")) {
+    response = await supabaseAdmin
+      .from("subscriptions")
+      .update(buildPlanTypePayload(payload))
+      .eq("id", subscriptionId);
+  }
+
+  return response;
 }
 
 function compareCandidates(a: CandidateSubscription, b: CandidateSubscription) {
@@ -108,6 +182,85 @@ async function ensureProjectId(supabaseAdmin: ReturnType<typeof createClient>, u
   }
 
   return newProject?.id ?? null;
+}
+
+async function getLatestProjectPlan(supabaseAdmin: ReturnType<typeof createClient>, userId: string) {
+  const { data: project, error } = await supabaseAdmin
+    .from("projects")
+    .select("id, selected_plan, trial_expires_at")
+    .eq("user_id", userId)
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error("[check-subscription] Project plan lookup error:", error);
+  }
+
+  return (project as ProjectPlanRecord | null) ?? null;
+}
+
+async function ensureFallbackSubscriptionFromProject(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  userId: string,
+  project: ProjectPlanRecord,
+) {
+  const normalizedProjectPlan = normalizePlanType(project.selected_plan);
+  if (!normalizedProjectPlan) return null;
+
+  const expiresAt = project.trial_expires_at && hasFutureAccess(project.trial_expires_at)
+    ? project.trial_expires_at
+    : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+
+  const payload: SubscriptionWritePayload = {
+    user_id: userId,
+    project_id: project.id,
+    stripe_customer_id: null,
+    stripe_subscription_id: null,
+    status: "active",
+    plan: normalizedProjectPlan,
+    trial_ends_at: expiresAt,
+    current_period_start: new Date().toISOString(),
+    current_period_end: expiresAt,
+  };
+
+  const { data: existingSubscription, error: existingSubscriptionError } = await supabaseAdmin
+    .from("subscriptions")
+    .select("id")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (existingSubscriptionError) {
+    console.error("[check-subscription] Existing fallback subscription lookup error:", existingSubscriptionError);
+  }
+
+  if (existingSubscription?.id) {
+    const { error: updateError } = await updateSubscriptionRecord(supabaseAdmin, existingSubscription.id, payload);
+
+    if (updateError) {
+      console.error("[check-subscription] Fallback subscription update error:", updateError);
+      return null;
+    }
+
+    return {
+      id: existingSubscription.id,
+      ...buildPlanNamePayload(payload),
+    };
+  }
+
+  const { error: insertError } = await insertSubscriptionRecord(supabaseAdmin, payload);
+
+  if (insertError) {
+    console.error("[check-subscription] Fallback subscription insert error:", insertError);
+    return null;
+  }
+
+  return {
+    id: `project-${project.id}`,
+    ...buildPlanNamePayload(payload),
+  };
 }
 
 serve(async (req) => {
@@ -176,6 +329,18 @@ serve(async (req) => {
     const activeSubscription = candidates.sort(compareCandidates)[0] ?? null;
 
     if (!activeSubscription) {
+      const fallbackProject = await getLatestProjectPlan(supabaseAdmin, user.id);
+      if (fallbackProject?.id && fallbackProject.selected_plan) {
+        const fallbackSubscription = await ensureFallbackSubscriptionFromProject(supabaseAdmin, user.id, fallbackProject);
+
+        if (fallbackSubscription) {
+          return new Response(JSON.stringify({ subscribed: true, subscription: fallbackSubscription }), {
+            status: 200,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      }
+
       return new Response(JSON.stringify({ subscribed: false, subscription: null }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -185,13 +350,13 @@ serve(async (req) => {
     const projectId = await ensureProjectId(supabaseAdmin, user.id);
     const periodEnd = toIso(activeSubscription.subscription.current_period_end);
     const trialEnd = toIso(activeSubscription.subscription.trial_end);
-    const subscriptionPayload = {
+    const subscriptionPayload: SubscriptionWritePayload = {
       user_id: user.id,
       project_id: projectId,
       stripe_customer_id: activeSubscription.customerId,
       stripe_subscription_id: activeSubscription.subscription.id,
       status: activeSubscription.subscription.status,
-      plan_type: activeSubscription.planType,
+      plan: activeSubscription.planType,
       trial_ends_at: trialEnd,
       current_period_start: toIso(activeSubscription.subscription.current_period_start),
       current_period_end: periodEnd,
@@ -208,16 +373,13 @@ serve(async (req) => {
     }
 
     if (existingSubscription?.id) {
-      const { error: updateError } = await supabaseAdmin
-        .from("subscriptions")
-        .update(subscriptionPayload)
-        .eq("id", existingSubscription.id);
+      const { error: updateError } = await updateSubscriptionRecord(supabaseAdmin, existingSubscription.id, subscriptionPayload);
 
       if (updateError) {
         console.error("[check-subscription] Subscription update error:", updateError);
       }
     } else {
-      const { error: insertError } = await supabaseAdmin.from("subscriptions").insert(subscriptionPayload);
+      const { error: insertError } = await insertSubscriptionRecord(supabaseAdmin, subscriptionPayload);
 
       if (insertError) {
         console.error("[check-subscription] Subscription insert error:", insertError);
@@ -243,7 +405,7 @@ serve(async (req) => {
         subscribed: true,
         subscription: {
           id: existingSubscription?.id ?? `stripe-${activeSubscription.subscription.id}`,
-          ...subscriptionPayload,
+            ...buildPlanNamePayload(subscriptionPayload),
         },
       }),
       {
