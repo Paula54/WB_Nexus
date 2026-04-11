@@ -61,6 +61,11 @@ interface ConciergeOpenDetail {
   prompt?: string;
 }
 
+function resolveSubscriptionPlanLabel(subscription: Record<string, unknown> | null | undefined) {
+  const plan = subscription?.plan_name ?? subscription?.plan_type;
+  return typeof plan === "string" ? plan : null;
+}
+
 function isExplicitNavigationRequest(content?: string): boolean {
   if (!content) return false;
 
@@ -207,13 +212,13 @@ export function NexusConcierge() {
       const [profileRes, projectRes, subscriptionRes, leadsRes] = await Promise.all([
         supabase.from("profiles").select("business_sector, company_name, ai_custom_instructions").eq("user_id", user.id).maybeSingle(),
         supabase.from("projects").select("name, domain, selected_plan, trial_expires_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-        supabase.from("subscriptions").select("plan_type, status, trial_ends_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+        supabase.from("subscriptions").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
         supabase.from("leads").select("id", { count: "exact", head: true }).eq("user_id", user.id),
       ]);
 
       const profile = profileRes.data;
       const project = projectRes.data;
-      const subscription = subscriptionRes.data;
+      const subscription = subscriptionRes.data as Record<string, unknown> | null;
 
       let trialDaysLeft: number | undefined;
       if (project?.trial_expires_at) {
@@ -224,7 +229,7 @@ export function NexusConcierge() {
       setUserContext({
         company_name: profile?.company_name || undefined,
         business_sector: profile?.business_sector || undefined,
-        plan_type: subscription?.plan_type || project?.selected_plan || "Lite",
+        plan_type: resolveSubscriptionPlanLabel(subscription) || project?.selected_plan || "Lite",
         project_name: project?.name || undefined,
         domain: project?.domain || undefined,
         leads_count: leadsRes.count ?? 0,
