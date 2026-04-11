@@ -49,7 +49,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Validate Supabase user
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const anonClient = createClient(supabaseUrl, supabaseAnonKey);
@@ -79,8 +78,6 @@ Deno.serve(async (req) => {
     // --- Exchange short-lived for long-lived token ---
     const META_APP_ID = (Deno.env.get("META_APP_ID") || Deno.env.get("VITE_FACEBOOK_APP_ID") || "").trim();
     const META_APP_SECRET = (Deno.env.get("META_APP_SECRET") || Deno.env.get("FACEBOOK_APP_SECRET") || "").trim();
-    log("🔑 META_APP_ID length:", META_APP_ID.length);
-    log("🔑 META_APP_SECRET length:", META_APP_SECRET.length);
 
     if (!META_APP_ID || !META_APP_SECRET) {
       logError("META_APP_ID or META_APP_SECRET not configured");
@@ -175,25 +172,24 @@ Deno.serve(async (req) => {
     log("🔒 Encrypting token...");
     const encryptedToken = await encryptToken(longLivedToken);
 
-    // Upsert project — uses project.id to update existing row
-    const upsertPayload = {
-      id: project.id,
+    // Upsert project_credentials instead of projects
+    const credentialsPayload = {
+      project_id: project.id,
       user_id: user.id,
-      name: project.name || "Meu Projeto",
       meta_access_token: encryptedToken,
       meta_ads_account_id: adAccountId,
       facebook_page_id: facebookPageId,
       instagram_business_id: instagramBusinessId,
       updated_at: new Date().toISOString(),
     };
-    log("💾 Upserting project...", { id: project.id });
+    log("💾 Upserting project_credentials...", { project_id: project.id });
 
     const { error: upsertError } = await prodSupabase
-      .from("projects")
-      .upsert(upsertPayload, { onConflict: "id" });
+      .from("project_credentials")
+      .upsert(credentialsPayload, { onConflict: "project_id" });
 
     if (upsertError) {
-      logError("Project upsert failed", upsertError);
+      logError("project_credentials upsert failed", upsertError);
       return new Response(JSON.stringify({ error: upsertError.message }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

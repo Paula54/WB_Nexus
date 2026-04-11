@@ -59,22 +59,36 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Get Meta credentials
+    // Get project
     const { data: project } = await adminClient
       .from("projects")
-      .select("meta_access_token")
+      .select("id")
       .eq("user_id", user.id)
       .limit(1)
       .maybeSingle();
 
-    if (!project?.meta_access_token) {
+    if (!project) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Projeto não encontrado." }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Get Meta credentials from project_credentials
+    const { data: creds } = await adminClient
+      .from("project_credentials")
+      .select("meta_access_token")
+      .eq("project_id", project.id)
+      .maybeSingle();
+
+    if (!creds?.meta_access_token) {
       return new Response(
         JSON.stringify({ success: false, error: "Meta não conectado." }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const accessToken = project.meta_access_token;
+    const accessToken = creds.meta_access_token;
 
     // Get Facebook Page ID and Page Access Token
     const pagesRes = await fetch(
@@ -112,7 +126,6 @@ Deno.serve(async (req) => {
     let publishData: Record<string, unknown>;
 
     if (post.image_url) {
-      // Photo post
       const photoRes = await fetch(
         `https://graph.facebook.com/v21.0/${pageId}/photos`,
         {
@@ -127,7 +140,6 @@ Deno.serve(async (req) => {
       );
       publishData = await photoRes.json();
     } else {
-      // Text-only post
       const feedRes = await fetch(
         `https://graph.facebook.com/v21.0/${pageId}/feed`,
         {

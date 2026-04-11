@@ -35,26 +35,39 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Get project credentials
+    // Get project
     const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-    const { data: project, error: projectError } = await adminClient
+    const { data: project } = await adminClient
       .from("projects")
-      .select("meta_ads_account_id, meta_access_token")
+      .select("id")
       .eq("user_id", user.id)
       .limit(1)
       .maybeSingle();
 
-    if (projectError || !project?.meta_ads_account_id || !project?.meta_access_token) {
+    if (!project) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Projeto não encontrado", campaigns: [] }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Get credentials from project_credentials
+    const { data: creds, error: credsError } = await adminClient
+      .from("project_credentials")
+      .select("meta_ads_account_id, meta_access_token")
+      .eq("project_id", project.id)
+      .maybeSingle();
+
+    if (credsError || !creds?.meta_ads_account_id || !creds?.meta_access_token) {
       return new Response(
         JSON.stringify({ success: false, error: "Meta Ads não conectado", campaigns: [] }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const { meta_ads_account_id } = project;
-    const decryptedToken = await decryptToken(project.meta_access_token);
+    const { meta_ads_account_id } = creds;
+    const decryptedToken = await decryptToken(creds.meta_access_token);
 
-    // Fetch campaigns from Meta Marketing API
     const campaignsUrl = `https://graph.facebook.com/v21.0/${meta_ads_account_id}/campaigns?fields=id,name,status,objective,daily_budget,lifetime_budget,start_time,stop_time,insights.date_preset(last_30d){impressions,clicks,spend,ctr,cpc,actions}&access_token=${decryptedToken}`;
 
     const campaignsResponse = await fetch(campaignsUrl);
@@ -63,11 +76,7 @@ Deno.serve(async (req) => {
     if (campaignsData.error) {
       console.error("Meta API error:", campaignsData.error);
       return new Response(
-        JSON.stringify({
-          success: false,
-          error: campaignsData.error.message,
-          campaigns: [],
-        }),
+        JSON.stringify({ success: false, error: campaignsData.error.message, campaigns: [] }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
