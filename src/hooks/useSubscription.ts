@@ -20,6 +20,18 @@ interface ProjectPlanData {
   trial_expires_at: string | null;
 }
 
+interface SyncedSubscriptionData {
+  id?: string;
+  plan_type?: string | null;
+  status?: string | null;
+  trial_ends_at?: string | null;
+  current_period_end?: string | null;
+  current_period_start?: string | null;
+  stripe_subscription_id?: string | null;
+  stripe_customer_id?: string | null;
+  project_id?: string | null;
+}
+
 const ACTIVE_SUBSCRIPTION_STATUSES = new Set(["active", "trialing", "past_due"]);
 const INACTIVE_SUBSCRIPTION_STATUSES = new Set(["canceled", "unpaid", "incomplete_expired"]);
 
@@ -65,6 +77,25 @@ function isSubscriptionUsable(subscription: SubscriptionData | null | undefined)
   if (INACTIVE_SUBSCRIPTION_STATUSES.has(status)) return false;
 
   return hasFutureAccess(subscription.current_period_end ?? subscription.trial_ends_at);
+}
+
+function coerceSyncedSubscription(subscription: SyncedSubscriptionData | null | undefined): SubscriptionData | null {
+  const normalizedPlan = normalizePlanType(subscription?.plan_type);
+  const status = subscription?.status?.trim().toLowerCase();
+
+  if (!subscription || !normalizedPlan || !status) return null;
+
+  return {
+    id: subscription.id ?? `synced-${subscription.stripe_subscription_id ?? normalizedPlan.toLowerCase()}`,
+    plan_type: normalizedPlan,
+    status,
+    trial_ends_at: subscription.trial_ends_at ?? null,
+    current_period_end: subscription.current_period_end ?? null,
+    current_period_start: subscription.current_period_start ?? null,
+    stripe_subscription_id: subscription.stripe_subscription_id ?? null,
+    stripe_customer_id: subscription.stripe_customer_id ?? null,
+    project_id: subscription.project_id ?? null,
+  };
 }
 
 export function useSubscription() {
@@ -132,6 +163,29 @@ export function useSubscription() {
                 plan_type: normalizePlanType(dbSubscription.plan_type) ?? dbSubscription.plan_type,
               }
             : null;
+
+      const resolvedStatus = resolvedSubscription?.status?.trim().toLowerCase() ?? null;
+      const resolvedHasSubscription =
+        (!!resolvedStatus && ACTIVE_SUBSCRIPTION_STATUSES.has(resolvedStatus) && !!normalizePlanType(resolvedSubscription?.plan_type)) ||
+        projectPlanIsUsable;
+
+      if (!resolvedHasSubscription) {
+        const syncResponse = await supabase.functions.invoke("check-subscription");
+
+        if (syncResponse.error) {
+          console.warn("[useSubscription] Subscription sync warning:", syncResponse.error);
+        } else {
+          const syncedData = syncResponse.data as { subscription?: SyncedSubscriptionData | null } | null;
+          const syncedSubscription = coerceSyncedSubscription(syncedData?.subscription);
+
+          if (syncedSubscription && isSubscriptionUsable(syncedSubscription)) {
+            return {
+              subscription: syncedSubscription,
+              hasProjectPlanFallback: false,
+            };
+          }
+        }
+      }
 
       return {
         subscription: resolvedSubscription,

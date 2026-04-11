@@ -21,39 +21,26 @@ export function useStripeCheckout() {
 
     setLoading(true);
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const accessToken = sessionData?.session?.access_token;
+      const origin = window.location.origin.replace(/\/$/, "");
+      const { data, error } = await supabase.functions.invoke("create-checkout-session", {
+        body: {
+          planType,
+          projectId,
+          successUrl: `${origin}/success?session_id={CHECKOUT_SESSION_ID}`,
+          cancelUrl: `${origin}/strategy?checkout=cancel`,
+        },
+      });
 
-      if (!accessToken) {
-        throw new Error("Sem sessão ativa");
-      }
-
-      const response = await fetch(
-        `https://hqyuxponbobmuletqshq.supabase.co/functions/v1/create-checkout-session`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify({
-            planType,
-            projectId,
-            successUrl: `https://nexus.web-business.pt/success?session_id={CHECKOUT_SESSION_ID}`,
-            cancelUrl: `https://nexus.web-business.pt/strategy?checkout=cancel`,
-          }),
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Erro ao criar sessão de pagamento");
+      if (error) {
+        throw new Error(error.message || "Erro ao criar sessão de pagamento");
       }
 
       if (data.url) {
         window.location.href = data.url;
+        return;
       }
+
+      throw new Error("Sessão de pagamento inválida");
     } catch (error: unknown) {
       console.error("Checkout error:", error);
       toast({
