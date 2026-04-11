@@ -1,8 +1,44 @@
-import { Link } from "react-router-dom";
+import { useEffect } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { CheckCircle, Mail } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { CheckCircle, Loader2, Mail } from "lucide-react";
 
 export default function Success() {
+  const { user, loading } = useAuth();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const sessionId = (searchParams.get("session_id") || "").trim();
+
+  useEffect(() => {
+    if (!sessionId || loading) return;
+
+    if (user) {
+      navigate("/", { replace: true });
+      return;
+    }
+
+    navigate(`/register?session_id=${encodeURIComponent(sessionId)}`, { replace: true });
+  }, [loading, navigate, sessionId, user]);
+
+  if (sessionId) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background px-4">
+        <div className="text-center max-w-lg space-y-4">
+          <div className="mx-auto w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
+            <Loader2 className="h-10 w-10 text-primary animate-spin" />
+          </div>
+          <h1 className="text-3xl md:text-4xl font-display font-bold text-foreground">
+            A ativar o seu plano...
+          </h1>
+          <p className="text-lg text-muted-foreground">
+            Estamos a ligar a compra à sua conta e a redirecionar para o próximo passo.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <div className="text-center max-w-lg space-y-6">
