@@ -1,5 +1,6 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, ReactNode, useCallback, useRef } from "react";
 import { User, Session } from "@supabase/supabase-js";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabaseCustom";
 
 interface AuthContextType {
@@ -52,6 +53,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const syncInFlightRef = useRef<Record<string, Promise<void>>>({});
+
+  const reconcileAccountAfterAuth = useCallback((nextUser: User | null | undefined) => {
+    if (!nextUser) {
+      return Promise.resolve();
+    }
+
+    const existingSync = syncInFlightRef.current[nextUser.id];
+    if (existingSync) {
+      return existingSync;
+    }
+
+    const syncPromise = (async () => {
+      await ensureProfileExists(nextUser);
+
+      try {
+        const { data, error } = await supabase.functions.invoke("check-subscription");
+
+        if (error) {
+          console.warn("[Auth] Subscription sync warning:", error.message);
+        } else if (data?.subscribed) {
+          console.log("[Auth] Active subscription synced for", nextUser.id);
+        }
+      } catch (error) {
+        console.warn("[Auth] Failed to sync subscription:", error);
+      } finally {
+        await queryClient.invalidateQueries({ queryKey: ["subscription", nextUser.id] });
+      }
+    })().finally(() => {
+      delete syncInFlightRef.current[nextUser.id];
+    });
+
+    syncInFlightRef.current[nextUser.id] = syncPromise;
+    return syncPromise;
+  }, [queryClient]);
 
   useEffect(() => {
     let isMounted = true;
@@ -62,10 +99,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(nextSession?.user ?? null);
     };
 
-    const syncProfile = (nextUser: User | null | undefined) => {
+    const syncAccount = (nextUser: User | null | undefined) => {
       if (!nextUser) return;
       setTimeout(() => {
-        void ensureProfileExists(nextUser);
+        void reconcileAccountAfterAuth(nextUser);
       }, 0);
     };
 
@@ -73,16 +110,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       (event, nextSession) => {
         applySession(nextSession);
 
-        if (nextSession?.user && (event === "SIGNED_IN" || event === "SIGNED_UP" || event === "TOKEN_REFRESHED" || event === "PASSWORD_RECOVERY")) {
-          syncProfile(nextSession.user);
+        if (nextSession?.user && (event === "SIGNED_IN" || event === "SIGNED_UP" || event === "PASSWORD_RECOVERY")) {
+          syncAccount(nextSession.user);
         }
       }
     );
 
     void supabase.auth.getSession()
-      .then(({ data: { session: nextSession } }) => {
+      .then(async ({ data: { session: nextSession } }) => {
         applySession(nextSession);
-        syncProfile(nextSession?.user);
+        await reconcileAccountAfterAuth(nextSession?.user);
       })
       .catch((error) => {
         console.error("[Auth] Error restoring session:", error);
@@ -97,10 +134,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isMounted = false;
       subscription.unsubscribe();
     };
-  }, []);
+  }, [reconcileAccountAfterAuth]);
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
+    if (!error) {
+      await reconcileAccountAfterAuth(data.user);
+    }
+
     return { error };
   };
 

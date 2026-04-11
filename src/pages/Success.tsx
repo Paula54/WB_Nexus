@@ -1,7 +1,8 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/lib/supabaseCustom";
 import { CheckCircle, Loader2, Mail } from "lucide-react";
 
 export default function Success() {
@@ -9,16 +10,54 @@ export default function Success() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const sessionId = (searchParams.get("session_id") || "").trim();
+  const [syncError, setSyncError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!sessionId || loading) return;
 
-    if (user) {
-      navigate("/", { replace: true });
-      return;
+    let cancelled = false;
+
+    const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+    async function syncPurchasedPlan() {
+      if (!user) {
+        navigate(`/register?session_id=${encodeURIComponent(sessionId)}`, { replace: true });
+        return;
+      }
+
+      for (let attempt = 0; attempt < 6; attempt += 1) {
+        try {
+          const { data, error } = await supabase.functions.invoke("check-subscription");
+
+          if (error) {
+            throw error;
+          }
+
+          if (data?.subscribed) {
+            if (!cancelled) {
+              navigate("/", { replace: true });
+            }
+            return;
+          }
+        } catch (error) {
+          console.error("[Success] Subscription sync error:", error);
+        }
+
+        if (attempt < 5) {
+          await wait(1500);
+        }
+      }
+
+      if (!cancelled) {
+        setSyncError("Recebemos o pagamento, mas a ativação do plano ainda não foi confirmada automaticamente.");
+      }
     }
 
-    navigate(`/register?session_id=${encodeURIComponent(sessionId)}`, { replace: true });
+    void syncPurchasedPlan();
+
+    return () => {
+      cancelled = true;
+    };
   }, [loading, navigate, sessionId, user]);
 
   if (sessionId) {
@@ -26,14 +65,21 @@ export default function Success() {
       <div className="min-h-screen flex items-center justify-center bg-background px-4">
         <div className="text-center max-w-lg space-y-4">
           <div className="mx-auto w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
-            <Loader2 className="h-10 w-10 text-primary animate-spin" />
+            {syncError ? <CheckCircle className="h-10 w-10 text-primary" /> : <Loader2 className="h-10 w-10 text-primary animate-spin" />}
           </div>
           <h1 className="text-3xl md:text-4xl font-display font-bold text-foreground">
-            A ativar o seu plano...
+            {syncError ? "Pagamento recebido" : "A ativar o seu plano..."}
           </h1>
           <p className="text-lg text-muted-foreground">
-            Estamos a ligar a compra à sua conta e a redirecionar para o próximo passo.
+            {syncError
+              ? syncError
+              : "Estamos a ligar a compra à sua conta e a redirecionar para o próximo passo."}
           </p>
+          {syncError && (
+            <Button asChild variant="outline" size="lg" className="mt-4">
+              <Link to="/auth">Entrar na App</Link>
+            </Button>
+          )}
         </div>
       </div>
     );
