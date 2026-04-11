@@ -202,16 +202,9 @@ serve(async (req) => {
     const GOOGLE_API_KEY = Deno.env.get("GOOGLE_API_KEY");
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
 
-    if (!GOOGLE_API_KEY) {
+    if (!GOOGLE_API_KEY || !GEMINI_API_KEY) {
       return new Response(
-        JSON.stringify({ error: "GOOGLE_API_KEY não configurada" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    if (!GEMINI_API_KEY) {
-      return new Response(
-        JSON.stringify({ error: "GEMINI_API_KEY não configurada" }),
+        JSON.stringify({ error: "Serviço de análise SEO não configurado." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
