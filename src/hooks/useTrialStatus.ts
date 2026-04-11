@@ -1,4 +1,4 @@
-import { useProjectData } from "./useProjectData";
+import { useSubscription } from "./useSubscription";
 
 export interface TrialStatus {
   isActive: boolean;
@@ -10,16 +10,22 @@ export interface TrialStatus {
 }
 
 export function useTrialStatus(): TrialStatus {
-  const { loading } = useProjectData();
+  const { subscription, hasSubscription, isLoading } = useSubscription();
 
-  // External DB doesn't have trial_expires_at or selected_plan
-  // Return no-restriction defaults
+  const plan = subscription?.plan_type ?? null;
+  const expiresAt = subscription?.trial_ends_at ?? subscription?.current_period_end ?? null;
+  const expiresAtMs = expiresAt ? new Date(expiresAt).getTime() : null;
+  const isExpired = !hasSubscription && expiresAtMs !== null && expiresAtMs <= Date.now();
+  const daysRemaining = expiresAtMs
+    ? Math.max(0, Math.ceil((expiresAtMs - Date.now()) / 86400000))
+    : 0;
+
   return {
-    isActive: false,
-    isExpired: false,
-    noPlan: true,
-    daysRemaining: 0,
-    plan: null,
-    loading,
+    isActive: hasSubscription,
+    isExpired,
+    noPlan: !plan,
+    daysRemaining,
+    plan,
+    loading: isLoading,
   };
 }
