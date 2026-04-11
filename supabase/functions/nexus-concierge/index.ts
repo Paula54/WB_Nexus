@@ -233,7 +233,7 @@ serve(async (req) => {
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     if (!GEMINI_API_KEY) {
       return new Response(
-        JSON.stringify({ error: "GEMINI_API_KEY is not configured" }),
+        JSON.stringify({ error: "AI service not configured" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -244,6 +244,35 @@ serve(async (req) => {
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return new Response(
         JSON.stringify({ error: "Messages array is required" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Input validation: length limit
+    const lastMessage = messages[messages.length - 1];
+    if (lastMessage?.content && typeof lastMessage.content === "string" && lastMessage.content.length > 2000) {
+      return new Response(
+        JSON.stringify({ error: "Mensagem demasiado longa. Máximo: 2000 caracteres." }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Input validation: prompt injection pattern detection
+    const INJECTION_PATTERNS = [
+      /ignore\s+(all\s+)?previous\s+instructions/i,
+      /ignore\s+above/i,
+      /system\s*:/i,
+      /\[INST\]/i,
+      /<\|im_start\|>/i,
+      /you\s+are\s+now\s+/i,
+      /new\s+instructions?\s*:/i,
+      /override\s+system/i,
+    ];
+
+    const userContent = lastMessage?.content || "";
+    if (typeof userContent === "string" && INJECTION_PATTERNS.some(p => p.test(userContent))) {
+      return new Response(
+        JSON.stringify({ error: "Mensagem contém padrões não permitidos." }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -346,9 +375,9 @@ Adapta TODAS as sugestões e conteúdos a este setor específico.`;
       headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
     });
   } catch (error) {
-    console.error("Concierge error:", error);
+    console.error("[nexus-concierge] internal error:", error);
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
+      JSON.stringify({ error: "Ocorreu um erro interno no Concierge." }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
