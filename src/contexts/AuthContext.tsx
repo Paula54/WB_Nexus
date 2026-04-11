@@ -140,7 +140,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (!error) {
-      await reconcileAccountAfterAuth(data.user);
+      const { data: refreshedSessionData, error: refreshError } = await supabase.auth.refreshSession();
+
+      if (refreshError) {
+        console.warn("[Auth] Session refresh warning:", refreshError.message);
+      }
+
+      const refreshedUser = refreshedSessionData.session?.user ?? data.user;
+      await reconcileAccountAfterAuth(refreshedUser);
+      await queryClient.invalidateQueries({ queryKey: ["subscription", refreshedUser?.id] });
     }
 
     return { error };

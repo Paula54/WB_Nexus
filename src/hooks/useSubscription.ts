@@ -132,12 +132,34 @@ export function useSubscription() {
           .maybeSingle(),
       ]);
 
-      if (subscriptionRes.error) throw subscriptionRes.error;
-      if (projectRes.error) throw projectRes.error;
+      if (subscriptionRes.error) {
+        console.log("[useSubscription] subscriptions query error", {
+          code: subscriptionRes.error.code,
+          message: subscriptionRes.error.message,
+          permissionDenied: /permission denied|not allowed|rls/i.test(subscriptionRes.error.message),
+        });
+        throw subscriptionRes.error;
+      }
+
+      if (projectRes.error) {
+        console.log("[useSubscription] projects query error", {
+          code: projectRes.error.code,
+          message: projectRes.error.message,
+          permissionDenied: /permission denied|not allowed|rls/i.test(projectRes.error.message),
+        });
+        throw projectRes.error;
+      }
 
       const dbSubscriptions = (subscriptionRes.data as RawSubscriptionData[] | null) ?? [];
       const dbSubscription = dbSubscriptions[0] ?? null;
       const projectPlan = projectRes.data as ProjectPlanData | null;
+
+      if (dbSubscriptions.length === 0) {
+        console.log("[useSubscription] subscriptions returned []", {
+          userId: user.id,
+          projectPlan: projectPlan?.selected_plan ?? null,
+        });
+      }
 
       const normalizedProjectPlan = normalizePlanType(projectPlan?.selected_plan);
       const usableSubscription = dbSubscriptions.find(isSubscriptionUsable) ?? null;
