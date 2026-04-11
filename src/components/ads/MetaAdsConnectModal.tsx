@@ -125,12 +125,13 @@ export default function MetaAdsConnectModal({
     setSelecting(page.id);
     try {
       const { error } = await supabase
-        .from("projects")
-        .update({
+        .from("project_credentials" as any)
+        .upsert({
+          project_id: projectId,
+          user_id: (await supabase.auth.getUser()).data.user?.id,
           facebook_page_id: page.id,
           instagram_business_id: page.ig_id,
-        })
-        .eq("id", projectId);
+        } as any, { onConflict: "project_id" });
       if (error) throw error;
 
       toast({ title: "✅ Página selecionada!", description: page.name });
@@ -149,9 +150,12 @@ export default function MetaAdsConnectModal({
     setSelecting(account.id);
     try {
       const { error } = await supabase
-        .from("projects")
-        .update({ meta_ads_account_id: account.id })
-        .eq("id", projectId);
+        .from("project_credentials" as any)
+        .upsert({
+          project_id: projectId,
+          user_id: (await supabase.auth.getUser()).data.user?.id,
+          meta_ads_account_id: account.id,
+        } as any, { onConflict: "project_id" });
       if (error) throw error;
 
       toast({ title: "✅ Conta selecionada!", description: account.name || account.id });
