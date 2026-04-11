@@ -1029,6 +1029,56 @@ export type Database = {
         }
         Relationships: []
       }
+      project_credentials: {
+        Row: {
+          created_at: string
+          facebook_page_id: string | null
+          id: string
+          instagram_business_id: string | null
+          meta_access_token: string | null
+          meta_ads_account_id: string | null
+          project_id: string
+          updated_at: string
+          user_id: string
+          whatsapp_business_id: string | null
+          whatsapp_phone_number_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          facebook_page_id?: string | null
+          id?: string
+          instagram_business_id?: string | null
+          meta_access_token?: string | null
+          meta_ads_account_id?: string | null
+          project_id: string
+          updated_at?: string
+          user_id: string
+          whatsapp_business_id?: string | null
+          whatsapp_phone_number_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          facebook_page_id?: string | null
+          id?: string
+          instagram_business_id?: string | null
+          meta_access_token?: string | null
+          meta_ads_account_id?: string | null
+          project_id?: string
+          updated_at?: string
+          user_id?: string
+          whatsapp_business_id?: string | null
+          whatsapp_phone_number_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_credentials_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: true
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       projects: {
         Row: {
           content: Json
