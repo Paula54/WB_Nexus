@@ -75,7 +75,7 @@ Deno.serve(async (req) => {
       userId = existingUser.id;
       console.log("[generate-stripe-session] Existing user found:", userId);
     } else {
-      // Create user with a random password (they can reset later)
+      // Create user with a random password (they will set it on /register)
       const tempPassword = crypto.randomUUID() + "Aa1!";
       const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
         email,
@@ -96,9 +96,131 @@ Deno.serve(async (req) => {
 
       userId = newUser.user.id;
       console.log("[generate-stripe-session] New user created:", userId);
+
+      // Create profile
+      await supabaseAdmin.from("profiles").insert({
+        user_id: userId,
+        full_name: checkoutSession.customer_details?.name || null,
+        contact_email: email,
+      });
     }
 
-    // 3. Generate a magic link / session for the user
+    // 3. Ensure subscription record exists
+    const planType = checkoutSession.metadata?.plan_type || "START";
+    const stripeSubId = checkoutSession.subscription as string | null;
+
+    if (stripeSubId) {
+      // Check if subscription record already exists
+      const { data: existingSub } = await supabaseAdmin
+        .from("subscriptions")
+        .select("id")
+        .eq("stripe_subscription_id", stripeSubId)
+        .maybeSingle();
+
+      if (!existingSub) {
+        // Retrieve subscription details from Stripe
+        const stripeSub = await stripe.subscriptions.retrieve(stripeSubId);
+        const mappedStatus = stripeSub.status === "trialing" ? "trialing" : "active";
+
+        // Find or create project
+        let projectId: string | null = checkoutSession.metadata?.project_id || null;
+        if (!projectId) {
+          const { data: existingProject } = await supabaseAdmin
+            .from("projects")
+            .select("id")
+            .eq("user_id", userId)
+            .limit(1)
+            .maybeSingle();
+
+          if (existingProject) {
+            projectId = existingProject.id;
+          } else {
+            const { data: newProject } = await supabaseAdmin
+              .from("projects")
+              .insert({ user_id: userId, name: "Meu Projeto", project_type: "website" })
+              .select("id")
+              .single();
+            projectId = newProject?.id || null;
+          }
+        }
+
+        const { error: subError } = await supabaseAdmin.from("subscriptions").insert({
+          user_id: userId,
+          project_id: projectId,
+          stripe_customer_id: checkoutSession.customer as string,
+          stripe_subscription_id: stripeSubId,
+          status: mappedStatus,
+          plan_type: planType,
+          trial_ends_at: stripeSub.trial_end
+            ? new Date(stripeSub.trial_end * 1000).toISOString()
+            : null,
+          current_period_start: new Date(stripeSub.current_period_start * 1000).toISOString(),
+          current_period_end: new Date(stripeSub.current_period_end * 1000).toISOString(),
+        });
+
+        if (subError) {
+          console.error("[generate-stripe-session] Subscription insert error:", subError);
+        } else {
+          console.log("[generate-stripe-session] Subscription record created for user:", userId);
+        }
+
+        // Update project plan
+        if (projectId) {
+          const trialEndsAt = stripeSub.trial_end
+            ? new Date(stripeSub.trial_end * 1000).toISOString()
+            : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
+          await supabaseAdmin
+            .from("projects")
+            .update({ selected_plan: planType, trial_expires_at: trialEndsAt })
+            .eq("id", projectId);
+        }
+      } else {
+        console.log("[generate-stripe-session] Subscription record already exists");
+      }
+    } else {
+      // No Stripe subscription (one-time payment or checkout without subscription)
+      // Still check if user has any subscription record
+      const { data: anySub } = await supabaseAdmin
+        .from("subscriptions")
+        .select("id")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (!anySub) {
+        // Create a basic subscription record based on checkout
+        let projectId: string | null = null;
+        const { data: existingProject } = await supabaseAdmin
+          .from("projects")
+          .select("id")
+          .eq("user_id", userId)
+          .limit(1)
+          .maybeSingle();
+
+        if (existingProject) {
+          projectId = existingProject.id;
+        } else {
+          const { data: newProject } = await supabaseAdmin
+            .from("projects")
+            .insert({ user_id: userId, name: "Meu Projeto", project_type: "website" })
+            .select("id")
+            .single();
+          projectId = newProject?.id || null;
+        }
+
+        await supabaseAdmin.from("subscriptions").insert({
+          user_id: userId,
+          project_id: projectId,
+          stripe_customer_id: (checkoutSession.customer as string) || null,
+          status: "active",
+          plan_type: planType,
+          current_period_start: new Date().toISOString(),
+          current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+        });
+        console.log("[generate-stripe-session] Basic subscription record created for user:", userId);
+      }
+    }
+
+    // 4. Generate session tokens
     const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
       type: "magiclink",
       email,
@@ -112,17 +234,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    // The generateLink returns properties with token info
-    // We need to exchange this for actual tokens
-    // Use signInWithOtp + admin to create a proper session
-    // Alternative: use the OTP token hash from the link
-
-    // Extract the token_hash and use verifyOtp to get real session tokens
     const tokenHash = linkData.properties?.hashed_token;
     
     if (!tokenHash) {
       console.error("[generate-stripe-session] No hashed_token in link data");
-      // Fallback: return a redirect URL that the frontend can use
       return new Response(JSON.stringify({ 
         error: "Could not generate session tokens",
         fallback: true,
@@ -133,7 +248,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Verify the OTP to get actual session tokens
     const { data: verifyData, error: verifyError } = await supabaseAdmin.auth.verifyOtp({
       token_hash: tokenHash,
       type: "magiclink",
