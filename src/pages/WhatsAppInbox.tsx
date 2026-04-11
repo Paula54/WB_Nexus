@@ -45,25 +45,13 @@ export default function WhatsAppInbox() {
     if (selectedLead) {
       fetchMessages(selectedLead.id);
       
-      // Subscribe to realtime updates
-      const channel = supabase
-        .channel(`messages-${selectedLead.id}`)
-        .on(
-          "postgres_changes",
-          {
-            event: "INSERT",
-            schema: "public",
-            table: "conversation_messages",
-            filter: `lead_id=eq.${selectedLead.id}`,
-          },
-          (payload) => {
-            setMessages((prev) => [...prev, payload.new as Message]);
-          }
-        )
-        .subscribe();
+      // Poll for new messages every 5 seconds instead of realtime (security)
+      const interval = setInterval(() => {
+        fetchMessages(selectedLead.id);
+      }, 5000);
 
       return () => {
-        supabase.removeChannel(channel);
+        clearInterval(interval);
       };
     }
   }, [selectedLead]);
