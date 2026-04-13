@@ -71,9 +71,23 @@ export default function Register() {
       try {
         console.log("[Register] Validating Stripe session:", sessionId);
 
-        const { data, error } = await supabase.functions.invoke("generate-stripe-session", {
-          body: { session_id: sessionId },
+        // Call edge function on Lovable Cloud (where it's deployed)
+        // Not via supabaseCustom which points to production
+        const lovableProjectId = import.meta.env.VITE_SUPABASE_PROJECT_ID || "ubzvsjyfebuqtiwzpcly";
+        const lovableAnonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+        const edgeFunctionUrl = `https://${lovableProjectId}.supabase.co/functions/v1/generate-stripe-session`;
+        
+        const response = await fetch(edgeFunctionUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "apikey": lovableAnonKey,
+          },
+          body: JSON.stringify({ session_id: sessionId }),
         });
+        
+        const data = await response.json();
+        const error = response.ok ? null : new Error(data?.error || "Edge function error");
 
         if (cancelled) return;
 
