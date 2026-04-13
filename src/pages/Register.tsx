@@ -61,71 +61,78 @@ export default function Register() {
     }
   }, [prefillEmail]);
 
-  // Validate the Stripe session on mount if session_id is present
+  // Validate the Stripe session on mount with retry logic
   useEffect(() => {
     if (!sessionId) return;
 
     let cancelled = false;
+    const MAX_RETRIES = 3;
+    const RETRY_DELAY = 2000;
+
+    async function callEdgeFunction(): Promise<{ data: any; error: Error | null }> {
+      const prodUrl = 'https://hqyuxponbobmuletqshq.supabase.co';
+      const prodAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhxeXV4cG9uYm9ibXVsZXRxc2hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE0MjM4MTUsImV4cCI6MjA4Njk5OTgxNX0.PR0gfHWMQnFjqnf2TiHSudmJ0k6fnlf8x16AK94jWN4';
+      const response = await fetch(`${prodUrl}/functions/v1/generate-stripe-session`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "apikey": prodAnonKey },
+        body: JSON.stringify({ session_id: sessionId }),
+      });
+      const data = await response.json();
+      return { data, error: response.ok ? null : new Error(data?.error || "Edge function error") };
+    }
 
     async function validateSession() {
-      try {
-        console.log("[Register] Validating Stripe session:", sessionId);
-
-        // Call edge function on production Supabase (hqyuxponbobmuletqshq)
-        const prodUrl = 'https://hqyuxponbobmuletqshq.supabase.co';
-        const prodAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhxeXV4cG9uYm9ibXVsZXRxc2hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE0MjM4MTUsImV4cCI6MjA4Njk5OTgxNX0.PR0gfHWMQnFjqnf2TiHSudmJ0k6fnlf8x16AK94jWN4';
-        const edgeFunctionUrl = `${prodUrl}/functions/v1/generate-stripe-session`;
-        
-        const response = await fetch(edgeFunctionUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "apikey": prodAnonKey,
-          },
-          body: JSON.stringify({ session_id: sessionId }),
-        });
-        
-        const data = await response.json();
-        const error = response.ok ? null : new Error(data?.error || "Edge function error");
-
+      for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
         if (cancelled) return;
+        try {
+          console.log(`[Register] Validating Stripe session (attempt ${attempt}/${MAX_RETRIES}):`, sessionId);
+          const { data, error } = await callEdgeFunction();
+          if (cancelled) return;
 
-        if (error) {
-          console.error("[Register] Edge function error:", error);
-          setSessionValidation({ status: "error", message: "Não foi possível validar o pagamento." });
-          return;
-        }
-
-        if (data?.success && data.access_token && data.refresh_token) {
-          console.log("[Register] Session tokens received, setting session...");
-          // Set the session so the user is authenticated
-          const { error: sessionError } = await supabase.auth.setSession({
-            access_token: data.access_token,
-            refresh_token: data.refresh_token,
-          });
-
-          if (sessionError) {
-            console.error("[Register] Failed to set session:", sessionError);
-            setSessionValidation({ status: "error", message: "Erro ao iniciar sessão." });
+          if (error) {
+            console.warn(`[Register] Attempt ${attempt} failed:`, error.message);
+            if (attempt < MAX_RETRIES) {
+              await new Promise(r => setTimeout(r, RETRY_DELAY));
+              continue;
+            }
+            setSessionValidation({ status: "error", message: "Estamos a processar o seu acesso, aguarde um momento..." });
             return;
           }
 
-          setSessionValidation({
-            status: "valid",
-            accessToken: data.access_token,
-            refreshToken: data.refresh_token,
-          });
-        } else if (data?.fallback && data.email) {
-          console.log("[Register] Fallback mode - email:", data.email);
-          setSessionValidation({ status: "fallback", email: data.email });
-          if (data.email) setEmail(data.email);
-        } else {
-          setSessionValidation({ status: "error", message: data?.error || "Pagamento não encontrado." });
-        }
-      } catch (err: any) {
-        if (!cancelled) {
-          console.error("[Register] Validation error:", err);
-          setSessionValidation({ status: "error", message: "Erro de rede ao validar pagamento." });
+          if (data?.success && data.access_token && data.refresh_token) {
+            console.log("[Register] Session tokens received, setting session...");
+            const { error: sessionError } = await supabase.auth.setSession({
+              access_token: data.access_token,
+              refresh_token: data.refresh_token,
+            });
+            if (sessionError) {
+              console.error("[Register] Failed to set session:", sessionError);
+              setSessionValidation({ status: "error", message: "Erro ao iniciar sessão." });
+              return;
+            }
+            setSessionValidation({ status: "valid", accessToken: data.access_token, refreshToken: data.refresh_token });
+            return;
+          } else if (data?.fallback && data.email) {
+            console.log("[Register] Fallback mode - email:", data.email);
+            setSessionValidation({ status: "fallback", email: data.email });
+            if (data.email) setEmail(data.email);
+            return;
+          } else {
+            console.warn(`[Register] Attempt ${attempt}: no tokens yet`);
+            if (attempt < MAX_RETRIES) {
+              await new Promise(r => setTimeout(r, RETRY_DELAY));
+              continue;
+            }
+            setSessionValidation({ status: "error", message: "Estamos a processar o seu acesso, aguarde um momento..." });
+          }
+        } catch (err: any) {
+          if (cancelled) return;
+          console.error(`[Register] Attempt ${attempt} error:`, err);
+          if (attempt < MAX_RETRIES) {
+            await new Promise(r => setTimeout(r, RETRY_DELAY));
+            continue;
+          }
+          setSessionValidation({ status: "error", message: "Estamos a processar o seu acesso, aguarde um momento..." });
         }
       }
     }
@@ -163,7 +170,7 @@ export default function Register() {
     }
   };
 
-  // Normal registration (no session_id or fallback)
+  // Normal registration — handles "user already exists" gracefully
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -180,7 +187,24 @@ export default function Register() {
     const { error } = await signUp(email, password);
 
     if (error) {
-      toast({ variant: "destructive", title: "Erro no registo", description: error.message });
+      const msg = error.message?.toLowerCase() || "";
+      const isUserExists = msg.includes("already") || msg.includes("database error") || msg.includes("duplicate");
+
+      if (isUserExists) {
+        // User was likely created by Stripe webhook — try signing in instead
+        console.log("[Register] User exists, attempting signIn + updateUser flow");
+        const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
+        if (!signInErr) {
+          toast({ title: "Conta criada!", description: "Bem-vindo à plataforma." });
+          navigate("/");
+          setLoading(false);
+          return;
+        }
+        // If sign-in fails (wrong password), let user know they should login
+        toast({ variant: "destructive", title: "Conta já existe", description: "Já existe uma conta com este email. Tente fazer login ou recuperar a password." });
+      } else {
+        toast({ variant: "destructive", title: "Erro no registo", description: error.message });
+      }
     } else {
       toast({ title: "Conta criada!", description: "Pode agora aceder à plataforma." });
       navigate("/");
