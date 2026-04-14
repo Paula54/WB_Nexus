@@ -41,6 +41,7 @@ export default function Register() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showActivationMessage, setShowActivationMessage] = useState(false);
   const { user, signUp } = useAuth();
   const navigate = useNavigate();
 
@@ -188,20 +189,20 @@ export default function Register() {
 
     if (error) {
       const msg = error.message?.toLowerCase() || "";
-      const isUserExists = msg.includes("already") || msg.includes("database error") || msg.includes("duplicate");
+      const isUserExists = msg.includes("already") || msg.includes("database error") || msg.includes("duplicate") || msg.includes("registered");
 
       if (isUserExists) {
-        // User was likely created by Stripe webhook — try signing in instead
-        console.log("[Register] User exists, attempting signIn + updateUser flow");
-        const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
-        if (!signInErr) {
-          toast({ title: "Conta criada!", description: "Bem-vindo à plataforma." });
-          navigate("/");
-          setLoading(false);
-          return;
+        // User was created by Stripe webhook — send password reset link for activation
+        console.log("[Register] User already exists, sending activation email via resetPasswordForEmail");
+        const { error: resetErr } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/reset-password`,
+        });
+        if (resetErr) {
+          console.error("[Register] Failed to send reset email:", resetErr);
+          toast({ variant: "destructive", title: "Erro", description: "Não foi possível enviar o e-mail de ativação. Tente novamente." });
+        } else {
+          setShowActivationMessage(true);
         }
-        // If sign-in fails (wrong password), let user know they should login
-        toast({ variant: "destructive", title: "Conta já existe", description: "Já existe uma conta com este email. Tente fazer login ou recuperar a password." });
       } else {
         toast({ variant: "destructive", title: "Erro no registo", description: error.message });
       }
@@ -342,8 +343,26 @@ export default function Register() {
           </Card>
         )}
 
+        {/* Activation message after user-exists flow */}
+        {showActivationMessage && (
+          <Card className="glass">
+            <CardHeader className="text-center">
+              <CardTitle className="text-xl">Compra validada com sucesso! 🎉</CardTitle>
+              <CardDescription className="pt-2">
+                Para sua segurança, enviámos um link de ativação para o seu e-mail.
+                Clique nesse link para confirmar a sua password e entrar no Dashboard.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="text-center">
+              <p className="text-sm text-muted-foreground">
+                Verifique a sua caixa de entrada (e spam) em <strong>{email}</strong>.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Normal registration form (no session_id, error, or fallback) */}
-        {!isValidating && !isInstantAccess && (
+        {!isValidating && !isInstantAccess && !showActivationMessage && (
           <Card className="glass">
             <CardHeader className="text-center">
               <CardTitle className="text-xl">Criar conta</CardTitle>
