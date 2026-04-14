@@ -65,10 +65,10 @@ export default function ResetPassword() {
       });
     } else {
       toast({
-        title: "Password alterada com sucesso",
-        description: "Já pode entrar com a nova password.",
+        title: "Password confirmada com sucesso!",
+        description: "A redirecionar para o Dashboard...",
       });
-      navigate("/auth");
+      navigate("/");
     }
     setLoading(false);
   };
