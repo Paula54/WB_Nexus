@@ -116,7 +116,7 @@ export function useSubscription() {
     queryFn: async () => {
       if (!user) return null;
 
-      const [subscriptionRes, projectRes] = await Promise.all([
+      const [subscriptionRes, projectRes] = await Promise.allSettled([
         supabase
           .from("subscriptions")
           .select("*")
@@ -132,34 +132,35 @@ export function useSubscription() {
           .maybeSingle(),
       ]);
 
-      if (subscriptionRes.error) {
-        console.log("[useSubscription] subscriptions query error", {
-          code: subscriptionRes.error.code,
-          message: subscriptionRes.error.message,
-          permissionDenied: /permission denied|not allowed|rls/i.test(subscriptionRes.error.message),
-        });
-        throw subscriptionRes.error;
+      // Extract subscription data — this is critical, throw on failure
+      const subResult = subscriptionRes.status === "fulfilled" ? subscriptionRes.value : null;
+      if (!subResult || subResult.error) {
+        const err = subResult?.error ?? { message: "subscriptions query rejected" };
+        console.error("[useSubscription] subscriptions query error", err);
+        throw err;
       }
 
-      if (projectRes.error) {
-        console.log("[useSubscription] projects query error", {
-          code: projectRes.error.code,
-          message: projectRes.error.message,
-          permissionDenied: /permission denied|not allowed|rls/i.test(projectRes.error.message),
-        });
-        throw projectRes.error;
+      // Extract project data — non-critical, treat errors as "no project"
+      let projectPlan: ProjectPlanData | null = null;
+      if (projectRes.status === "fulfilled" && !projectRes.value.error) {
+        projectPlan = projectRes.value.data as ProjectPlanData | null;
+      } else {
+        const projErr = projectRes.status === "fulfilled" ? projectRes.value.error : projectRes.reason;
+        console.warn("[useSubscription] projects query non-fatal error", projErr);
       }
 
-      const dbSubscriptions = (subscriptionRes.data as RawSubscriptionData[] | null) ?? [];
+      const dbSubscriptions = (subResult.data as RawSubscriptionData[] | null) ?? [];
       const dbSubscription = dbSubscriptions[0] ?? null;
-      const projectPlan = projectRes.data as ProjectPlanData | null;
 
-      if (dbSubscriptions.length === 0) {
-        console.log("[useSubscription] subscriptions returned []", {
-          userId: user.id,
-          projectPlan: projectPlan?.selected_plan ?? null,
-        });
-      }
+      console.log("[useSubscription] fetched", {
+        count: dbSubscriptions.length,
+        first: dbSubscription ? {
+          plan_type: (dbSubscription as any).plan_type,
+          plan_name: (dbSubscription as any).plan_name,
+          status: dbSubscription.status,
+        } : null,
+        userId: user.id,
+      });
 
       const normalizedProjectPlan = normalizePlanType(projectPlan?.selected_plan);
       const usableSubscription = dbSubscriptions.find(isSubscriptionUsable) ?? null;
@@ -204,23 +205,34 @@ export function useSubscription() {
         (!!resolvedStatus && ACTIVE_SUBSCRIPTION_STATUSES.has(resolvedStatus) && !!normalizePlanType(resolvedSubscription?.plan_type)) ||
         projectPlanIsUsable;
 
+      console.log("[useSubscription] resolved", {
+        plan: resolvedSubscription?.plan_type,
+        status: resolvedStatus,
+        hasSubscription: resolvedHasSubscription,
+        usableFound: !!usableSubscription,
+      });
+
       const shouldSyncSubscription = !usableSubscription || !resolvedHasSubscription;
 
       if (shouldSyncSubscription) {
-        const syncResponse = await supabase.functions.invoke("check-subscription");
+        try {
+          const syncResponse = await supabase.functions.invoke("check-subscription");
 
-        if (syncResponse.error) {
-          console.warn("[useSubscription] Subscription sync warning:", syncResponse.error);
-        } else {
-          const syncedData = syncResponse.data as { subscription?: SyncedSubscriptionData | null } | null;
-          const syncedSubscription = coerceSyncedSubscription(syncedData?.subscription);
+          if (syncResponse.error) {
+            console.warn("[useSubscription] Subscription sync warning:", syncResponse.error);
+          } else {
+            const syncedData = syncResponse.data as { subscription?: SyncedSubscriptionData | null } | null;
+            const syncedSubscription = coerceSyncedSubscription(syncedData?.subscription);
 
-          if (syncedSubscription && isSubscriptionUsable(syncedSubscription)) {
-            return {
-              subscription: syncedSubscription,
-              hasProjectPlanFallback: false,
-            };
+            if (syncedSubscription && isSubscriptionUsable(syncedSubscription)) {
+              return {
+                subscription: syncedSubscription,
+                hasProjectPlanFallback: false,
+              };
+            }
           }
+        } catch (syncErr) {
+          console.warn("[useSubscription] check-subscription call failed (non-fatal):", syncErr);
         }
       }
 
