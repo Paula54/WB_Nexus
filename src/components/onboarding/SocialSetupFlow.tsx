@@ -197,7 +197,7 @@ export function SocialSetupFlow({ open, onOpenChange, onHasPage }: SocialSetupFl
     } finally {
       setConnecting(false);
     }
-  }, [sdkReady, onHasPage]);
+  }, [sdkReady, metaAppId, onHasPage]);
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
