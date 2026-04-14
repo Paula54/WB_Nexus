@@ -15,13 +15,26 @@ Deno.serve(async (req) => {
 
   try {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-    const META_APP_ID = Deno.env.get("META_APP_ID")!;
+    const META_APP_ID = (
+      Deno.env.get("META_APP_ID") ||
+      Deno.env.get("NEXT_PUBLIC_FB_APP_ID") ||
+      Deno.env.get("VITE_FACEBOOK_APP_ID") ||
+      ""
+    ).trim();
+
+    if (!META_APP_ID) {
+      console.error("META_APP_ID not configured in any env var");
+      return new Response(
+        JSON.stringify({ error: "A configuração da aplicação Meta não está disponível. Contacte o suporte." }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     // Verify user auth
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
+        JSON.stringify({ error: "Sessão inválida. Faça login novamente." }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -32,7 +45,7 @@ Deno.serve(async (req) => {
     const { data: { user }, error: userError } = await supabaseUser.auth.getUser();
     if (userError || !user) {
       return new Response(
-        JSON.stringify({ error: "Invalid token" }),
+        JSON.stringify({ error: "Sessão expirada. Faça login novamente." }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -62,7 +75,7 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error("meta-ads-auth error:", error);
     return new Response(
-      JSON.stringify({ error: (error as Error).message }),
+      JSON.stringify({ error: "Erro interno. Tente novamente." }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
