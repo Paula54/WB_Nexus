@@ -1,4 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -14,21 +14,9 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-    const META_APP_ID = (
-      Deno.env.get("META_APP_ID") ||
-      Deno.env.get("NEXT_PUBLIC_FB_APP_ID") ||
-      Deno.env.get("VITE_FACEBOOK_APP_ID") ||
-      ""
-    ).trim();
-
-    if (!META_APP_ID) {
-      console.error("META_APP_ID not configured in any env var");
-      return new Response(
-        JSON.stringify({ error: "A configuração da aplicação Meta não está disponível. Contacte o suporte." }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    const SUPABASE_URL = Deno.env.get("PROD_SUPABASE_URL") || Deno.env.get("SUPABASE_URL")!;
+    const SERVICE_KEY = Deno.env.get("PROD_SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 
     // Verify user auth
     const authHeader = req.headers.get("Authorization");
@@ -39,7 +27,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const supabaseUser = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY")!, {
+    const supabaseUser = createClient(SUPABASE_URL, ANON_KEY, {
       global: { headers: { Authorization: authHeader } },
     });
     const { data: { user }, error: userError } = await supabaseUser.auth.getUser();
@@ -50,12 +38,43 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Try to get meta_client_id from project_credentials first
+    let META_APP_ID = "";
+    const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_KEY);
+    const { data: creds } = await supabaseAdmin
+      .from("project_credentials")
+      .select("meta_client_id")
+      .eq("user_id", user.id)
+      .limit(1)
+      .maybeSingle();
+
+    if (creds?.meta_client_id) {
+      META_APP_ID = creds.meta_client_id;
+      console.log("Using meta_client_id from project_credentials");
+    } else {
+      // Fallback to env vars
+      META_APP_ID = (
+        Deno.env.get("META_APP_ID") ||
+        Deno.env.get("NEXT_PUBLIC_FB_APP_ID") ||
+        Deno.env.get("VITE_FACEBOOK_APP_ID") ||
+        ""
+      ).trim();
+      console.log("Using meta_client_id from env vars");
+    }
+
+    if (!META_APP_ID) {
+      console.error("META_APP_ID not configured anywhere");
+      return new Response(
+        JSON.stringify({ error: "A configuração da aplicação Meta não está disponível. Contacte o suporte." }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const requestUrl = new URL(req.url);
     const returnOrigin = requestUrl.searchParams.get("return_origin") || "";
 
     const redirectUri = `${SUPABASE_URL}/functions/v1/meta-ads-callback`;
 
-    // state carries user_id and return_origin
     const state = `${user.id}|${returnOrigin}`;
 
     const params = new URLSearchParams({
