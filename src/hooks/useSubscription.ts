@@ -205,23 +205,34 @@ export function useSubscription() {
         (!!resolvedStatus && ACTIVE_SUBSCRIPTION_STATUSES.has(resolvedStatus) && !!normalizePlanType(resolvedSubscription?.plan_type)) ||
         projectPlanIsUsable;
 
+      console.log("[useSubscription] resolved", {
+        plan: resolvedSubscription?.plan_type,
+        status: resolvedStatus,
+        hasSubscription: resolvedHasSubscription,
+        usableFound: !!usableSubscription,
+      });
+
       const shouldSyncSubscription = !usableSubscription || !resolvedHasSubscription;
 
       if (shouldSyncSubscription) {
-        const syncResponse = await supabase.functions.invoke("check-subscription");
+        try {
+          const syncResponse = await supabase.functions.invoke("check-subscription");
 
-        if (syncResponse.error) {
-          console.warn("[useSubscription] Subscription sync warning:", syncResponse.error);
-        } else {
-          const syncedData = syncResponse.data as { subscription?: SyncedSubscriptionData | null } | null;
-          const syncedSubscription = coerceSyncedSubscription(syncedData?.subscription);
+          if (syncResponse.error) {
+            console.warn("[useSubscription] Subscription sync warning:", syncResponse.error);
+          } else {
+            const syncedData = syncResponse.data as { subscription?: SyncedSubscriptionData | null } | null;
+            const syncedSubscription = coerceSyncedSubscription(syncedData?.subscription);
 
-          if (syncedSubscription && isSubscriptionUsable(syncedSubscription)) {
-            return {
-              subscription: syncedSubscription,
-              hasProjectPlanFallback: false,
-            };
+            if (syncedSubscription && isSubscriptionUsable(syncedSubscription)) {
+              return {
+                subscription: syncedSubscription,
+                hasProjectPlanFallback: false,
+              };
+            }
           }
+        } catch (syncErr) {
+          console.warn("[useSubscription] check-subscription call failed (non-fatal):", syncErr);
         }
       }
 
