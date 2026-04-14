@@ -152,7 +152,7 @@ export function SocialSetupFlow({ open, onOpenChange, onHasPage }: SocialSetupFl
     setConnecting(true);
     try {
       if (!sdkReady) {
-        await loadFacebookSDK();
+        await loadFacebookSDK(metaAppId);
       }
 
       // 1. FB.login() — user authorizes, we get a short-lived token
