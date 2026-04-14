@@ -14,7 +14,18 @@ import { ExternalLink, Copy, Check, Facebook, Sparkles, Loader2 } from "lucide-r
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabaseCustom";
 
+// Force GitHub sync — meta_client_id from project_credentials
+console.log("[SocialSetupFlow] Loaded — dynamic meta_client_id v2");
+
 const FALLBACK_META_APP_ID = "1578338553386945";
+
+type Step = "choice" | "create-form" | "create-guide";
+
+interface SocialSetupFlowProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onHasPage: () => void;
+}
 
 // Load Facebook SDK with dynamic App ID
 function loadFacebookSDK(appId: string): Promise<void> {
