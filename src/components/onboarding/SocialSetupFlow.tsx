@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { supabase } from "@/lib/supabaseCustom";
 
 // Force GitHub sync — meta_client_id from project_credentials
+// Forçar novo PR - Paula
 console.log("[SocialSetupFlow] Loaded — dynamic meta_client_id v2");
 
 const FALLBACK_META_APP_ID = "1578338553386945";
