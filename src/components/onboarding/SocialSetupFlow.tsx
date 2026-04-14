@@ -14,27 +14,26 @@ import { ExternalLink, Copy, Check, Facebook, Sparkles, Loader2 } from "lucide-r
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabaseCustom";
 
-const META_APP_ID = "1578338553386945";
+const FALLBACK_META_APP_ID = "1578338553386945";
 
-interface SocialSetupFlowProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onHasPage: () => void;
-}
-
-type Step = "choice" | "create-form" | "create-guide" | "connect";
-
-// Load Facebook SDK
-function loadFacebookSDK(): Promise<void> {
+// Load Facebook SDK with dynamic App ID
+function loadFacebookSDK(appId: string): Promise<void> {
   return new Promise((resolve) => {
     if ((window as any).FB) {
+      // Re-init with possibly new appId
+      (window as any).FB.init({
+        appId,
+        cookie: true,
+        xfbml: false,
+        version: "v21.0",
+      });
       resolve();
       return;
     }
 
     (window as any).fbAsyncInit = function () {
       (window as any).FB.init({
-        appId: META_APP_ID,
+        appId,
         cookie: true,
         xfbml: false,
         version: "v21.0",
@@ -88,12 +87,40 @@ export function SocialSetupFlow({ open, onOpenChange, onHasPage }: SocialSetupFl
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
   const [sdkReady, setSdkReady] = useState(false);
+  const [metaAppId, setMetaAppId] = useState(FALLBACK_META_APP_ID);
+
+  // Fetch meta_client_id from project_credentials
+  useEffect(() => {
+    if (!open) return;
+    (async () => {
+      try {
+        const { data: proj } = await supabase
+          .from("projects")
+          .select("id")
+          .limit(1)
+          .maybeSingle();
+        if (proj) {
+          const { data: creds } = await supabase
+            .from("project_credentials" as any)
+            .select("meta_client_id")
+            .eq("project_id", proj.id)
+            .maybeSingle();
+          const raw = creds as Record<string, unknown> | null;
+          if (raw?.meta_client_id && typeof raw.meta_client_id === "string") {
+            setMetaAppId(raw.meta_client_id);
+          }
+        }
+      } catch (e) {
+        console.warn("Could not fetch meta_client_id, using fallback:", e);
+      }
+    })();
+  }, [open]);
 
   useEffect(() => {
-    if (open) {
-      loadFacebookSDK().then(() => setSdkReady(true));
+    if (open && metaAppId) {
+      loadFacebookSDK(metaAppId).then(() => setSdkReady(true));
     }
-  }, [open]);
+  }, [open, metaAppId]);
 
   const copyText = (text: string, field: string) => {
     navigator.clipboard.writeText(text);
