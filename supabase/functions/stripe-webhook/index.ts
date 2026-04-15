@@ -46,8 +46,8 @@ serve(async (req) => {
 
   const stripeSecretKey = Deno.env.get('STRIPE_SECRET_KEY');
   const webhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET');
-  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const supabaseUrl = Deno.env.get('PROD_SUPABASE_URL') || Deno.env.get('SUPABASE_URL')!;
+  const supabaseServiceKey = Deno.env.get('PROD_SUPABASE_SERVICE_ROLE_KEY') || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
   if (!stripeSecretKey || !webhookSecret) {
     console.error('Missing Stripe secrets');
@@ -61,7 +61,11 @@ serve(async (req) => {
     httpClient: Stripe.createFetchHttpClient(),
   });
 
-  const supabase = createClient(supabaseUrl, supabaseServiceKey);
+  const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+
+  console.log('[stripe-webhook] Using Supabase URL:', supabaseUrl);
 
   const signature = req.headers.get('stripe-signature');
   if (!signature) {
