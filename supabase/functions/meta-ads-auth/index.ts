@@ -55,6 +55,7 @@ Deno.serve(async (req) => {
       // Fallback to env vars
       META_APP_ID = (
         Deno.env.get("META_APP_ID") ||
+        Deno.env.get("FACEBOOK_APP_ID") ||
         Deno.env.get("NEXT_PUBLIC_FB_APP_ID") ||
         Deno.env.get("VITE_FACEBOOK_APP_ID") ||
         ""
