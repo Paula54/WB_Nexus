@@ -152,6 +152,14 @@ serve(async (req) => {
         const planType = session.metadata?.plan_name || session.metadata?.plan_type || 'START';
         const customerEmail = session.customer_details?.email || session.customer_email;
 
+        // ── Read quiz/lead metadata from Site ──
+        const leadId = session.metadata?.lead_id || null;
+        const leadDesafio = session.metadata?.lead_desafio || null;
+        const leadInvestimento = session.metadata?.lead_investimento || null;
+        const leadWhatsapp = session.metadata?.lead_whatsapp || null;
+
+        console.log(`[webhook] Quiz metadata: lead_id=${leadId}, desafio=${leadDesafio}, investimento=${leadInvestimento}, whatsapp=${leadWhatsapp}`);
+
         // If no user_id in metadata, find or create user from Stripe email
         if (!resolvedUserId && customerEmail) {
           console.log(`[webhook] No user_id in metadata, resolving from email: ${customerEmail}`);
@@ -174,6 +182,8 @@ serve(async (req) => {
               email_confirm: true,
               user_metadata: {
                 full_name: session.customer_details?.name || null,
+                lead_desafio: leadDesafio,
+                lead_investimento: leadInvestimento,
               },
             });
             if (createErr || !newUser?.user) {
@@ -183,138 +193,14 @@ serve(async (req) => {
             resolvedUserId = newUser.user.id;
             console.log(`[webhook] Created new user: ${resolvedUserId}`);
 
-            // Create profile for new user
+            // Create profile for new user with quiz data
             await supabase.from('profiles').upsert({
               user_id: resolvedUserId,
               full_name: session.customer_details?.name || null,
               contact_email: customerEmail,
+              business_sector: leadDesafio || null,
             }, { onConflict: 'user_id' });
           }
-        }
-
-        if (!resolvedUserId) {
-          console.error('[webhook] Could not resolve user for checkout:', session.id);
-          break;
-        }
-
-        // If no project_id, create a default project for the user
-        if (!projectId) {
-          const { data: existingProject } = await supabase
-            .from('projects')
-            .select('id')
-            .eq('user_id', resolvedUserId)
-            .limit(1)
-            .maybeSingle();
-
-          if (existingProject) {
-            projectId = existingProject.id;
-          } else {
-            const { data: newProject, error: projErr } = await supabase
-              .from('projects')
-              .insert({
-                user_id: resolvedUserId,
-                name: 'Meu Projeto',
-                project_type: 'website',
-              })
-              .select('id')
-              .single();
-
-            if (projErr || !newProject) {
-              console.error('[webhook] Failed to create project:', projErr);
-              break;
-            }
-            projectId = newProject.id;
-          }
-          console.log(`[webhook] Resolved project: ${projectId}`);
-        }
-
-        const subscription = await stripe.subscriptions.retrieve(session.subscription as string);
-
-        // Map Stripe status to our status — ensure 'active' after successful payment
-        const mappedStatus = subscription.status === 'trialing' ? 'trialing' : 'active';
-
-        const { error: subError } = await upsertSubscriptionRecord(supabase, {
-          user_id: resolvedUserId,
-          project_id: projectId,
-          stripe_customer_id: session.customer as string,
-          stripe_subscription_id: session.subscription as string,
-          status: mappedStatus,
-          trial_ends_at: subscription.trial_end
-            ? new Date(subscription.trial_end * 1000).toISOString()
-            : null,
-          current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-          current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-        }, planType);
-
-        if (subError) {
-          console.error('Error upserting subscription:', subError);
-          break;
-        }
-
-        const trialEndsAt = subscription.trial_end
-          ? new Date(subscription.trial_end * 1000).toISOString()
-          : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
-
-        await supabase
-          .from('projects')
-          .update({ selected_plan: planType, trial_expires_at: trialEndsAt })
-          .eq('id', projectId);
-
-        // ── Sync customer details from Stripe to Supabase ──
-        try {
-          const customerDetails = session.customer_details;
-          const customerName = customerDetails?.name || null;
-          const syncEmail = customerDetails?.email || null;
-          const customerPhone = customerDetails?.phone || null;
-
-          // Extract NIF from tax_ids (format: PT123456789 → 123456789)
-          let nifValue: string | null = null;
-          if (customerDetails?.tax_ids && customerDetails.tax_ids.length > 0) {
-            const euVat = customerDetails.tax_ids.find((t: any) => t.type === 'eu_vat');
-            if (euVat?.value) {
-              nifValue = euVat.value.replace(/^PT/i, '');
-            }
-          }
-
-          // Update profiles: full_name + contact_email
-          if (customerName || syncEmail) {
-            await supabase
-              .from('profiles')
-              .update({
-                ...(customerName ? { full_name: customerName } : {}),
-                ...(syncEmail ? { contact_email: syncEmail } : {}),
-              })
-              .eq('user_id', resolvedUserId);
-          }
-
-          // Update business_profiles: nif, phone, legal_name
-          const bizUpdate: Record<string, string | null> = {};
-          if (nifValue) bizUpdate.nif = nifValue;
-          if (customerPhone) bizUpdate.phone = customerPhone;
-          if (customerName) bizUpdate.legal_name = customerName;
-
-          if (Object.keys(bizUpdate).length > 0) {
-            const { data: existingBiz } = await supabase
-              .from('business_profiles')
-              .select('id')
-              .eq('user_id', resolvedUserId)
-              .maybeSingle();
-
-            if (existingBiz) {
-              await supabase
-                .from('business_profiles')
-                .update(bizUpdate)
-                .eq('user_id', resolvedUserId);
-            } else {
-              await supabase
-                .from('business_profiles')
-                .insert({ user_id: resolvedUserId, ...bizUpdate });
-            }
-          }
-
-          console.log(`Customer details synced: name=${customerName}, email=${syncEmail}, nif=${nifValue}`);
-        } catch (syncErr) {
-          console.warn('Non-blocking customer sync error:', syncErr);
         }
 
         // ── Invite user via Supabase Auth (universal onboarding) ──
