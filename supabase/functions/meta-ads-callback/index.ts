@@ -13,7 +13,7 @@ Deno.serve(async (req) => {
 
   try {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-    const META_APP_ID = (Deno.env.get("META_APP_ID") || Deno.env.get("NEXT_PUBLIC_FB_APP_ID") || Deno.env.get("VITE_FACEBOOK_APP_ID") || "").trim();
+    const META_APP_ID = (Deno.env.get("META_APP_ID") || Deno.env.get("FACEBOOK_APP_ID") || Deno.env.get("NEXT_PUBLIC_FB_APP_ID") || Deno.env.get("VITE_FACEBOOK_APP_ID") || "").trim();
     const META_APP_SECRET = (Deno.env.get("META_APP_SECRET") || Deno.env.get("FACEBOOK_APP_SECRET") || "").trim();
     const PROD_URL = Deno.env.get("PROD_SUPABASE_URL") || Deno.env.get("SUPABASE_URL")!;
     const PROD_KEY = Deno.env.get("PROD_SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
