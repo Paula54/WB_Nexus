@@ -12,8 +12,8 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const META_APP_ID = Deno.env.get("META_APP_ID");
-    const META_APP_SECRET = Deno.env.get("META_APP_SECRET");
+    const META_APP_ID = (Deno.env.get("META_APP_ID") || Deno.env.get("FACEBOOK_APP_ID") || Deno.env.get("NEXT_PUBLIC_FB_APP_ID") || Deno.env.get("VITE_FACEBOOK_APP_ID") || "").trim();
+    const META_APP_SECRET = (Deno.env.get("META_APP_SECRET") || Deno.env.get("FACEBOOK_APP_SECRET") || "").trim();
     const META_ACCESS_TOKEN = Deno.env.get("META_ACCESS_TOKEN");
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -98,6 +98,7 @@ Deno.serve(async (req) => {
       .from("projects")
       .select("id")
       .eq("user_id", user.id)
+      .order("created_at", { ascending: true })
       .limit(1)
       .maybeSingle();
 

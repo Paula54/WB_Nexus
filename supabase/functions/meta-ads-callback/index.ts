@@ -1,14 +1,54 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { encryptToken } from "../_shared/crypto.ts";
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+async function ensurePrimaryProject(
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+  userLabel: string,
+  fallbackPlan = "START",
+) {
+  const { data: existingProject, error: lookupError } = await supabase
+    .from("projects")
+    .select("id")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (lookupError) {
+    throw lookupError;
+  }
+
+  if (existingProject) {
+    return existingProject;
+  }
+
+  const { data: newProject, error: createError } = await supabase
+    .from("projects")
+    .insert({
+      user_id: userId,
+      name: `Projeto Nexus OS - ${userLabel}`,
+      project_type: "marketing",
+      selected_plan: fallbackPlan,
+    })
+    .select("id")
+    .single();
+
+  if (createError || !newProject) {
+    throw createError || new Error("Failed to create project");
+  }
+
+  return newProject;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, {
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-      },
-    });
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
@@ -34,6 +74,10 @@ Deno.serve(async (req) => {
     const returnUrl = returnOrigin
       ? `${returnOrigin}/settings`
       : "https://nexus.web-business.pt/settings";
+
+    if (!META_APP_ID || !META_APP_SECRET) {
+      return Response.redirect(`${returnUrl}?meta_ads_error=${encodeURIComponent("Meta app credentials not configured")}`, 302);
+    }
 
     if (error) {
       return Response.redirect(`${returnUrl}?meta_ads_error=${encodeURIComponent(error)}`, 302);
@@ -94,30 +138,36 @@ Deno.serve(async (req) => {
 
     // WhatsApp from env
     const whatsappBusinessId = Deno.env.get("META_WHATSAPP_BUSINESS_ACCOUNT_ID") || null;
+    const primaryAdAccountId = adAccounts[0]?.id || null;
 
     const encryptedToken = await encryptToken(longLivedToken);
     const prodClient = createClient(PROD_URL, PROD_KEY);
 
-    // Find project for user
-    const { data: project } = await prodClient
-      .from("projects")
-      .select("id")
-      .eq("user_id", userId)
-      .order("updated_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    const project = await ensurePrimaryProject(prodClient, userId, userId.slice(0, 8));
 
-    if (project) {
-      // Upsert into project_credentials
-      await prodClient
-        .from("project_credentials")
-        .upsert({
-          project_id: project.id,
-          user_id: userId,
-          meta_access_token: encryptedToken,
-          whatsapp_business_id: whatsappBusinessId,
-        }, { onConflict: "project_id" });
-    }
+    await prodClient
+      .from("project_credentials")
+      .upsert({
+        project_id: project.id,
+        user_id: userId,
+        meta_access_token: encryptedToken,
+        meta_ads_account_id: primaryAdAccountId,
+        facebook_page_id: facebookPageId,
+        instagram_business_id: instagramBusinessId,
+        whatsapp_business_id: whatsappBusinessId,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "project_id" });
+
+    await prodClient
+      .from("projects")
+      .update({
+        meta_access_token: encryptedToken,
+        meta_ads_account_id: primaryAdAccountId,
+        facebook_page_id: facebookPageId,
+        instagram_business_id: instagramBusinessId,
+        whatsapp_business_id: whatsappBusinessId,
+      })
+      .eq("id", project.id);
 
     // Fetch pages for selection
     let pages: any[] = [];
