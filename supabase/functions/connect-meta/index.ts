@@ -219,6 +219,16 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Mirror Meta IDs to projects table (consistency for Dashboard)
+    await prodSupabase
+      .from("projects")
+      .update({
+        facebook_page_id: facebookPageId,
+        instagram_business_id: instagramBusinessId,
+        meta_ads_account_id: adAccountId,
+      })
+      .eq("id", project.id);
+
     // Encrypt page access token if we have a page
     let encryptedPageToken: string | null = null;
     if (facebookPageId && longLivedToken) {
