@@ -32,7 +32,7 @@ export function useProjectData() {
           .from("projects")
           .select("id, name, domain, google_analytics_id")
           .eq("user_id", user!.id)
-          .order("created_at", { ascending: false })
+          .order("created_at", { ascending: true })
           .limit(1)
           .maybeSingle(),
         supabase

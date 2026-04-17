@@ -127,7 +127,7 @@ export function useSubscription() {
           .from("projects")
           .select("id, selected_plan, trial_expires_at")
           .eq("user_id", user.id)
-          .order("updated_at", { ascending: false })
+          .order("created_at", { ascending: true })
           .limit(1)
           .maybeSingle(),
       ]);

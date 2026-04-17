@@ -26,7 +26,7 @@ export function useOnboardingStatus(): OnboardingStatus {
       .from("projects")
       .select("id")
       .eq("user_id", user.id)
-      .order("updated_at", { ascending: false })
+      .order("created_at", { ascending: true })
       .limit(1)
       .maybeSingle();
 

@@ -47,7 +47,7 @@ export function RegularDashboard() {
           supabase.from("social_posts").select("id", { count: "exact", head: true }).eq("status", "published"),
           supabase.from("social_posts").select("id", { count: "exact", head: true }).eq("status", "draft"),
           supabase.from("profiles").select("full_name").eq("user_id", user.id).maybeSingle(),
-          supabase.from("projects").select("meta_access_token, meta_ads_account_id").eq("user_id", user.id).limit(1).maybeSingle(),
+          supabase.from("projects").select("meta_access_token, meta_ads_account_id").eq("user_id", user.id).order("created_at", { ascending: true }).limit(1).maybeSingle(),
           supabase.from("whatsapp_accounts").select("id").eq("user_id", user.id).eq("is_active", true).limit(1).maybeSingle(),
         ]);
         setStats({
