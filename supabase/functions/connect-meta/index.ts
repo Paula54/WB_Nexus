@@ -7,6 +7,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+// Sync forçado GitHub - fallback FACEBOOK_APP_ID/FACEBOOK_APP_SECRET ativo (linhas 79-80)
 Deno.serve(async (req) => {
   const requestId = crypto.randomUUID().slice(0, 8);
   const log = (msg: string, data?: unknown) => console.log(`[${requestId}] ${msg}`, data !== undefined ? JSON.stringify(data) : "");
