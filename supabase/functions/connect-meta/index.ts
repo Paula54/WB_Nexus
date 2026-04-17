@@ -152,8 +152,8 @@ Deno.serve(async (req) => {
     }
     const prodSupabase = createClient(prodUrl, prodServiceKey);
 
-    // Find project
-    const { data: project, error: projectError } = await prodSupabase
+    // Find or auto-create project (defensive: ensures Meta connection never fails)
+    let { data: project, error: projectError } = await prodSupabase
       .from("projects")
       .select("id, name")
       .eq("user_id", user.id)
@@ -161,11 +161,34 @@ Deno.serve(async (req) => {
       .limit(1)
       .maybeSingle();
 
-    if (projectError || !project) {
-      logError("Project not found", projectError?.message);
-      return new Response(JSON.stringify({ error: projectError?.message || "No project found" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    if (projectError) {
+      logError("Project lookup failed", projectError.message);
+      return new Response(JSON.stringify({ error: projectError.message }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    if (!project) {
+      log("🆕 No project found, auto-creating...");
+      const { data: newProject, error: createErr } = await prodSupabase
+        .from("projects")
+        .insert({
+          user_id: user.id,
+          name: `Projeto Nexus OS - ${user.email || user.id.slice(0, 8)}`,
+          project_type: "marketing",
+          selected_plan: "START",
+        })
+        .select("id, name")
+        .single();
+
+      if (createErr || !newProject) {
+        logError("Auto-create project failed", createErr?.message);
+        return new Response(JSON.stringify({ error: createErr?.message || "Failed to create project" }), {
+          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      project = newProject;
+      log(`✅ Auto-created project: ${project.id}`);
     }
     log(`📁 Project: ${project.id}`);
 
