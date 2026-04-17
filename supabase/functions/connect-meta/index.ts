@@ -7,6 +7,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+// Sync forçado GitHub - fallback FACEBOOK_APP_ID/FACEBOOK_APP_SECRET ativo (linhas 79-80)
 Deno.serve(async (req) => {
   const requestId = crypto.randomUUID().slice(0, 8);
   const log = (msg: string, data?: unknown) => console.log(`[${requestId}] ${msg}`, data !== undefined ? JSON.stringify(data) : "");
@@ -76,7 +77,7 @@ Deno.serve(async (req) => {
     }
 
     // --- Exchange short-lived for long-lived token ---
-    const META_APP_ID = (Deno.env.get("META_APP_ID") || Deno.env.get("VITE_FACEBOOK_APP_ID") || "").trim();
+    const META_APP_ID = (Deno.env.get("META_APP_ID") || Deno.env.get("FACEBOOK_APP_ID") || Deno.env.get("NEXT_PUBLIC_FB_APP_ID") || Deno.env.get("VITE_FACEBOOK_APP_ID") || "").trim();
     const META_APP_SECRET = (Deno.env.get("META_APP_SECRET") || Deno.env.get("FACEBOOK_APP_SECRET") || "").trim();
 
     if (!META_APP_ID || !META_APP_SECRET) {

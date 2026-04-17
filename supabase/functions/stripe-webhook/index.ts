@@ -152,6 +152,14 @@ serve(async (req) => {
         const planType = session.metadata?.plan_name || session.metadata?.plan_type || 'START';
         const customerEmail = session.customer_details?.email || session.customer_email;
 
+        // ── Read quiz/lead metadata from Site ──
+        const leadId = session.metadata?.lead_id || null;
+        const leadDesafio = session.metadata?.lead_desafio || null;
+        const leadInvestimento = session.metadata?.lead_investimento || null;
+        const leadWhatsapp = session.metadata?.lead_whatsapp || null;
+
+        console.log(`[webhook] Quiz metadata: lead_id=${leadId}, desafio=${leadDesafio}, investimento=${leadInvestimento}, whatsapp=${leadWhatsapp}`);
+
         // If no user_id in metadata, find or create user from Stripe email
         if (!resolvedUserId && customerEmail) {
           console.log(`[webhook] No user_id in metadata, resolving from email: ${customerEmail}`);
@@ -174,6 +182,8 @@ serve(async (req) => {
               email_confirm: true,
               user_metadata: {
                 full_name: session.customer_details?.name || null,
+                lead_desafio: leadDesafio,
+                lead_investimento: leadInvestimento,
               },
             });
             if (createErr || !newUser?.user) {
@@ -183,11 +193,12 @@ serve(async (req) => {
             resolvedUserId = newUser.user.id;
             console.log(`[webhook] Created new user: ${resolvedUserId}`);
 
-            // Create profile for new user
+            // Create profile for new user with quiz data
             await supabase.from('profiles').upsert({
               user_id: resolvedUserId,
               full_name: session.customer_details?.name || null,
               contact_email: customerEmail,
+              business_sector: leadDesafio || null,
             }, { onConflict: 'user_id' });
           }
         }
@@ -230,7 +241,7 @@ serve(async (req) => {
 
         const subscription = await stripe.subscriptions.retrieve(session.subscription as string);
 
-        // Map Stripe status to our status — ensure 'active' after successful payment
+        // Map Stripe status — force 'active' after successful payment
         const mappedStatus = subscription.status === 'trialing' ? 'trialing' : 'active';
 
         const { error: subError } = await upsertSubscriptionRecord(supabase, {
@@ -260,7 +271,7 @@ serve(async (req) => {
           .update({ selected_plan: planType, trial_expires_at: trialEndsAt })
           .eq('id', projectId);
 
-        // ── Sync customer details from Stripe to Supabase ──
+        // ── Sync customer details + quiz metadata to profiles & business_profiles ──
         try {
           const customerDetails = session.customer_details;
           const customerName = customerDetails?.name || null;
@@ -276,21 +287,24 @@ serve(async (req) => {
             }
           }
 
-          // Update profiles: full_name + contact_email
-          if (customerName || syncEmail) {
+          // Update profiles with quiz data (desafio → business_sector)
+          const profileUpdate: Record<string, string | null> = {};
+          if (customerName) profileUpdate.full_name = customerName;
+          if (syncEmail) profileUpdate.contact_email = syncEmail;
+          if (leadDesafio) profileUpdate.business_sector = leadDesafio;
+
+          if (Object.keys(profileUpdate).length > 0) {
             await supabase
               .from('profiles')
-              .update({
-                ...(customerName ? { full_name: customerName } : {}),
-                ...(syncEmail ? { contact_email: syncEmail } : {}),
-              })
+              .update(profileUpdate)
               .eq('user_id', resolvedUserId);
           }
 
-          // Update business_profiles: nif, phone, legal_name
+          // Update business_profiles: nif, phone/whatsapp, legal_name
           const bizUpdate: Record<string, string | null> = {};
           if (nifValue) bizUpdate.nif = nifValue;
-          if (customerPhone) bizUpdate.phone = customerPhone;
+          if (leadWhatsapp) bizUpdate.phone = leadWhatsapp;
+          else if (customerPhone) bizUpdate.phone = customerPhone;
           if (customerName) bizUpdate.legal_name = customerName;
 
           if (Object.keys(bizUpdate).length > 0) {
@@ -312,7 +326,7 @@ serve(async (req) => {
             }
           }
 
-          console.log(`Customer details synced: name=${customerName}, email=${syncEmail}, nif=${nifValue}`);
+          console.log(`Customer details synced: name=${customerName}, email=${syncEmail}, nif=${nifValue}, whatsapp=${leadWhatsapp}, desafio=${leadDesafio}, investimento=${leadInvestimento}`);
         } catch (syncErr) {
           console.warn('Non-blocking customer sync error:', syncErr);
         }
@@ -321,7 +335,6 @@ serve(async (req) => {
         try {
           const inviteEmail = session.customer_details?.email || session.customer_email;
           if (inviteEmail) {
-            // Check if user already has a password set (existing user)
             const { data: existingUser } = await supabase.auth.admin.getUserById(resolvedUserId);
             const hasPassword = existingUser?.user?.email_confirmed_at;
 
@@ -347,7 +360,7 @@ serve(async (req) => {
           console.warn('Non-blocking invite error:', inviteErr);
         }
 
-        console.log(`Checkout completed: user=${resolvedUserId}, project=${projectId}, plan=${planType}`);
+        console.log(`Checkout completed: user=${resolvedUserId}, project=${projectId}, plan=${planType}, lead=${leadId}`);
         break;
       }
 

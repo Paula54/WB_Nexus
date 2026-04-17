@@ -37,6 +37,39 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Try to get meta_client_id from project_credentials first
+    let META_APP_ID = "";
+    const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_KEY);
+    const { data: creds } = await supabaseAdmin
+      .from("project_credentials")
+      .select("meta_client_id")
+      .eq("user_id", user.id)
+      .limit(1)
+      .maybeSingle();
+
+    if (creds?.meta_client_id) {
+      META_APP_ID = creds.meta_client_id;
+      console.log("Using meta_client_id from project_credentials");
+    } else {
+      // Fallback to env vars
+      META_APP_ID = (
+        Deno.env.get("META_APP_ID") ||
+        Deno.env.get("FACEBOOK_APP_ID") ||
+        Deno.env.get("NEXT_PUBLIC_FB_APP_ID") ||
+        Deno.env.get("VITE_FACEBOOK_APP_ID") ||
+        ""
+      ).trim();
+      console.log("Using meta_client_id from env vars");
+    }
+
+    if (!META_APP_ID) {
+      console.error("META_APP_ID not configured anywhere");
+      return new Response(
+        JSON.stringify({ error: "A configuração da aplicação Meta não está disponível. Contacte o suporte." }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const requestUrl = new URL(req.url);
     const returnOrigin = requestUrl.searchParams.get("return_origin") || "";
 
