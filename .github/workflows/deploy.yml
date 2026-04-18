@@ -28,16 +28,9 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
 
-      - name: Push database migrations
-        run: |
-          mkdir -p supabase/migrations
-          cat <<'SQL' > supabase/migrations/00000000000000_ensure_private_schema.sql
-          create schema if not exists private;
-          SQL
-          supabase db push
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      # NOTE: `supabase db push` desativado intencionalmente.
+      # Schema é gerido manualmente em produção (regra Core do projeto).
+      # Reativar apenas após sincronizar histórico com `db pull` + `migration repair`.
 
       - name: Deploy Edge Functions
         run: |
