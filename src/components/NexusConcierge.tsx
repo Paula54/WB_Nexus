@@ -210,6 +210,34 @@ export function NexusConcierge() {
     }
   }, [user, isOpen]);
 
+  // Contextual nudge: when user navigates to specific routes, the Concierge intervenes
+  useEffect(() => {
+    if (!userContext?.has_dna || !userContext.business_sector) return;
+    if (lastNudgedPathRef.current === location.pathname) return;
+
+    const sector = userContext.business_sector;
+    let nudge: string | null = null;
+
+    if (location.pathname.startsWith("/social-media")) {
+      nudge = `💡 Com base no teu DNA (**${sector}**), sugiro criarmos posts focados em palavras-chave do teu setor. Queres que eu rascunhe o primeiro?\n\n[ACTION:Sim, rascunha agora:generate_draft:instagram]`;
+    } else if (location.pathname.startsWith("/ads") && userContext.is_premium_plan) {
+      nudge = `🚀 Vejo que estás na **Publicidade**. Com o teu DNA do setor **${sector}**, posso ajudar a estruturar a primeira campanha de alta conversão. Por onde queres começar?`;
+    } else if (location.pathname.startsWith("/seo")) {
+      nudge = `🔍 Para a **${userContext.company_name || "tua empresa"}** (${sector}), vou priorizar palavras-chave locais e do teu nicho. *Lembra-te: quanto mais detalhada for a descrição no Perfil, mais certeira será a otimização.*`;
+    }
+
+    if (nudge) {
+      lastNudgedPathRef.current = location.pathname;
+      setIsOpen(true);
+      setMessages((prev) => {
+        // Don't repeat if the last assistant message is already the same nudge
+        const last = prev[prev.length - 1];
+        if (last?.role === "assistant" && last.content === nudge) return prev;
+        return [...prev, { role: "assistant", content: nudge as string }];
+      });
+    }
+  }, [location.pathname, userContext]);
+
   // Fetch user context from external DB to send to the edge function
   const loadUserContext = async () => {
     if (!user) return;
