@@ -215,16 +215,18 @@ export function NexusConcierge() {
     if (!user) return;
 
     try {
-      const [profileRes, projectRes, subscriptionRes, leadsRes] = await Promise.all([
-        supabase.from("profiles").select("business_sector, company_name, ai_custom_instructions").eq("user_id", user.id).maybeSingle(),
-        supabase.from("projects").select("name, domain, selected_plan, trial_expires_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+      const [profileRes, projectRes, subscriptionRes, leadsRes, businessRes] = await Promise.all([
+        supabase.from("profiles").select("full_name, business_sector, company_name, ai_custom_instructions").eq("user_id", user.id).maybeSingle(),
+        supabase.from("projects").select("name, domain, selected_plan, trial_expires_at").eq("user_id", user.id).order("created_at", { ascending: true }).limit(1).maybeSingle(),
         supabase.from("subscriptions").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
         supabase.from("leads").select("id", { count: "exact", head: true }).eq("user_id", user.id),
+        supabase.from("business_profiles").select("trade_name, legal_name").eq("user_id", user.id).maybeSingle(),
       ]);
 
       const profile = profileRes.data;
       const project = projectRes.data;
       const subscription = subscriptionRes.data as Record<string, unknown> | null;
+      const business = businessRes.data;
 
       let trialDaysLeft: number | undefined;
       if (project?.trial_expires_at) {
@@ -232,15 +234,27 @@ export function NexusConcierge() {
         trialDaysLeft = Math.max(0, Math.ceil((trialEnd.getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
       }
 
+      const planLabel = (resolveSubscriptionPlanLabel(subscription) || project?.selected_plan || "Lite") as string;
+      const planUpper = planLabel.toUpperCase();
+      const isPremium = planUpper.includes("GROWTH") || planUpper.includes("OS") || planUpper.includes("BUSINESS") || planUpper.includes("PREMIUM");
+
+      const companyName = business?.trade_name || business?.legal_name || profile?.company_name || project?.name || undefined;
+      const description = profile?.ai_custom_instructions || profile?.business_sector || undefined;
+      const hasDna = !!(companyName && profile?.business_sector);
+
       setUserContext({
-        company_name: profile?.company_name || undefined,
+        full_name: profile?.full_name || undefined,
+        company_name: companyName,
         business_sector: profile?.business_sector || undefined,
-        plan_type: resolveSubscriptionPlanLabel(subscription) || project?.selected_plan || "Lite",
+        business_description: description,
+        plan_type: planLabel,
         project_name: project?.name || undefined,
         domain: project?.domain || undefined,
         leads_count: leadsRes.count ?? 0,
         ai_custom_instructions: profile?.ai_custom_instructions || undefined,
         trial_days_left: trialDaysLeft,
+        has_dna: hasDna,
+        is_premium_plan: isPremium,
       });
     } catch (error) {
       console.error("Error loading user context:", error);
@@ -252,15 +266,36 @@ export function NexusConcierge() {
     setHasLoadedProactive(true);
 
     try {
-      const projectsRes = await supabase.from("projects").select("id", { count: "exact", head: true });
-      const projectCount = projectsRes.count ?? 0;
+      // Re-read fresh DNA so the greeting reflects the latest profile state
+      const [profileRes, projectRes, subscriptionRes, businessRes] = await Promise.all([
+        supabase.from("profiles").select("full_name, business_sector, company_name").eq("user_id", user.id).maybeSingle(),
+        supabase.from("projects").select("name, selected_plan").eq("user_id", user.id).order("created_at", { ascending: true }).limit(1).maybeSingle(),
+        supabase.from("subscriptions").select("plan_type").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+        supabase.from("business_profiles").select("trade_name, legal_name").eq("user_id", user.id).maybeSingle(),
+      ]);
+
+      const profile = profileRes.data;
+      const project = projectRes.data;
+      const business = businessRes.data;
+      const planLabel = (resolveSubscriptionPlanLabel(subscriptionRes.data as Record<string, unknown> | null) || project?.selected_plan || "Lite") as string;
+      const planUpper = planLabel.toUpperCase();
+      const isPremium = planUpper.includes("GROWTH") || planUpper.includes("OS") || planUpper.includes("BUSINESS") || planUpper.includes("PREMIUM");
+
+      const firstName = (profile?.full_name || "").split(" ")[0];
+      const companyName = business?.trade_name || business?.legal_name || profile?.company_name || project?.name;
+      const sector = profile?.business_sector;
+      const hasDna = !!(companyName && sector);
 
       let proactiveMessage = "";
 
-      if (projectCount === 0) {
-        proactiveMessage = `Bem-vindo ao WB Nexus! 🚀\n\nSou o teu **Success Concierge** — o teu mentor estratégico.\n\nDiz-me o **setor do teu negócio** (ex: Cafetaria, Imobiliária, Salão de Beleza) e eu ajudo-te a começar!\n\nVamos começar?`;
+      if (!hasDna) {
+        proactiveMessage = `Olá${firstName ? ` ${firstName}` : ""}! 👋\n\nSou o teu **Success Concierge**. Antes de começarmos a faturar, preciso de conhecer o teu negócio.\n\n👉 Define o **DNA do Negócio** (nome + setor + descrição) no Perfil — assim consigo gerar anúncios e posts mesmo certeiros para ti.\n\n*Lembra-te: quanto mais detalhada for a descrição, mais profissionais serão os conteúdos que a IA gera automaticamente.*`;
       } else {
-        proactiveMessage = `Olá! 👋 Sou o teu **Success Concierge**. Estou pronto para te ajudar a crescer o teu negócio.\n\nO que precisas hoje? 🎯\n\n[ACTION:Criar Conteúdo:generate_draft:instagram]\n[ACTION:Registar Cliente:create_lead:default]\n[ACTION:Ver Estratégia:navigate:/strategy]`;
+        const greeting = `Olá${firstName ? ` ${firstName}` : ""}! 👋 Já vi que a **${companyName}** atua no setor de **${sector}**. Incrível! 🎯`;
+        const nextStep = isPremium
+          ? `\n\nCom o teu plano **${planLabel}**, o próximo passo de alto impacto é:\n- 📲 Configurar o **WhatsApp Business** para responder leads em tempo real\n- 🚀 Lançar a **primeira campanha de Publicidade** (Google ou Meta)\n\nPor onde queres começar?\n\n[ACTION:Lançar Primeira Campanha:create_campaign:default]\n[ACTION:Gerar Post Instagram:generate_draft:instagram]`
+          : `\n\nCom o teu plano **${planLabel}**, o próximo passo de alto impacto é:\n- 🌐 Construir o teu **Site** profissional\n- 📸 Criar a tua **Presença no Instagram** com posts consistentes\n\nPor onde queres começar?\n\n[ACTION:Gerar Post Instagram:generate_draft:instagram]\n[ACTION:Registar Cliente:create_lead:default]`;
+        proactiveMessage = greeting + nextStep;
       }
 
       setMessages([{ role: "assistant", content: proactiveMessage }]);
