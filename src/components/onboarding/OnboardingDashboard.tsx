@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Share2, MessageCircle, Megaphone } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Share2, MessageCircle, Megaphone, Fingerprint } from "lucide-react";
 import { ProgressBar } from "./ProgressBar";
 import { SetupCard } from "./SetupCard";
 import { SocialSetupFlow } from "./SocialSetupFlow";
@@ -10,8 +11,9 @@ import MetaAdsConnectModal from "@/components/ads/MetaAdsConnectModal";
 import { useProjectData } from "@/hooks/useProjectData";
 
 export function OnboardingDashboard() {
-  const { socialConnected, whatsappConnected, firstCampaignLaunched, loading, progress, refetch } = useOnboardingStatus();
+  const { dnaConfigured, socialConnected, whatsappConnected, firstCampaignLaunched, loading, progress, refetch } = useOnboardingStatus();
   const { project } = useProjectData();
+  const navigate = useNavigate();
   const [socialFlowOpen, setSocialFlowOpen] = useState(false);
   const [metaConnectOpen, setMetaConnectOpen] = useState(false);
 
@@ -33,17 +35,19 @@ export function OnboardingDashboard() {
     );
   }
 
-  const campaignLocked = !socialConnected || !whatsappConnected;
+  const socialLocked = !dnaConfigured;
+  const whatsappLocked = !dnaConfigured;
+  const campaignLocked = !dnaConfigured || !socialConnected || !whatsappConnected;
 
   return (
-    <div className="space-y-8 max-w-4xl mx-auto">
+    <div className="space-y-8 max-w-5xl mx-auto">
       {/* Header */}
       <div className="text-center animate-fade-in">
         <h1 className="text-3xl sm:text-4xl font-display font-bold text-foreground">
           Centro de Configuração ⚡
         </h1>
-        <p className="text-muted-foreground mt-2 max-w-lg mx-auto">
-          Configura tudo em 3 passos simples. Quando terminares, a tua máquina de vendas fica 100% automática.
+        <p className="text-muted-foreground mt-2 max-w-xl mx-auto">
+          Bem-vindo! Antes de começarmos, precisamos de definir quem tu és. Configura o DNA do teu negócio no Passo 1 para que a WB Nexus possa trabalhar por ti.
         </p>
       </div>
 
@@ -52,29 +56,43 @@ export function OnboardingDashboard() {
         <ProgressBar progress={progress} />
       </div>
 
-      {/* 3 Setup Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      {/* 4 Setup Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="animate-fade-in" style={{ animationDelay: "300ms", animationFillMode: "both" }}>
+          <SetupCard
+            icon={<Fingerprint className="h-8 w-8 text-neon-purple" />}
+            title="Definir DNA do Negócio"
+            description="Diz-nos quem és e o que fazes para a IA trabalhar à tua medida."
+            connected={dnaConfigured}
+            neonColor="purple"
+            onAction={() => navigate("/profile")}
+          />
+        </div>
+        <div className="animate-fade-in" style={{ animationDelay: "450ms", animationFillMode: "both" }}>
           <SetupCard
             icon={<Share2 className="h-8 w-8 text-neon-blue" />}
             title="Ligar Redes Sociais"
             description="Conecta o Facebook e Instagram para publicar automaticamente."
             connected={socialConnected}
+            locked={socialLocked}
+            lockedMessage="Configura o DNA primeiro"
             neonColor="blue"
             onAction={() => setSocialFlowOpen(true)}
           />
         </div>
-        <div className="animate-fade-in" style={{ animationDelay: "450ms", animationFillMode: "both" }}>
+        <div className="animate-fade-in" style={{ animationDelay: "600ms", animationFillMode: "both" }}>
           <SetupCard
             icon={<MessageCircle className="h-8 w-8 text-neon-green" />}
             title="Ativar WhatsApp"
             description="Recebe e responde a clientes automaticamente via WhatsApp."
             connected={whatsappConnected}
+            locked={whatsappLocked}
+            lockedMessage="Configura o DNA primeiro"
             neonColor="green"
             onAction={handleWhatsAppSetup}
           />
         </div>
-        <div className="animate-fade-in" style={{ animationDelay: "600ms", animationFillMode: "both" }}>
+        <div className="animate-fade-in" style={{ animationDelay: "750ms", animationFillMode: "both" }}>
           <SetupCard
             icon={<Megaphone className="h-8 w-8 text-neon-purple" />}
             title="Lançar Campanha"
@@ -89,12 +107,12 @@ export function OnboardingDashboard() {
       </div>
 
       {/* Ad Lab */}
-      <div className="animate-fade-in" style={{ animationDelay: "750ms", animationFillMode: "both" }}>
+      <div className="animate-fade-in" style={{ animationDelay: "900ms", animationFillMode: "both" }}>
         <AdLab locked={campaignLocked} onCampaignLaunched={refetch} />
       </div>
 
       {/* Quotas */}
-      <div className="animate-fade-in" style={{ animationDelay: "900ms", animationFillMode: "both" }}>
+      <div className="animate-fade-in" style={{ animationDelay: "1050ms", animationFillMode: "both" }}>
         <MyUsage />
       </div>
 
