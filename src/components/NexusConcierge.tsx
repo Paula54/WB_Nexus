@@ -47,14 +47,18 @@ interface ActionButton {
 }
 
 interface UserContext {
+  full_name?: string;
   company_name?: string;
   business_sector?: string;
+  business_description?: string;
   plan_type?: string;
   project_name?: string;
   domain?: string;
   leads_count?: number;
   ai_custom_instructions?: string;
   trial_days_left?: number;
+  has_dna?: boolean;
+  is_premium_plan?: boolean;
 }
 
 interface ConciergeOpenDetail {
