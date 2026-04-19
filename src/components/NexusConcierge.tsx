@@ -7,7 +7,7 @@ import { supabase } from "@/lib/supabaseCustom";
 import { useAuth } from "@/contexts/AuthContext";
 import ReactMarkdown from "react-markdown";
 import { toast } from "sonner";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 // Lovable Cloud edge function URL (auto-deployed on Publish)
 const CONCIERGE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/nexus-concierge`;
