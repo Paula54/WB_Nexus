@@ -159,7 +159,7 @@ export default function AssetLibraryTab() {
         toast({ variant: "destructive", title: "Metadados falharam", description: `${dbError.message} (${dbError.code})` });
       } else {
         setUploadProgress(90);
-        // Sync to business_profiles if applicable
+        // Sync to projects (DNA centralizado) if applicable
         await syncBusinessProfile(selectedType, publicUrl);
         setUploadProgress(100);
         toast({ title: "Ficheiro carregado ✅", description: `${file.name} adicionado à biblioteca.` });
