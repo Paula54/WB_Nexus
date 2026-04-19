@@ -298,12 +298,17 @@ serve(async (req) => {
 
     if (user_context) {
       const ctx = user_context;
-      const isLitePlan = ctx.plan_type?.toLowerCase().includes("lite") || ctx.plan_type?.toLowerCase().includes("start");
+      const planUpper = (ctx.plan_type || "").toUpperCase();
+      const isLitePlan = !ctx.is_premium_plan && (planUpper.includes("LITE") || planUpper.includes("START") || !ctx.is_premium_plan);
+      const firstName = (ctx.full_name || "").split(" ")[0];
 
       enrichedPrompt += `\n\nCONTEXTO DO UTILIZADOR:
+- Nome: ${ctx.full_name || "Não definido"}${firstName ? ` (primeiro nome: ${firstName})` : ""}
 - Empresa: ${ctx.company_name || "Não definido"}
 - Setor: ${ctx.business_sector || "Não definido"}
-- Plano atual: ${ctx.plan_type || "Lite"}${isLitePlan ? " (Lite — 49€/mês)" : " (Business — 89€/mês)"}
+- Descrição do negócio: ${ctx.business_description || "Não definido"}
+- Plano atual: ${ctx.plan_type || "Lite"} ${ctx.is_premium_plan ? "(PREMIUM — WhatsApp + Ads disponíveis)" : "(BÁSICO — focar em Site e Instagram)"}
+- DNA configurado: ${ctx.has_dna ? "SIM ✅" : "NÃO ❌ (pede para configurar primeiro no Perfil!)"}
 - Projeto: ${ctx.project_name || "Sem projeto"}
 - Domínio: ${ctx.domain || "Não configurado"}
 - Potenciais clientes: ${ctx.leads_count || 0}`;
