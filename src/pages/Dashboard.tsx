@@ -7,7 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 
 export default function Dashboard() {
   const { loading: authLoading } = useAuth();
-  const { socialConnected, whatsappConnected, firstCampaignLaunched, loading } = useOnboardingStatus();
+  const { dnaConfigured, socialConnected, whatsappConnected, firstCampaignLaunched, loading } = useOnboardingStatus();
   const { subscription, isLoading: subLoading, hasSubscription } = useSubscription();
 
   if (authLoading || loading || subLoading) {
@@ -18,7 +18,7 @@ export default function Dashboard() {
     );
   }
 
-  const onboardingComplete = socialConnected && whatsappConnected && firstCampaignLaunched;
+  const onboardingComplete = dnaConfigured && socialConnected && whatsappConnected && firstCampaignLaunched;
 
   return (
     <div className="space-y-6">
