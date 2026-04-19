@@ -106,21 +106,23 @@ serve(async (req) => {
       "https://nexus.web-business.pt/strategy?checkout=cancel"
     );
 
-    // Fetch profile data for prefilling checkout
+    // Fetch profile + project DNA for prefilling checkout
     const { data: profileData } = await supabase
       .from("profiles")
       .select("full_name")
       .eq("user_id", user.id)
       .maybeSingle();
 
-    const { data: bizData } = await supabase
-      .from("business_profiles")
+    const { data: projectData } = await supabase
+      .from("projects")
       .select("phone")
       .eq("user_id", user.id)
+      .order("created_at", { ascending: true })
+      .limit(1)
       .maybeSingle();
 
     const customerName = profileData?.full_name || undefined;
-    const customerPhone = bizData?.phone || undefined;
+    const customerPhone = (projectData as Record<string, unknown> | null)?.phone as string | undefined;
 
     if (!planType || !PLAN_CONFIG[planType]) {
       return new Response(JSON.stringify({ error: "Invalid plan type. Use START, GROWTH, or NEXUS_OS." }), {

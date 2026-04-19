@@ -91,22 +91,22 @@ Deno.serve(async (req) => {
       );
     }
 
-    // ── 2. Get registrant data from profiles + business_profiles ──
-    const [profileRes, businessRes] = await Promise.all([
+    // ── 2. Get registrant data from profiles + projects (DNA centralizado) ──
+    const [profileRes, projectRes] = await Promise.all([
       adminClient.from("profiles").select("full_name, contact_email").eq("user_id", user.id).maybeSingle(),
-      adminClient.from("business_profiles").select("business_name, legal_name, address_line1, city, postal_code, country, nif").eq("user_id", user.id).maybeSingle(),
+      adminClient.from("projects").select("business_name, legal_name, address_line1, city, postal_code, country, nif, name").eq("user_id", user.id).order("created_at", { ascending: true }).limit(1).maybeSingle(),
     ]);
 
     const profile = profileRes.data;
-    const business = businessRes.data;
+    const business = projectRes.data as Record<string, unknown> | null;
 
-    const registrantName = business?.legal_name || business?.business_name || profile?.full_name || user.email?.split("@")[0] || "Domain Owner";
+    const registrantName = (business?.legal_name as string) || (business?.business_name as string) || (business?.name as string) || profile?.full_name || user.email?.split("@")[0] || "Domain Owner";
     const registrantEmail = profile?.contact_email || user.email || "";
     const registrantPhone = "+351000000000";
-    const registrantAddress = business?.address_line1 || "Rua Exemplo 1";
-    const registrantCity = business?.city || "Lisboa";
-    const registrantZip = business?.postal_code || "1000-001";
-    const registrantCountry = (business?.country === "Portugal" ? "PT" : business?.country) || "PT";
+    const registrantAddress = (business?.address_line1 as string) || "Rua Exemplo 1";
+    const registrantCity = (business?.city as string) || "Lisboa";
+    const registrantZip = (business?.postal_code as string) || "1000-001";
+    const registrantCountry = (business?.country === "Portugal" ? "PT" : (business?.country as string)) || "PT";
 
     console.log(`[domain-register] Registrant: ${registrantName}, ${registrantEmail}`);
 
