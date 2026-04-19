@@ -34,6 +34,8 @@ export default function Success() {
           }
 
           if (data?.subscribed) {
+            // Auto-fill DNA fiscal a partir do Stripe — non-blocking
+            try { await supabase.functions.invoke("sync-from-stripe"); } catch (_) { /* ignore */ }
             if (!cancelled) {
               navigate("/", { replace: true });
             }
