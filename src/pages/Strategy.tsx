@@ -34,24 +34,25 @@ export default function Strategy() {
   });
   const [result, setResult] = useState<MarketingStrategyResult | null>(null);
 
-  // Fetch business profile data
+  // Fetch business DNA from `projects` (single source of truth)
   useEffect(() => {
     if (!user) return;
     (async () => {
       const { data } = await supabase
-        .from("business_profiles" as string)
-        .select("business_name, legal_name, nif")
+        .from("projects")
+        .select("business_name, legal_name, nif, name")
         .eq("user_id", user.id)
+        .order("created_at", { ascending: true })
+        .limit(1)
         .maybeSingle();
       if (data) {
         const d = data as Record<string, unknown>;
         const biz: BusinessSummary = {
-          business_name: (d.business_name as string) || null,
+          business_name: (d.business_name as string) || (d.name as string) || null,
           legal_name: (d.legal_name as string) || null,
           nif: (d.nif as string) || null,
         };
         setBusiness(biz);
-        // Pre-fill client name from business profile
         if (biz.business_name || biz.legal_name) {
           setFormData((prev) => ({
             ...prev,

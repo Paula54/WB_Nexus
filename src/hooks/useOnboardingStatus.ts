@@ -23,31 +23,20 @@ export function useOnboardingStatus(): OnboardingStatus {
   async function fetchStatus() {
     if (!user) { setLoading(false); return; }
 
-    // DNA: business_profiles.business_name + profiles.business_sector (description proxy)
-    const { data: bp } = await supabase
-      .from("business_profiles" as any)
-      .select("business_name")
-      .eq("user_id", user.id)
-      .maybeSingle();
-    const { data: prof } = await supabase
-      .from("profiles")
-      .select("business_sector, ai_custom_instructions, company_name")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    const bpRaw = bp as Record<string, unknown> | null;
-    const name = (bpRaw?.business_name as string) || prof?.company_name || "";
-    const description = prof?.business_sector || prof?.ai_custom_instructions || "";
-    const hasDna = !!(name && name.trim() && description && String(description).trim());
-
-    // Check credentials from project_credentials table
+    // DNA agora vive na tabela `projects` (business_name/business_sector/description)
     const { data: project } = await supabase
       .from("projects")
-      .select("id")
+      .select("id, business_name, business_sector, description, legal_name, name")
       .eq("user_id", user.id)
       .order("created_at", { ascending: true })
       .limit(1)
       .maybeSingle();
+
+    const p = project as Record<string, unknown> | null;
+    const name = (p?.business_name as string) || (p?.legal_name as string) || (p?.name as string) || "";
+    const sector = (p?.business_sector as string) || "";
+    const description = (p?.description as string) || "";
+    const hasDna = !!(name.trim() && (sector.trim() || description.trim()));
 
     let hasFbOrIg = false;
     let hasWhatsapp = false;

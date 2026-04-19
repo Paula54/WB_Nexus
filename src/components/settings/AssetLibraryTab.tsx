@@ -30,7 +30,7 @@ function getBucketForType(fileType: string): string {
   return FILE_TYPE_OPTIONS.find((o) => o.value === fileType)?.bucket || "others";
 }
 
-// Map file_type → business_profiles column
+// Map file_type → projects column (DNA centralizado)
 const TYPE_TO_COLUMN: Record<string, string> = {
   logo: "logo_url",
 };
@@ -64,20 +64,28 @@ export default function AssetLibraryTab() {
     if (!column) return;
 
     try {
-      const { data: existing } = await supabase
-        .from("business_profiles" as string)
+      // Centralized DNA lives in `projects` — update the user's primary project.
+      const { data: project } = await supabase
+        .from("projects")
         .select("id")
         .eq("user_id", user.id)
+        .order("created_at", { ascending: true })
+        .limit(1)
         .maybeSingle();
 
-      const payload = { [column]: publicUrl } as Record<string, unknown>;
-      if (existing) {
-        await supabase.from("business_profiles" as string).update(payload).eq("user_id", user.id);
+      if (project?.id) {
+        await supabase
+          .from("projects")
+          .update({ [column]: publicUrl } as never)
+          .eq("id", project.id);
       } else {
-        await supabase.from("business_profiles" as string).insert({ user_id: user.id, ...payload });
+        // Create a minimal primary project so the asset has somewhere to attach
+        await supabase
+          .from("projects")
+          .insert({ user_id: user.id, name: "Meu Negócio", [column]: publicUrl } as never);
       }
     } catch (err) {
-      console.warn("[AssetLibrary] Sync to business_profiles skipped:", err);
+      console.warn("[AssetLibrary] Sync to projects skipped:", err);
     }
   }
 
@@ -172,13 +180,22 @@ export default function AssetLibraryTab() {
     await supabase.storage.from(bucket).remove([asset.file_path]);
     await supabase.from("assets" as string).delete().eq("id", asset.id);
 
-    // Clear from business_profiles if applicable
+    // Clear from projects (DNA centralizado) if applicable
     const column = TYPE_TO_COLUMN[asset.file_type];
     if (column && user) {
-      await supabase
-        .from("business_profiles" as string)
-        .update({ [column]: null } as Record<string, unknown>)
-        .eq("user_id", user.id);
+      const { data: project } = await supabase
+        .from("projects")
+        .select("id")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (project?.id) {
+        await supabase
+          .from("projects")
+          .update({ [column]: null } as never)
+          .eq("id", project.id);
+      }
     }
 
     toast({ title: "Ficheiro removido", description: asset.file_name });
