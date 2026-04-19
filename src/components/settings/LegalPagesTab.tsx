@@ -164,16 +164,18 @@ export default function LegalPagesTab() {
     if (!user) return;
     (async () => {
       const { data } = await supabase
-        .from("business_profiles" as string)
-        .select("*")
+        .from("projects")
+        .select("legal_name, business_name, nif, address_line1, postal_code, city, country, name")
         .eq("user_id", user.id)
+        .order("created_at", { ascending: true })
+        .limit(1)
         .maybeSingle();
 
       if (data) {
         const d = data as Record<string, unknown>;
         setBusinessData({
           legal_name: (d.legal_name as string) || "",
-          business_name: (d.business_name as string) || "",
+          business_name: (d.business_name as string) || (d.name as string) || "",
           nif: (d.nif as string) || "",
           address_line1: (d.address_line1 as string) || "",
           postal_code: (d.postal_code as string) || "",
