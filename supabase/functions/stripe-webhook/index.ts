@@ -322,7 +322,7 @@ serve(async (req) => {
           .update({ selected_plan: planType, trial_expires_at: trialEndsAt })
           .eq('id', projectId);
 
-        // ── Sync customer details + quiz metadata to profiles & business_profiles ──
+        // ── Sync customer details + quiz metadata to profiles & projects (DNA centralizado) ──
         try {
           const customerDetails = session.customer_details;
           const customerName = customerDetails?.name || null;
@@ -338,11 +338,10 @@ serve(async (req) => {
             }
           }
 
-          // Update profiles with quiz data (desafio → business_sector)
+          // Update profiles with personal data
           const profileUpdate: Record<string, string | null> = {};
           if (customerName) profileUpdate.full_name = customerName;
           if (syncEmail) profileUpdate.contact_email = syncEmail;
-          if (leadDesafio) profileUpdate.business_sector = leadDesafio;
 
           if (Object.keys(profileUpdate).length > 0) {
             await supabase
@@ -351,33 +350,22 @@ serve(async (req) => {
               .eq('user_id', resolvedUserId);
           }
 
-          // Update business_profiles: nif, phone/whatsapp, legal_name
-          const bizUpdate: Record<string, string | null> = {};
-          if (nifValue) bizUpdate.nif = nifValue;
-          if (leadWhatsapp) bizUpdate.phone = leadWhatsapp;
-          else if (customerPhone) bizUpdate.phone = customerPhone;
-          if (customerName) bizUpdate.legal_name = customerName;
+          // Update the user's primary `projects` row with all DNA fields
+          const projectUpdate: Record<string, string | null> = {};
+          if (nifValue) projectUpdate.nif = nifValue;
+          if (leadWhatsapp) projectUpdate.phone = leadWhatsapp;
+          else if (customerPhone) projectUpdate.phone = customerPhone;
+          if (customerName) projectUpdate.legal_name = customerName;
+          if (leadDesafio) projectUpdate.business_sector = leadDesafio;
 
-          if (Object.keys(bizUpdate).length > 0) {
-            const { data: existingBiz } = await supabase
-              .from('business_profiles')
-              .select('id')
-              .eq('user_id', resolvedUserId)
-              .maybeSingle();
-
-            if (existingBiz) {
-              await supabase
-                .from('business_profiles')
-                .update(bizUpdate)
-                .eq('user_id', resolvedUserId);
-            } else {
-              await supabase
-                .from('business_profiles')
-                .insert({ user_id: resolvedUserId, ...bizUpdate });
-            }
+          if (Object.keys(projectUpdate).length > 0 && projectId) {
+            await supabase
+              .from('projects')
+              .update(projectUpdate)
+              .eq('id', projectId);
           }
 
-          console.log(`Customer details synced: name=${customerName}, email=${syncEmail}, nif=${nifValue}, whatsapp=${leadWhatsapp}, desafio=${leadDesafio}, investimento=${leadInvestimento}`);
+          console.log(`Customer details synced to projects: name=${customerName}, email=${syncEmail}, nif=${nifValue}, whatsapp=${leadWhatsapp}, desafio=${leadDesafio}, investimento=${leadInvestimento}`);
         } catch (syncErr) {
           console.warn('Non-blocking customer sync error:', syncErr);
         }
