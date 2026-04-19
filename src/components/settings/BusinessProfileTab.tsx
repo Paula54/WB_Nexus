@@ -80,6 +80,20 @@ export default function BusinessProfileTab() {
       setProjectId(id);
       if (!id) { setLoading(false); return; }
 
+      // Auto-fill empty fields from Stripe (Nome/NIF/Morada) — non-blocking
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const accessToken = sessionData?.session?.access_token;
+        if (accessToken) {
+          await fetch(`${import.meta.env.VITE_SUPABASE_URL || "https://hqyuxponbobmuletqshq.supabase.co"}/functions/v1/sync-from-stripe`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+          });
+        }
+      } catch (e) {
+        console.warn("sync-from-stripe skipped:", e);
+      }
+
       const { data } = await supabase
         .from("projects")
         .select([...ALL_FIELDS, "logo_url"].join(", "))
