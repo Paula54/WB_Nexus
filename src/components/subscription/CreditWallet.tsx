@@ -34,12 +34,15 @@ export function CreditWallet() {
   useEffect(() => {
     if (!user) return;
     supabase
-      .from("business_profiles")
+      .from("projects")
       .select("legal_name, nif, address_line1")
       .eq("user_id", user.id)
+      .order("created_at", { ascending: true })
+      .limit(1)
       .maybeSingle()
       .then(({ data }) => {
-        setHasBusinessProfile(!!(data?.legal_name && data?.nif && data?.address_line1));
+        const d = data as Record<string, unknown> | null;
+        setHasBusinessProfile(!!(d?.legal_name && d?.nif && d?.address_line1));
       });
   }, [user]);
 

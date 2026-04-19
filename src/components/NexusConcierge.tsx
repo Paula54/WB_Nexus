@@ -243,41 +243,46 @@ export function NexusConcierge() {
     if (!user) return;
 
     try {
-      const [profileRes, projectRes, subscriptionRes, leadsRes, businessRes] = await Promise.all([
-        supabase.from("profiles").select("full_name, business_sector, company_name, ai_custom_instructions").eq("user_id", user.id).maybeSingle(),
-        supabase.from("projects").select("name, domain, selected_plan, trial_expires_at").eq("user_id", user.id).order("created_at", { ascending: true }).limit(1).maybeSingle(),
+      const [profileRes, projectRes, subscriptionRes, leadsRes] = await Promise.all([
+        supabase.from("profiles").select("full_name, company_name, ai_custom_instructions").eq("user_id", user.id).maybeSingle(),
+        supabase.from("projects").select("name, domain, selected_plan, trial_expires_at, business_name, trade_name, legal_name, business_sector, description").eq("user_id", user.id).order("created_at", { ascending: true }).limit(1).maybeSingle(),
         supabase.from("subscriptions").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
         supabase.from("leads").select("id", { count: "exact", head: true }).eq("user_id", user.id),
-        supabase.from("business_profiles").select("trade_name, legal_name").eq("user_id", user.id).maybeSingle(),
       ]);
 
       const profile = profileRes.data;
-      const project = projectRes.data;
+      const project = projectRes.data as Record<string, unknown> | null;
       const subscription = subscriptionRes.data as Record<string, unknown> | null;
-      const business = businessRes.data;
 
       let trialDaysLeft: number | undefined;
       if (project?.trial_expires_at) {
-        const trialEnd = new Date(project.trial_expires_at);
+        const trialEnd = new Date(project.trial_expires_at as string);
         trialDaysLeft = Math.max(0, Math.ceil((trialEnd.getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
       }
 
-      const planLabel = (resolveSubscriptionPlanLabel(subscription) || project?.selected_plan || "Lite") as string;
+      const planLabel = (resolveSubscriptionPlanLabel(subscription) || (project?.selected_plan as string) || "Lite") as string;
       const planUpper = planLabel.toUpperCase();
       const isPremium = planUpper.includes("GROWTH") || planUpper.includes("OS") || planUpper.includes("BUSINESS") || planUpper.includes("PREMIUM");
 
-      const companyName = business?.trade_name || business?.legal_name || profile?.company_name || project?.name || undefined;
-      const description = profile?.ai_custom_instructions || profile?.business_sector || undefined;
-      const hasDna = !!(companyName && profile?.business_sector);
+      const companyName =
+        (project?.business_name as string) ||
+        (project?.trade_name as string) ||
+        (project?.legal_name as string) ||
+        profile?.company_name ||
+        (project?.name as string) ||
+        undefined;
+      const sector = (project?.business_sector as string) || undefined;
+      const description = (project?.description as string) || profile?.ai_custom_instructions || undefined;
+      const hasDna = !!(companyName && (sector || description));
 
       setUserContext({
         full_name: profile?.full_name || undefined,
         company_name: companyName,
-        business_sector: profile?.business_sector || undefined,
+        business_sector: sector,
         business_description: description,
         plan_type: planLabel,
-        project_name: project?.name || undefined,
-        domain: project?.domain || undefined,
+        project_name: (project?.name as string) || undefined,
+        domain: (project?.domain as string) || undefined,
         leads_count: leadsRes.count ?? 0,
         ai_custom_instructions: profile?.ai_custom_instructions || undefined,
         trial_days_left: trialDaysLeft,
@@ -294,24 +299,27 @@ export function NexusConcierge() {
     setHasLoadedProactive(true);
 
     try {
-      // Re-read fresh DNA so the greeting reflects the latest profile state
-      const [profileRes, projectRes, subscriptionRes, businessRes] = await Promise.all([
-        supabase.from("profiles").select("full_name, business_sector, company_name").eq("user_id", user.id).maybeSingle(),
-        supabase.from("projects").select("name, selected_plan").eq("user_id", user.id).order("created_at", { ascending: true }).limit(1).maybeSingle(),
+      // Re-read fresh DNA so the greeting reflects the latest project state
+      const [profileRes, projectRes, subscriptionRes] = await Promise.all([
+        supabase.from("profiles").select("full_name, company_name").eq("user_id", user.id).maybeSingle(),
+        supabase.from("projects").select("name, selected_plan, business_name, trade_name, legal_name, business_sector, description").eq("user_id", user.id).order("created_at", { ascending: true }).limit(1).maybeSingle(),
         supabase.from("subscriptions").select("plan_type").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-        supabase.from("business_profiles").select("trade_name, legal_name").eq("user_id", user.id).maybeSingle(),
       ]);
 
       const profile = profileRes.data;
-      const project = projectRes.data;
-      const business = businessRes.data;
-      const planLabel = (resolveSubscriptionPlanLabel(subscriptionRes.data as Record<string, unknown> | null) || project?.selected_plan || "Lite") as string;
+      const project = projectRes.data as Record<string, unknown> | null;
+      const planLabel = (resolveSubscriptionPlanLabel(subscriptionRes.data as Record<string, unknown> | null) || (project?.selected_plan as string) || "Lite") as string;
       const planUpper = planLabel.toUpperCase();
       const isPremium = planUpper.includes("GROWTH") || planUpper.includes("OS") || planUpper.includes("BUSINESS") || planUpper.includes("PREMIUM");
 
       const firstName = (profile?.full_name || "").split(" ")[0];
-      const companyName = business?.trade_name || business?.legal_name || profile?.company_name || project?.name;
-      const sector = profile?.business_sector;
+      const companyName =
+        (project?.business_name as string) ||
+        (project?.trade_name as string) ||
+        (project?.legal_name as string) ||
+        profile?.company_name ||
+        (project?.name as string);
+      const sector = (project?.business_sector as string);
       const hasDna = !!(companyName && sector);
 
       let proactiveMessage = "";

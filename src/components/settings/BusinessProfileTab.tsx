@@ -19,6 +19,8 @@ interface BusinessProfile {
   country: string;
   phone: string;
   website: string;
+  business_sector: string;
+  description: string;
 }
 
 const EMPTY_PROFILE: BusinessProfile = {
@@ -31,14 +33,40 @@ const EMPTY_PROFILE: BusinessProfile = {
   country: "Portugal",
   phone: "",
   website: "",
+  business_sector: "",
+  description: "",
 };
 
 const ALL_FIELDS = Object.keys(EMPTY_PROFILE) as (keyof BusinessProfile)[];
+
+// Helper: get-or-create the user's primary project (oldest)
+async function getOrCreatePrimaryProjectId(userId: string, fallbackName: string): Promise<string | null> {
+  const { data: existing } = await supabase
+    .from("projects")
+    .select("id")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (existing?.id) return existing.id;
+
+  const { data: created, error } = await supabase
+    .from("projects")
+    .insert({ user_id: userId, name: fallbackName || "Meu Negócio" } as Record<string, unknown>)
+    .select("id")
+    .maybeSingle();
+  if (error) {
+    console.error("[BusinessProfile] Failed to create project:", error);
+    return null;
+  }
+  return created?.id || null;
+}
 
 export default function BusinessProfileTab() {
   const { user } = useAuth();
   const [profile, setProfile] = useState<BusinessProfile>(EMPTY_PROFILE);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [projectId, setProjectId] = useState<string | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -48,10 +76,14 @@ export default function BusinessProfileTab() {
   useEffect(() => {
     if (!user) return;
     (async () => {
+      const id = await getOrCreatePrimaryProjectId(user.id, "Meu Negócio");
+      setProjectId(id);
+      if (!id) { setLoading(false); return; }
+
       const { data } = await supabase
-        .from("business_profiles" as string)
+        .from("projects")
         .select([...ALL_FIELDS, "logo_url"].join(", "))
-        .eq("user_id", user.id)
+        .eq("id", id)
         .maybeSingle();
       if (data) {
         const d = data as Record<string, unknown>;
@@ -66,8 +98,13 @@ export default function BusinessProfileTab() {
     })();
   }, [user]);
 
+  async function persistField(payload: Record<string, unknown>) {
+    if (!user || !projectId) return { error: new Error("No project") };
+    return await supabase.from("projects").update(payload as never).eq("id", projectId);
+  }
+
   async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    if (!user || !e.target.files?.length) return;
+    if (!user || !projectId || !e.target.files?.length) return;
     const file = e.target.files[0];
     if (file.size > 2 * 1024 * 1024) {
       toast({ variant: "destructive", title: "Ficheiro demasiado grande", description: "O logótipo deve ter no máximo 2MB." });
@@ -90,19 +127,7 @@ export default function BusinessProfileTab() {
 
     const { data: urlData } = supabase.storage.from("logos").getPublicUrl(filePath);
     const newUrl = urlData.publicUrl;
-
-    // Save logo_url to business_profiles
-    const { data: existing } = await supabase
-      .from("business_profiles" as string)
-      .select("id")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    if (existing) {
-      await supabase.from("business_profiles" as string).update({ logo_url: newUrl } as Record<string, unknown>).eq("user_id", user.id);
-    } else {
-      await supabase.from("business_profiles" as string).insert({ user_id: user.id, logo_url: newUrl } as Record<string, unknown>);
-    }
+    await persistField({ logo_url: newUrl });
 
     setLogoUrl(newUrl);
     toast({ title: "Logótipo carregado ✅" });
@@ -112,12 +137,11 @@ export default function BusinessProfileTab() {
 
   async function handleLogoRemove() {
     if (!user || !logoUrl) return;
-    // Extract path from URL
     const urlParts = logoUrl.split("/logos/");
     if (urlParts[1]) {
       await supabase.storage.from("logos").remove([decodeURIComponent(urlParts[1])]);
     }
-    await supabase.from("business_profiles" as string).update({ logo_url: null } as Record<string, unknown>).eq("user_id", user.id);
+    await persistField({ logo_url: null });
     setLogoUrl(null);
     toast({ title: "Logótipo removido" });
   }
@@ -148,34 +172,22 @@ export default function BusinessProfileTab() {
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
-    if (!user) return;
+    if (!user || !projectId) return;
     if (!validate()) {
       toast({ variant: "destructive", title: "Campos obrigatórios", description: "Preenche todos os campos assinalados." });
       return;
     }
     setSaving(true);
 
-    // Build payload — empty strings become null
     const payload: Record<string, unknown> = {};
     for (const key of ALL_FIELDS) {
       payload[key] = profile[key].trim() || null;
     }
     if (!payload.country) payload.country = "Portugal";
+    // Keep `name` in sync with the trade/legal name so the project is identifiable
+    payload.name = profile.business_name.trim() || profile.legal_name.trim() || "Meu Negócio";
 
-    const { data: existing } = await supabase
-      .from("business_profiles" as string)
-      .select("id")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    let error;
-    if (existing) {
-      const res = await supabase.from("business_profiles" as string).update(payload).eq("user_id", user.id);
-      error = res.error;
-    } else {
-      const res = await supabase.from("business_profiles" as string).insert({ user_id: user.id, ...payload });
-      error = res.error;
-    }
+    const { error } = await persistField(payload);
 
     if (error) {
       console.error("[BusinessProfile] Save error:", JSON.stringify(error));
@@ -200,7 +212,7 @@ export default function BusinessProfileTab() {
     setSaving(false);
   }
 
-  const update = (field: keyof BusinessProfile) => (e: React.ChangeEvent<HTMLInputElement>) => {
+  const update = (field: keyof BusinessProfile) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setProfile((p) => ({ ...p, [field]: e.target.value }));
     if (errors[field]) setErrors((prev) => { const n = { ...prev }; delete n[field]; return n; });
   };
@@ -292,21 +304,43 @@ export default function BusinessProfileTab() {
         filterType="logo"
         onSelect={async (url) => {
           setLogoUrl(url);
-          // Sync to business_profiles
-          const { data: existing } = await supabase
-            .from("business_profiles" as string)
-            .select("id")
-            .eq("user_id", user!.id)
-            .maybeSingle();
-          const payload = { logo_url: url } as Record<string, unknown>;
-          if (existing) {
-            await supabase.from("business_profiles" as string).update(payload).eq("user_id", user!.id);
-          } else {
-            await supabase.from("business_profiles" as string).insert({ user_id: user!.id, ...payload });
-          }
+          await persistField({ logo_url: url });
           toast({ title: "Logótipo atualizado ✅" });
         }}
       />
+
+      {/* DNA do Negócio */}
+      <Card className="glass border-primary/20">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Building2 className="h-5 w-5 text-primary" />
+            DNA do Negócio
+          </CardTitle>
+          <CardDescription>Identidade da marca — usada pela IA para gerar conteúdos certeiros</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Setor de Atividade</Label>
+              <Input value={profile.business_sector} onChange={update("business_sector")} placeholder="Ex: Restauração, Saúde, Imobiliário" />
+            </div>
+            <div className="space-y-2">
+              <Label>Nome Comercial</Label>
+              <Input value={profile.business_name} onChange={update("business_name")} placeholder="Ex: Nexus Machine" />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Descrição do Negócio</Label>
+            <textarea
+              value={profile.description}
+              onChange={update("description")}
+              placeholder="Descreve o que fazes, para quem e o que te diferencia. Quanto mais detalhado, melhores serão os anúncios e posts."
+              rows={4}
+              className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm resize-y"
+            />
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Identidade Fiscal */}
       <Card className="glass border-primary/20">
@@ -325,16 +359,12 @@ export default function BusinessProfileTab() {
               {errors.legal_name && <p className="text-xs text-destructive">{errors.legal_name}</p>}
             </div>
             <div className="space-y-2">
-              <Label>Nome Comercial</Label>
-              <Input value={profile.business_name} onChange={update("business_name")} placeholder="Ex: Nexus Machine" />
-            </div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
               <Label>NIF / NIPC <span className="text-destructive">*</span></Label>
               <Input value={profile.nif} onChange={update("nif")} placeholder="123456789" maxLength={9} className={errors.nif ? "border-destructive" : ""} />
               {errors.nif && <p className="text-xs text-destructive">{errors.nif}</p>}
             </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>País</Label>
               <Input value={profile.country} onChange={update("country")} />
