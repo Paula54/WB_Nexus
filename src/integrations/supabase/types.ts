@@ -1081,68 +1081,128 @@ export type Database = {
       }
       projects: {
         Row: {
+          address_line1: string | null
+          address_line2: string | null
+          business_name: string | null
+          business_sector: string | null
+          city: string | null
+          complaints_book_url: string | null
           content: Json
+          country: string | null
           created_at: string
+          description: string | null
           domain: string | null
+          dre_url: string | null
+          email: string | null
           facebook_page_id: string | null
+          facebook_url: string | null
           freelancer_notes: string | null
           google_analytics_id: string | null
           gtm_container_id: string | null
           id: string
           instagram_business_id: string | null
+          instagram_url: string | null
+          legal_name: string | null
+          linkedin_url: string | null
+          logo_url: string | null
           measurement_id: string | null
           meta_access_token: string | null
           meta_ads_account_id: string | null
           name: string
+          nif: string | null
+          phone: string | null
+          postal_code: string | null
           project_type: string
           selected_plan: string | null
+          trade_name: string | null
           trial_expires_at: string | null
           updated_at: string
           user_id: string
+          website: string | null
           whatsapp_business_id: string | null
           whatsapp_phone_number_id: string | null
         }
         Insert: {
+          address_line1?: string | null
+          address_line2?: string | null
+          business_name?: string | null
+          business_sector?: string | null
+          city?: string | null
+          complaints_book_url?: string | null
           content?: Json
+          country?: string | null
           created_at?: string
+          description?: string | null
           domain?: string | null
+          dre_url?: string | null
+          email?: string | null
           facebook_page_id?: string | null
+          facebook_url?: string | null
           freelancer_notes?: string | null
           google_analytics_id?: string | null
           gtm_container_id?: string | null
           id?: string
           instagram_business_id?: string | null
+          instagram_url?: string | null
+          legal_name?: string | null
+          linkedin_url?: string | null
+          logo_url?: string | null
           measurement_id?: string | null
           meta_access_token?: string | null
           meta_ads_account_id?: string | null
           name: string
+          nif?: string | null
+          phone?: string | null
+          postal_code?: string | null
           project_type?: string
           selected_plan?: string | null
+          trade_name?: string | null
           trial_expires_at?: string | null
           updated_at?: string
           user_id: string
+          website?: string | null
           whatsapp_business_id?: string | null
           whatsapp_phone_number_id?: string | null
         }
         Update: {
+          address_line1?: string | null
+          address_line2?: string | null
+          business_name?: string | null
+          business_sector?: string | null
+          city?: string | null
+          complaints_book_url?: string | null
           content?: Json
+          country?: string | null
           created_at?: string
+          description?: string | null
           domain?: string | null
+          dre_url?: string | null
+          email?: string | null
           facebook_page_id?: string | null
+          facebook_url?: string | null
           freelancer_notes?: string | null
           google_analytics_id?: string | null
           gtm_container_id?: string | null
           id?: string
           instagram_business_id?: string | null
+          instagram_url?: string | null
+          legal_name?: string | null
+          linkedin_url?: string | null
+          logo_url?: string | null
           measurement_id?: string | null
           meta_access_token?: string | null
           meta_ads_account_id?: string | null
           name?: string
+          nif?: string | null
+          phone?: string | null
+          postal_code?: string | null
           project_type?: string
           selected_plan?: string | null
+          trade_name?: string | null
           trial_expires_at?: string | null
           updated_at?: string
           user_id?: string
+          website?: string | null
           whatsapp_business_id?: string | null
           whatsapp_phone_number_id?: string | null
         }
