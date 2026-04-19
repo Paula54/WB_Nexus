@@ -21,10 +21,14 @@ jobs:
           version: latest
 
       - name: Link Supabase project
-        run: supabase link --project-ref hqyuxponbobmuletqshq
+        run: supabase link --project-ref "$SUPABASE_PROJECT_ID"
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+
+      # NOTE: `supabase db push` desativado intencionalmente.
+      # Schema é gerido manualmente em produção (regra Core do projeto).
+      # Reativar apenas após sincronizar histórico com `db pull` + `migration repair`.
 
       # Este passo só corre se a pasta da função existir, para evitar o "Exit code 1"
       - name: Deploy Functions

@@ -39,6 +39,72 @@ async function upsertSubscriptionRecord(supabase: any, payload: Record<string, u
   return response;
 }
 
+function buildProjectName(identifier: string) {
+  return `Projeto Nexus OS - ${identifier}`;
+}
+
+async function ensureProjectRecord(
+  supabase: any,
+  userId: string,
+  options: {
+    desiredProjectId?: string | null;
+    email?: string | null;
+    planType?: string | null;
+  },
+) {
+  const { desiredProjectId, email, planType } = options;
+
+  if (desiredProjectId) {
+    const { data: requestedProject, error: requestedProjectError } = await supabase
+      .from('projects')
+      .select('id')
+      .eq('id', desiredProjectId)
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (requestedProjectError) {
+      throw requestedProjectError;
+    }
+
+    if (requestedProject) {
+      return requestedProject.id;
+    }
+  }
+
+  const { data: existingProject, error: existingProjectError } = await supabase
+    .from('projects')
+    .select('id')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (existingProjectError) {
+    throw existingProjectError;
+  }
+
+  if (existingProject) {
+    return existingProject.id;
+  }
+
+  const { data: newProject, error: createProjectError } = await supabase
+    .from('projects')
+    .insert({
+      user_id: userId,
+      name: buildProjectName(email || userId),
+      project_type: 'marketing',
+      selected_plan: planType || 'START',
+    })
+    .select('id')
+    .single();
+
+  if (createProjectError || !newProject) {
+    throw createProjectError || new Error('Failed to create project');
+  }
+
+  return newProject.id;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -208,34 +274,19 @@ serve(async (req) => {
           break;
         }
 
-        // If no project_id, create a default project for the user
-        if (!projectId) {
-          const { data: existingProject } = await supabase
-            .from('projects')
-            .select('id')
-            .eq('user_id', resolvedUserId)
-            .limit(1)
-            .maybeSingle();
+        // Ensure the user always has a primary project immediately after payment
+        try {
+          projectId = await ensureProjectRecord(supabase, resolvedUserId, {
+            desiredProjectId: projectId,
+            email: customerEmail,
+            planType,
+          });
+        } catch (projectErr) {
+          console.error('[webhook] Failed to resolve project:', projectErr);
+          break;
+        }
 
-          if (existingProject) {
-            projectId = existingProject.id;
-          } else {
-            const { data: newProject, error: projErr } = await supabase
-              .from('projects')
-              .insert({
-                user_id: resolvedUserId,
-                name: 'Meu Projeto',
-                project_type: 'website',
-              })
-              .select('id')
-              .single();
-
-            if (projErr || !newProject) {
-              console.error('[webhook] Failed to create project:', projErr);
-              break;
-            }
-            projectId = newProject.id;
-          }
+        if (projectId) {
           console.log(`[webhook] Resolved project: ${projectId}`);
         }
 

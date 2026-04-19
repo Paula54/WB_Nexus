@@ -7,7 +7,46 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// Sync forçado GitHub - fallback FACEBOOK_APP_ID/FACEBOOK_APP_SECRET ativo (linhas 79-80)
+async function ensurePrimaryProject(
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+  userEmail?: string | null,
+  fallbackPlan = "START",
+) {
+  const { data: existingProject, error: lookupError } = await supabase
+    .from("projects")
+    .select("id, name, selected_plan")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (lookupError) {
+    throw lookupError;
+  }
+
+  if (existingProject) {
+    return existingProject;
+  }
+
+  const { data: newProject, error: createError } = await supabase
+    .from("projects")
+    .insert({
+      user_id: userId,
+      name: `Projeto Nexus OS - ${userEmail || userId.slice(0, 8)}`,
+      project_type: "marketing",
+      selected_plan: fallbackPlan,
+    })
+    .select("id, name, selected_plan")
+    .single();
+
+  if (createError || !newProject) {
+    throw createError || new Error("Failed to create project");
+  }
+
+  return newProject;
+}
+
 Deno.serve(async (req) => {
   const requestId = crypto.randomUUID().slice(0, 8);
   const log = (msg: string, data?: unknown) => console.log(`[${requestId}] ${msg}`, data !== undefined ? JSON.stringify(data) : "");
@@ -152,21 +191,23 @@ Deno.serve(async (req) => {
     }
     const prodSupabase = createClient(prodUrl, prodServiceKey);
 
-    // Find project
-    const { data: project, error: projectError } = await prodSupabase
-      .from("projects")
-      .select("id, name")
-      .eq("user_id", user.id)
-      .order("updated_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (projectError || !project) {
-      logError("Project not found", projectError?.message);
-      return new Response(JSON.stringify({ error: projectError?.message || "No project found" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    let project;
+    try {
+      project = await ensurePrimaryProject(prodSupabase, user.id, user.email, "START");
+    } catch (projectError) {
+      const message = projectError instanceof Error ? projectError.message : String(projectError);
+      logError("Project lookup failed", message);
+      return new Response(JSON.stringify({ error: message }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    if (!project) {
+      return new Response(JSON.stringify({ error: "Failed to resolve project" }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     log(`📁 Project: ${project.id}`);
 
     // Encrypt token
@@ -195,6 +236,17 @@ Deno.serve(async (req) => {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Mirror Meta IDs to projects table (consistency for Dashboard)
+    await prodSupabase
+      .from("projects")
+      .update({
+        meta_access_token: encryptedToken,
+        facebook_page_id: facebookPageId,
+        instagram_business_id: instagramBusinessId,
+        meta_ads_account_id: adAccountId,
+      })
+      .eq("id", project.id);
 
     // Encrypt page access token if we have a page
     let encryptedPageToken: string | null = null;
