@@ -43,21 +43,24 @@ export function BillingForm({ onSaved }: BillingFormProps) {
     if (!user) return;
     const load = async () => {
       const { data: bp } = await supabase
-        .from("business_profiles")
-        .select("*")
+        .from("projects")
+        .select("legal_name, nif, address_line1, city, postal_code, country, phone")
         .eq("user_id", user.id)
+        .order("created_at", { ascending: true })
+        .limit(1)
         .maybeSingle();
       if (bp) {
+        const d = bp as Record<string, unknown>;
         setForm({
-          legal_name: bp.legal_name || "",
-          nif: bp.nif || "",
-          address_line1: bp.address_line1 || "",
-          city: bp.city || "",
-          postal_code: bp.postal_code || "",
-          country: bp.country || "Portugal",
-          phone: bp.phone || "",
+          legal_name: (d.legal_name as string) || "",
+          nif: (d.nif as string) || "",
+          address_line1: (d.address_line1 as string) || "",
+          city: (d.city as string) || "",
+          postal_code: (d.postal_code as string) || "",
+          country: (d.country as string) || "Portugal",
+          phone: (d.phone as string) || "",
         });
-        if (bp.nif && bp.legal_name && bp.address_line1 && bp.city && bp.postal_code) {
+        if (d.nif && d.legal_name && d.address_line1 && d.city && d.postal_code) {
           setSaved(true);
           onSaved(true);
         }
@@ -84,7 +87,6 @@ export function BillingForm({ onSaved }: BillingFormProps) {
     setSaving(true);
     try {
       const payload = {
-        user_id: user.id,
         legal_name: form.legal_name.trim() || null,
         nif: form.nif.trim() || null,
         address_line1: form.address_line1.trim() || null,
@@ -94,17 +96,25 @@ export function BillingForm({ onSaved }: BillingFormProps) {
         phone: form.phone.trim() || null,
       };
 
+      // DNA centralizado em `projects` — get-or-create primary project
       const { data: existing } = await supabase
-        .from("business_profiles")
+        .from("projects")
         .select("id")
         .eq("user_id", user.id)
+        .order("created_at", { ascending: true })
+        .limit(1)
         .maybeSingle();
 
-      if (existing) {
-        const { error } = await supabase.from("business_profiles").update(payload).eq("user_id", user.id);
+      if (existing?.id) {
+        const { error } = await supabase
+          .from("projects")
+          .update(payload as never)
+          .eq("id", existing.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("business_profiles").insert(payload);
+        const { error } = await supabase
+          .from("projects")
+          .insert({ user_id: user.id, name: form.legal_name.trim() || "Meu Negócio", ...payload } as never);
         if (error) throw error;
       }
 
