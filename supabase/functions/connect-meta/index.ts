@@ -266,10 +266,8 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Save meta_connection via upsert
-    const serviceClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-    await serviceClient.from("meta_connections").update({ is_active: false }).eq("user_id", user.id).eq("project_id", project.id);
-    await serviceClient.from("meta_connections").upsert({
+    // Save meta_connection without depending on ON CONFLICT/index alignment
+    const metaConnectionPayload = {
       project_id: project.id,
       user_id: user.id,
       ad_account_id: adAccountId,
@@ -278,7 +276,37 @@ Deno.serve(async (req) => {
       facebook_page_id: facebookPageId,
       page_access_token: encryptedPageToken,
       is_active: true,
-    }, { onConflict: "project_id,user_id" }).select();
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data: existingMetaConnection, error: metaLookupError } = await prodSupabase
+      .from("meta_connections")
+      .select("id")
+      .eq("project_id", project.id)
+      .maybeSingle();
+
+    if (metaLookupError) {
+      logError("meta_connections lookup failed", metaLookupError);
+      return new Response(JSON.stringify({ error: metaLookupError.message }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const { error: metaWriteError } = existingMetaConnection
+      ? await prodSupabase
+          .from("meta_connections")
+          .update(metaConnectionPayload)
+          .eq("id", existingMetaConnection.id)
+      : await prodSupabase
+          .from("meta_connections")
+          .insert(metaConnectionPayload);
+
+    if (metaWriteError) {
+      logError("meta_connections write failed", metaWriteError);
+      return new Response(JSON.stringify({ error: metaWriteError.message }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
     const result = {
