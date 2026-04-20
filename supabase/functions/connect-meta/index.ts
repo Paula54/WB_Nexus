@@ -299,7 +299,10 @@ Deno.serve(async (req) => {
           .eq("id", existingMetaConnection.id)
       : await prodSupabase
           .from("meta_connections")
-          .insert(metaConnectionPayload);
+          .insert({
+            ...metaConnectionPayload,
+            created_at: new Date().toISOString(),
+          });
 
     if (metaWriteError) {
       logError("meta_connections write failed", metaWriteError);
