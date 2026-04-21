@@ -149,17 +149,13 @@ Deno.serve(async (req) => {
           : fb.code === 200 || fb.type === "OAuthException"
             ? "Permissões insuficientes. Aceita TODAS as permissões pedidas (páginas, ads, instagram)."
             : "Falha na troca de token com a Meta. Tenta novamente daqui a alguns minutos.";
-      return new Response(JSON.stringify({
-        error: {
-          message: fb.message || "Token exchange failed",
-          code: fb.code ?? null,
-          subcode: fb.error_subcode ?? null,
-          type: fb.type ?? null,
-          fbtrace_id: fb.fbtrace_id ?? null,
-          guidance,
-        },
-      }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      return errorResponse(fb.message || "Falha na troca de token com a Meta.", 400, {
+        stage: "token_exchange",
+        code: fb.code ?? null,
+        subcode: fb.error_subcode ?? null,
+        type: fb.type ?? null,
+        fbtrace_id: fb.fbtrace_id ?? null,
+        guidance,
       });
     }
 
@@ -209,9 +205,7 @@ Deno.serve(async (req) => {
     const prodServiceKey = Deno.env.get("PROD_SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     if (!prodUrl || !prodServiceKey) {
       logError("Production credentials not configured");
-      return new Response(JSON.stringify({ error: "Production credentials not configured" }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return errorResponse("Credenciais de produção em falta no servidor.", 500, { stage: "database_credentials" });
     }
     const prodSupabase = createClient(prodUrl, prodServiceKey);
 
@@ -221,15 +215,11 @@ Deno.serve(async (req) => {
     } catch (projectError) {
       const message = projectError instanceof Error ? projectError.message : String(projectError);
       logError("Project lookup failed", message);
-      return new Response(JSON.stringify({ error: message }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return errorResponse(message, 500, { stage: "project_lookup" });
     }
 
     if (!project) {
-      return new Response(JSON.stringify({ error: "Failed to resolve project" }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return errorResponse("Não foi possível identificar o projeto principal.", 500, { stage: "project_lookup" });
     }
 
     log(`📁 Project: ${project.id}`);
