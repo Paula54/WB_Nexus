@@ -20,93 +20,104 @@ serve(async (req) => {
       });
     }
 
-    const apiKey =
-      Deno.env.get("GEMINI_API_KEY") ||
-      Deno.env.get("GOOGLE_API_KEY");
+    const apiKey = Deno.env.get("LOVABLE_API_KEY");
 
     if (!apiKey) {
-      console.error("Missing GEMINI_API_KEY / GOOGLE_API_KEY");
+      console.error("Missing LOVABLE_API_KEY");
       return new Response(
         JSON.stringify({ error: "Configuração de IA em falta. Contacta o suporte.", ads: [] }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const prompt = `Gera exactamente 3 anúncios criativos em português de Portugal para o seguinte negócio.
+    const systemPrompt = `És um copywriter publicitário sénior em português de Portugal. Geras anúncios persuasivos, curtos e com CTA claros.`;
+
+    const userPrompt = `Gera exactamente 3 anúncios criativos em português de Portugal.
 
 Produto/Serviço: ${product}
 ${audience ? `Público-alvo: ${audience}` : ""}
 
 Cada anúncio deve ter:
 - headline: título curto e impactante (máx 30 caracteres)
-- body: texto persuasivo do anúncio (máx 90 caracteres)
-- cta: call-to-action (ex: "Saber Mais", "Comprar Agora")
+- body: texto persuasivo (máx 90 caracteres)
+- cta: call-to-action curto (ex: "Saber Mais", "Comprar Agora")`;
 
-Responde APENAS com JSON válido neste formato exacto, sem markdown nem texto extra:
-{"ads":[{"headline":"...","body":"...","cta":"..."},{"headline":"...","body":"...","cta":"..."},{"headline":"...","body":"...","cta":"..."}]}`;
-
-    // Try a list of models in order (newer first, then fallbacks)
-    const models = [
-      "gemini-2.5-flash",
-      "gemini-2.0-flash",
-      "gemini-1.5-flash",
-    ];
-
-    let text = "";
-    let lastError = "";
-
-    for (const model of models) {
-      try {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-        const res = await fetch(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: {
-              temperature: 0.8,
-              maxOutputTokens: 1024,
-              responseMimeType: "application/json",
+    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        tools: [
+          {
+            type: "function",
+            function: {
+              name: "return_ads",
+              description: "Devolve 3 anúncios criativos estruturados",
+              parameters: {
+                type: "object",
+                properties: {
+                  ads: {
+                    type: "array",
+                    minItems: 3,
+                    maxItems: 3,
+                    items: {
+                      type: "object",
+                      properties: {
+                        headline: { type: "string" },
+                        body: { type: "string" },
+                        cta: { type: "string" },
+                      },
+                      required: ["headline", "body", "cta"],
+                      additionalProperties: false,
+                    },
+                  },
+                },
+                required: ["ads"],
+                additionalProperties: false,
+              },
             },
-          }),
-        });
+          },
+        ],
+        tool_choice: { type: "function", function: { name: "return_ads" } },
+      }),
+    });
 
-        if (!res.ok) {
-          const errBody = await res.text();
-          lastError = `Model ${model} HTTP ${res.status}: ${errBody.slice(0, 300)}`;
-          console.error(lastError);
-          continue;
-        }
+    if (!res.ok) {
+      const errBody = await res.text();
+      console.error(`AI gateway HTTP ${res.status}: ${errBody.slice(0, 500)}`);
 
-        const data = await res.json();
-        text = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
-        if (text) {
-          console.log(`Model ${model} succeeded`);
-          break;
-        }
-        lastError = `Model ${model} returned empty content`;
-      } catch (e) {
-        lastError = `Model ${model} threw: ${(e as Error).message}`;
-        console.error(lastError);
+      if (res.status === 429) {
+        return new Response(
+          JSON.stringify({ error: "Limite de pedidos atingido. Tenta novamente em instantes.", ads: [] }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
       }
-    }
+      if (res.status === 402) {
+        return new Response(
+          JSON.stringify({ error: "Créditos de IA esgotados. Adiciona fundos à workspace.", ads: [] }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
 
-    if (!text) {
       return new Response(
-        JSON.stringify({
-          error: "A IA não respondeu. Tenta novamente em instantes.",
-          ads: [],
-          debug: lastError,
-        }),
+        JSON.stringify({ error: "A IA não respondeu. Tenta novamente em instantes.", ads: [] }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Extract JSON (handles cases where model wraps in ```json ... ```)
-    const cleaned = text.replace(/```json|```/gi, "").trim();
-    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      console.error("No JSON in AI response:", text.slice(0, 500));
+    const data = await res.json();
+    const toolCall = data?.choices?.[0]?.message?.tool_calls?.[0];
+    const argsStr = toolCall?.function?.arguments;
+
+    if (!argsStr) {
+      console.error("No tool call in response:", JSON.stringify(data).slice(0, 500));
       return new Response(
         JSON.stringify({ error: "Formato de resposta inválido.", ads: [] }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -115,9 +126,9 @@ Responde APENAS com JSON válido neste formato exacto, sem markdown nem texto ex
 
     let parsed: { ads?: unknown };
     try {
-      parsed = JSON.parse(jsonMatch[0]);
+      parsed = JSON.parse(argsStr);
     } catch (e) {
-      console.error("JSON parse failed:", (e as Error).message, text.slice(0, 500));
+      console.error("JSON parse failed:", (e as Error).message);
       return new Response(
         JSON.stringify({ error: "Não foi possível processar a resposta da IA.", ads: [] }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
