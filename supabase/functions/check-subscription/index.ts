@@ -9,11 +9,23 @@ const corsHeaders = {
 };
 
 const ACTIVE_SUBSCRIPTION_STATUSES = new Set(["active", "trialing", "past_due"]);
-const PLAN_BY_PRICE_ID = {
+const PLAN_BY_PRICE_ID: Record<string, "START" | "GROWTH" | "NEXUS_OS"> = {
+  // Conta Stripe atual: acct_1SyDFJCn71ikcRod
+  price_1TGJ8mCn71ikcRodTECWJ7X2: "START",
+  price_1TGJ9UCn71ikcRod92KW9IVM: "GROWTH",
+  price_1TGJA6Cn71ikcRod5pxIgmuY: "NEXUS_OS",
+  // Legacy IDs (manter para compatibilidade)
   price_1TDWcVE6rYpESbYpc6Pv0Gp6: "START",
   price_1TDWfxE6rYpESbYpuWFi5qnL: "GROWTH",
   price_1TDWwyE6rYpESbYpHEHNEeAG: "NEXUS_OS",
-} as const;
+};
+
+// Mapping by amount (cents) as last-resort fallback if price ID is unknown
+const PLAN_BY_AMOUNT: Record<number, "START" | "GROWTH" | "NEXUS_OS"> = {
+  4900: "START",
+  14900: "GROWTH",
+  29900: "NEXUS_OS",
+};
 
 type PlanType = "START" | "GROWTH" | "NEXUS_OS";
 
@@ -80,11 +92,23 @@ function resolvePlanType(subscription: Stripe.Subscription): PlanType | null {
   if (metadataPlan) return metadataPlan;
 
   for (const item of subscription.items.data) {
-    const planFromPrice = PLAN_BY_PRICE_ID[item.price.id as keyof typeof PLAN_BY_PRICE_ID];
+    const planFromPrice = PLAN_BY_PRICE_ID[item.price.id];
     if (planFromPrice) return planFromPrice;
   }
 
-  return null;
+  // Fallback: match by amount in cents
+  for (const item of subscription.items.data) {
+    const amount = item.price.unit_amount ?? 0;
+    const planFromAmount = PLAN_BY_AMOUNT[amount];
+    if (planFromAmount) {
+      console.log(`[check-subscription] Resolved plan ${planFromAmount} via amount fallback (${amount} cents) for price ${item.price.id}`);
+      return planFromAmount;
+    }
+  }
+
+  // Last-resort fallback: assume START so paid users are not blocked
+  console.warn(`[check-subscription] Unknown price IDs in subscription ${subscription.id}, defaulting to START`);
+  return "START";
 }
 
 function toIso(timestamp: number | null | undefined) {
