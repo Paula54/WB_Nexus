@@ -35,14 +35,22 @@ serve(async (req) => {
       });
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    // Production project (where the user actually exists) — NOT the Lovable Cloud env vars
+    const prodSupabaseUrl = Deno.env.get("PROD_SUPABASE_URL") ?? "https://hqyuxponbobmuletqshq.supabase.co";
+    const prodServiceKey = Deno.env.get("PROD_SUPABASE_SERVICE_ROLE_KEY")!;
 
-    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
-    const admin = createClient(supabaseUrl, serviceKey);
+    if (!prodServiceKey) {
+      return new Response(JSON.stringify({ error: "Server configuration error" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const admin = createClient(prodSupabaseUrl, prodServiceKey);
+
+    // Validate the JWT against the production project using the service role
+    const token = authHeader.replace("Bearer ", "");
+    const { data: { user }, error: userError } = await admin.auth.getUser(token);
 
     const { data: { user }, error: userError } = await userClient.auth.getUser();
     if (userError || !user?.email) {
