@@ -87,7 +87,14 @@ export default function DynamicLegalPage() {
           </>
         )}
 
-        <div className="mt-12 pt-8 border-t border-border text-center text-sm text-muted-foreground">
+        <div className="mt-12 pt-8 border-t border-border text-center text-sm text-muted-foreground space-y-2">
+          <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 text-xs">
+            <Link to="/privacidade" className="hover:text-primary">Privacidade</Link>
+            <Link to="/termos" className="hover:text-primary">Termos</Link>
+            <Link to="/cookies" className="hover:text-primary">Cookies</Link>
+            <Link to="/data-deletion" className="hover:text-primary">Eliminação de Dados</Link>
+            <Link to="/contacto" className="hover:text-primary">Contacto</Link>
+          </div>
           <p>
             Nexus © 2026 | Powered by{" "}
             <a href="https://web-business.pt" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
@@ -95,7 +102,7 @@ export default function DynamicLegalPage() {
             </a>{" "}
             – Um produto Astrolábio Mágico Investimentos LDA.
           </p>
-          <p className="mt-1">Estrada da Malveira da Serra, 920, Aldeia de Juso, 2750-834 Cascais</p>
+          <p>Estrada da Malveira da Serra, 920, Aldeia de Juso, 2750-834 Cascais</p>
         </div>
       </div>
     </div>
