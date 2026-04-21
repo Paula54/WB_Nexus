@@ -4,6 +4,7 @@ import { Share2, MessageCircle, Megaphone, Fingerprint } from "lucide-react";
 import { ProgressBar } from "./ProgressBar";
 import { SetupCard } from "./SetupCard";
 import { SocialSetupFlow } from "./SocialSetupFlow";
+import { WhatsAppSetupModal } from "./WhatsAppSetupModal";
 import { AdLab } from "./AdLab";
 import { MyUsage } from "@/components/dashboard/MyUsage";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
@@ -16,15 +17,18 @@ export function OnboardingDashboard() {
   const navigate = useNavigate();
   const [socialFlowOpen, setSocialFlowOpen] = useState(false);
   const [metaConnectOpen, setMetaConnectOpen] = useState(false);
+  const [whatsappSetupOpen, setWhatsappSetupOpen] = useState(false);
 
   const handleWhatsAppSetup = () => {
-    window.dispatchEvent(
-      new CustomEvent("nexus-concierge:open", {
-        detail: {
-          prompt: "Ajuda-me a configurar o WhatsApp sem sair desta página.",
-        },
-      })
-    );
+    if (!project?.id) {
+      window.dispatchEvent(
+        new CustomEvent("nexus-concierge:open", {
+          detail: { prompt: "Ajuda-me a configurar o DNA do negócio antes de ligar o WhatsApp." },
+        })
+      );
+      return;
+    }
+    setWhatsappSetupOpen(true);
   };
 
   if (loading) {
@@ -127,6 +131,19 @@ export function OnboardingDashboard() {
         onOpenChange={setMetaConnectOpen}
         projectId={project?.id ?? null}
         onConnected={refetch}
+      />
+      <WhatsAppSetupModal
+        open={whatsappSetupOpen}
+        onOpenChange={setWhatsappSetupOpen}
+        projectId={project?.id ?? null}
+        onConnected={() => {
+          refetch();
+          window.dispatchEvent(
+            new CustomEvent("nexus-concierge:open", {
+              detail: { prompt: "Acabei de ligar o WhatsApp Business com sucesso. Confirma a ligação e indica o próximo passo." },
+            })
+          );
+        }}
       />
     </div>
   );
