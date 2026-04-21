@@ -90,7 +90,7 @@ export function WhatsAppSetupModal({ open, onOpenChange, projectId, onConnected 
       async (code) => {
         try {
           setSaving(true);
-          const { data, error } = await supabase.functions.invoke("whatsapp-embedded-callback", {
+          const { error } = await supabase.functions.invoke("whatsapp-embedded-callback", {
             body: { code, project_id: projectId },
           });
           if (error) throw error;
