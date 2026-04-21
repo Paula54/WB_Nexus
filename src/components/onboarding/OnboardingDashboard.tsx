@@ -104,14 +104,9 @@ export function OnboardingDashboard() {
             locked={campaignLocked}
             lockedMessage="Completa os passos anteriores"
             neonColor="purple"
-            onAction={() => {}}
+            onAction={() => navigate("/ads")}
           />
         </div>
-      </div>
-
-      {/* Ad Lab */}
-      <div className="animate-fade-in" style={{ animationDelay: "900ms", animationFillMode: "both" }}>
-        <AdLab locked={campaignLocked} onCampaignLaunched={refetch} />
       </div>
 
       {/* Quotas */}
