@@ -432,6 +432,31 @@ serve(async (req) => {
     const activeSubscription = candidates.sort(compareCandidates)[0] ?? null;
 
     if (!activeSubscription) {
+      // Cache the resolved stripe_customer_id locally so future calls skip the Stripe lookup.
+      const cachedCustomerId = customersById.size > 0 ? [...customersById.keys()][0] : null;
+      if (cachedCustomerId) {
+        const { data: existingShell } = await supabaseAdmin
+          .from("subscriptions")
+          .select("id, stripe_customer_id")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        const existingShellRow = existingShell as { id?: string; stripe_customer_id?: string | null } | null;
+        if (existingShellRow?.id && existingShellRow.stripe_customer_id !== cachedCustomerId) {
+          const { error: cacheUpdateError } = await supabaseAdmin
+            .from("subscriptions")
+            .update({ stripe_customer_id: cachedCustomerId })
+            .eq("id", existingShellRow.id);
+          if (cacheUpdateError) {
+            console.warn("[check-subscription] Failed to cache stripe_customer_id:", cacheUpdateError.message);
+          } else {
+            console.log(`[check-subscription] Cached stripe_customer_id ${cachedCustomerId} for user ${user.id}`);
+          }
+        }
+      }
+
       const fallbackProject = await getLatestProjectPlan(supabaseAdmin, user.id);
       if (fallbackProject?.id && fallbackProject.selected_plan) {
         const fallbackSubscription = await ensureFallbackSubscriptionFromProject(supabaseAdmin, user.id, fallbackProject);
