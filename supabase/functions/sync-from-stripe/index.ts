@@ -52,7 +52,7 @@ serve(async (req) => {
     const token = authHeader.replace("Bearer ", "");
     const { data: { user }, error: userError } = await admin.auth.getUser(token);
 
-    const { data: { user }, error: userError } = await userClient.auth.getUser();
+    
     if (userError || !user?.email) {
       return new Response(JSON.stringify({ error: "Invalid token" }), {
         status: 401,
