@@ -71,8 +71,10 @@ export default function Profile() {
 
     await supabase
       .from("profiles")
-      .update({ avatar_url: publicUrl })
-      .eq("user_id", user.id);
+      .upsert(
+        { user_id: user.id, avatar_url: publicUrl, contact_email: user.email },
+        { onConflict: "user_id" }
+      );
 
     setAvatarUrl(publicUrl);
     setUploading(false);
