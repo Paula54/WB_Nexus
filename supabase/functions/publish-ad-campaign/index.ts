@@ -176,9 +176,11 @@ Deno.serve(async (req) => {
     const adSetResult = await adSetResponse.json();
 
     if (adSetResult.error) {
-      console.error("Meta AdSet Error:", adSetResult.error);
+      console.error("[publish-ad-campaign] Meta AdSet Error:", JSON.stringify(adSetResult.error));
+      const err = adSetResult.error;
+      const detail = err.error_user_msg || err.error_user_title || err.message || "Erro desconhecido";
       return new Response(
-        JSON.stringify({ success: false, error: `Meta API (AdSet): ${adSetResult.error.message}`, meta_campaign_id: metaCampaignId, meta_error: adSetResult.error }),
+        JSON.stringify({ success: false, error: `Meta API (AdSet): ${detail}`, meta_campaign_id: metaCampaignId, meta_error: err }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
