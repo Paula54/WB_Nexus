@@ -42,6 +42,7 @@ import Success from "@/pages/Success";
 // Legal Pages
 import DynamicLegalPage from "@/pages/legal/DynamicLegalPage";
 import Contacto from "@/pages/legal/Contacto";
+import DataDeletion from "@/pages/legal/DataDeletion";
 
 import NotFound from "@/pages/NotFound";
 
@@ -158,6 +159,8 @@ function AppRoutes() {
       <Route path="/devolucoes" element={<DynamicLegalPage />} />
       <Route path="/cookies" element={<DynamicLegalPage />} />
       <Route path="/contacto" element={<Contacto />} />
+      <Route path="/data-deletion" element={<DataDeletion />} />
+      <Route path="/eliminacao-dados" element={<DataDeletion />} />
 
       {/* 404 */}
       <Route path="*" element={<NotFound />} />
