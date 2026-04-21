@@ -270,8 +270,9 @@ serve(async (req) => {
 
   try {
     const stripeSecretKey = Deno.env.get("STRIPE_SECRET_KEY");
-    const supabaseUrl = Deno.env.get("PROD_SUPABASE_URL") || Deno.env.get("SUPABASE_URL");
-    const supabaseServiceRoleKey = Deno.env.get("PROD_SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    // Always validate JWT against production project (hqyuxponbobmuletqshq) where users live
+    const supabaseUrl = Deno.env.get("PROD_SUPABASE_URL") ?? "https://hqyuxponbobmuletqshq.supabase.co";
+    const supabaseServiceRoleKey = Deno.env.get("PROD_SUPABASE_SERVICE_ROLE_KEY");
     const authHeader = req.headers.get("Authorization");
 
     if (!stripeSecretKey || !supabaseUrl || !supabaseServiceRoleKey) {
