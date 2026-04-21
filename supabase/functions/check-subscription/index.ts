@@ -336,8 +336,8 @@ serve(async (req) => {
     }
 
     if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "Não autorizado." }), {
-        status: 401,
+      return new Response(JSON.stringify({ subscribed: false, subscription: null }), {
+        status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -350,8 +350,9 @@ serve(async (req) => {
     const user = await resolveAuthenticatedUser(authHeader);
 
     if (!user?.email) {
-      return new Response(JSON.stringify({ error: "Sessão inválida." }), {
-        status: 401,
+      console.warn("[check-subscription] Unable to resolve authenticated user from bearer token");
+      return new Response(JSON.stringify({ subscribed: false, subscription: null }), {
+        status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
