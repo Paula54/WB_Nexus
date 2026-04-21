@@ -193,7 +193,7 @@ export function SocialSetupFlow({ open, onOpenChange, onHasPage }: SocialSetupFl
       const data = await response.json().catch(() => ({}));
 
       if (!response.ok || data.error || data.ok === false) {
-        const rawErr = data.error ?? data.detail ?? `HTTP ${response.status}`;
+        const rawErr = data.error ?? data.message ?? data.detail ?? `HTTP ${response.status}`;
         const diagnostics = data.diagnostics ?? (typeof rawErr === "object" && rawErr !== null ? rawErr : null);
         console.error("[connect-meta] full error payload:", data);
 
@@ -217,6 +217,8 @@ export function SocialSetupFlow({ open, onOpenChange, onHasPage }: SocialSetupFl
         if (diagnostics?.stage) details.push(`fase: ${diagnostics.stage}`);
         if (diagnostics?.code != null) details.push(`code ${diagnostics.code}`);
         if (diagnostics?.subcode != null) details.push(`subcode ${diagnostics.subcode}`);
+        if (diagnostics?.details) details.push(String(diagnostics.details));
+        if (diagnostics?.hint) details.push(`hint: ${diagnostics.hint}`);
         if (diagnostics?.guidance) details.push(`→ ${diagnostics.guidance}`);
         if (diagnostics?.request_id) details.push(`[request ${diagnostics.request_id}]`);
         const e = new Error(details.filter(Boolean).join(" ")) as Error & { meta?: unknown };
