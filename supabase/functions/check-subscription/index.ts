@@ -92,11 +92,23 @@ function resolvePlanType(subscription: Stripe.Subscription): PlanType | null {
   if (metadataPlan) return metadataPlan;
 
   for (const item of subscription.items.data) {
-    const planFromPrice = PLAN_BY_PRICE_ID[item.price.id as keyof typeof PLAN_BY_PRICE_ID];
+    const planFromPrice = PLAN_BY_PRICE_ID[item.price.id];
     if (planFromPrice) return planFromPrice;
   }
 
-  return null;
+  // Fallback: match by amount in cents
+  for (const item of subscription.items.data) {
+    const amount = item.price.unit_amount ?? 0;
+    const planFromAmount = PLAN_BY_AMOUNT[amount];
+    if (planFromAmount) {
+      console.log(`[check-subscription] Resolved plan ${planFromAmount} via amount fallback (${amount} cents) for price ${item.price.id}`);
+      return planFromAmount;
+    }
+  }
+
+  // Last-resort fallback: assume START so paid users are not blocked
+  console.warn(`[check-subscription] Unknown price IDs in subscription ${subscription.id}, defaulting to START`);
+  return "START";
 }
 
 function toIso(timestamp: number | null | undefined) {
