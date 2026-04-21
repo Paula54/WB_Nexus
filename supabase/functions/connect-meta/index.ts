@@ -246,9 +246,7 @@ Deno.serve(async (req) => {
 
     if (upsertError) {
       logError("project_credentials upsert failed", upsertError);
-      return new Response(JSON.stringify({ error: upsertError.message }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return errorResponse(upsertError.message, 500, { stage: "project_credentials_upsert" });
     }
 
     // Mirror Meta IDs to projects table (consistency for Dashboard)
@@ -301,9 +299,7 @@ Deno.serve(async (req) => {
 
     if (metaLookupError) {
       logError("meta_connections lookup failed", metaLookupError);
-      return new Response(JSON.stringify({ error: metaLookupError.message }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return errorResponse(metaLookupError.message, 500, { stage: "meta_connections_lookup" });
     }
 
     const { error: metaWriteError } = existingMetaConnection
@@ -320,9 +316,7 @@ Deno.serve(async (req) => {
 
     if (metaWriteError) {
       logError("meta_connections write failed", metaWriteError);
-      return new Response(JSON.stringify({ error: metaWriteError.message }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return errorResponse(metaWriteError.message, 500, { stage: "meta_connections_write" });
     }
 
     const expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
@@ -336,21 +330,15 @@ Deno.serve(async (req) => {
     };
     log("✅ connect-meta completed", result);
 
-    return new Response(JSON.stringify(result), {
-      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return jsonResponse({ ok: true, ...result });
   } catch (err) {
     const e = err as { message?: string; stack?: string; name?: string };
     logError("Unhandled error", { name: e?.name, message: e?.message, stack: e?.stack });
-    return new Response(JSON.stringify({
-      error: {
-        message: e?.message || "Erro interno desconhecido no connect-meta",
-        type: e?.name || "InternalError",
-        guidance: "Erro inesperado no servidor. Reenvia o request; se persistir, contacta o suporte com o request_id.",
-        request_id: requestId,
-      },
-    }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    return errorResponse(e?.message || "Erro interno desconhecido no connect-meta", 500, {
+      stage: "unhandled_exception",
+      type: e?.name || "InternalError",
+      guidance: "Erro inesperado no servidor. Reenvia o request; se persistir, contacta o suporte com o request_id.",
+      request_id: requestId,
     });
   }
 });
