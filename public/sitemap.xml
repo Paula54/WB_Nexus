@@ -21,8 +21,13 @@
     <priority>0.5</priority>
   </url>
   <url>
-    <loc>https://nexus-ai-os.lovable.app/contacto</loc>
+    <loc>https://nexus.web-business.pt/contacto</loc>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://nexus.web-business.pt/data-deletion</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.3</priority>
   </url>
 </urlset>
