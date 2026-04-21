@@ -5,7 +5,6 @@ import { ProgressBar } from "./ProgressBar";
 import { SetupCard } from "./SetupCard";
 import { SocialSetupFlow } from "./SocialSetupFlow";
 import { WhatsAppSetupModal } from "./WhatsAppSetupModal";
-import { AdLab } from "./AdLab";
 import { MyUsage } from "@/components/dashboard/MyUsage";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import MetaAdsConnectModal from "@/components/ads/MetaAdsConnectModal";
@@ -105,14 +104,9 @@ export function OnboardingDashboard() {
             locked={campaignLocked}
             lockedMessage="Completa os passos anteriores"
             neonColor="purple"
-            onAction={() => {}}
+            onAction={() => navigate("/ads")}
           />
         </div>
-      </div>
-
-      {/* Ad Lab */}
-      <div className="animate-fade-in" style={{ animationDelay: "900ms", animationFillMode: "both" }}>
-        <AdLab locked={campaignLocked} onCampaignLaunched={refetch} />
       </div>
 
       {/* Quotas */}
