@@ -7,6 +7,21 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+function jsonResponse(payload: Record<string, unknown>, status = 200): Response {
+  return new Response(JSON.stringify(payload), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+function errorResponse(
+  message: string,
+  status: number,
+  diagnostics: Record<string, unknown> = {},
+): Response {
+  return jsonResponse({ ok: false, error: message, diagnostics }, status);
+}
+
 async function ensurePrimaryProject(
   supabase: ReturnType<typeof createClient>,
   userId: string,
@@ -84,9 +99,7 @@ Deno.serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       logError("Missing Authorization header");
-      return new Response(JSON.stringify({ error: "Missing Authorization header" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return errorResponse("Sessão inválida: falta autorização.", 401, { stage: "auth_header" });
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -98,9 +111,7 @@ Deno.serve(async (req) => {
 
     if (authError || !user) {
       logError("Auth failed", authError?.message);
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return errorResponse("Sessão inválida ou expirada. Entra novamente na app.", 401, { stage: "auth_user" });
     }
     log(`✅ User=${user.id}`);
 
@@ -110,9 +121,7 @@ Deno.serve(async (req) => {
 
     if (!shortLivedToken) {
       logError("No access_token in body");
-      return new Response(JSON.stringify({ error: "access_token is required" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return errorResponse("Token do Facebook em falta. Repete o login com Facebook.", 400, { stage: "request_body" });
     }
 
     // --- Exchange short-lived for long-lived token ---
@@ -121,9 +130,7 @@ Deno.serve(async (req) => {
 
     if (!META_APP_ID || !META_APP_SECRET) {
       logError("META_APP_ID or META_APP_SECRET not configured");
-      return new Response(JSON.stringify({ error: "Meta app credentials not configured" }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return errorResponse("Credenciais da App Meta em falta no servidor.", 500, { stage: "meta_credentials" });
     }
 
     log("🔄 Exchanging short-lived token for long-lived...");
@@ -142,17 +149,13 @@ Deno.serve(async (req) => {
           : fb.code === 200 || fb.type === "OAuthException"
             ? "Permissões insuficientes. Aceita TODAS as permissões pedidas (páginas, ads, instagram)."
             : "Falha na troca de token com a Meta. Tenta novamente daqui a alguns minutos.";
-      return new Response(JSON.stringify({
-        error: {
-          message: fb.message || "Token exchange failed",
-          code: fb.code ?? null,
-          subcode: fb.error_subcode ?? null,
-          type: fb.type ?? null,
-          fbtrace_id: fb.fbtrace_id ?? null,
-          guidance,
-        },
-      }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      return errorResponse(fb.message || "Falha na troca de token com a Meta.", 400, {
+        stage: "token_exchange",
+        code: fb.code ?? null,
+        subcode: fb.error_subcode ?? null,
+        type: fb.type ?? null,
+        fbtrace_id: fb.fbtrace_id ?? null,
+        guidance,
       });
     }
 
@@ -202,9 +205,7 @@ Deno.serve(async (req) => {
     const prodServiceKey = Deno.env.get("PROD_SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     if (!prodUrl || !prodServiceKey) {
       logError("Production credentials not configured");
-      return new Response(JSON.stringify({ error: "Production credentials not configured" }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return errorResponse("Credenciais de produção em falta no servidor.", 500, { stage: "database_credentials" });
     }
     const prodSupabase = createClient(prodUrl, prodServiceKey);
 
@@ -214,15 +215,11 @@ Deno.serve(async (req) => {
     } catch (projectError) {
       const message = projectError instanceof Error ? projectError.message : String(projectError);
       logError("Project lookup failed", message);
-      return new Response(JSON.stringify({ error: message }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return errorResponse(message, 500, { stage: "project_lookup" });
     }
 
     if (!project) {
-      return new Response(JSON.stringify({ error: "Failed to resolve project" }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return errorResponse("Não foi possível identificar o projeto principal.", 500, { stage: "project_lookup" });
     }
 
     log(`📁 Project: ${project.id}`);
@@ -249,9 +246,7 @@ Deno.serve(async (req) => {
 
     if (upsertError) {
       logError("project_credentials upsert failed", upsertError);
-      return new Response(JSON.stringify({ error: upsertError.message }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return errorResponse(upsertError.message, 500, { stage: "project_credentials_upsert" });
     }
 
     // Mirror Meta IDs to projects table (consistency for Dashboard)
@@ -304,9 +299,7 @@ Deno.serve(async (req) => {
 
     if (metaLookupError) {
       logError("meta_connections lookup failed", metaLookupError);
-      return new Response(JSON.stringify({ error: metaLookupError.message }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return errorResponse(metaLookupError.message, 500, { stage: "meta_connections_lookup" });
     }
 
     const { error: metaWriteError } = existingMetaConnection
@@ -323,9 +316,7 @@ Deno.serve(async (req) => {
 
     if (metaWriteError) {
       logError("meta_connections write failed", metaWriteError);
-      return new Response(JSON.stringify({ error: metaWriteError.message }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return errorResponse(metaWriteError.message, 500, { stage: "meta_connections_write" });
     }
 
     const expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
@@ -339,21 +330,15 @@ Deno.serve(async (req) => {
     };
     log("✅ connect-meta completed", result);
 
-    return new Response(JSON.stringify(result), {
-      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return jsonResponse({ ok: true, ...result });
   } catch (err) {
     const e = err as { message?: string; stack?: string; name?: string };
     logError("Unhandled error", { name: e?.name, message: e?.message, stack: e?.stack });
-    return new Response(JSON.stringify({
-      error: {
-        message: e?.message || "Erro interno desconhecido no connect-meta",
-        type: e?.name || "InternalError",
-        guidance: "Erro inesperado no servidor. Reenvia o request; se persistir, contacta o suporte com o request_id.",
-        request_id: requestId,
-      },
-    }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    return errorResponse(e?.message || "Erro interno desconhecido no connect-meta", 500, {
+      stage: "unhandled_exception",
+      type: e?.name || "InternalError",
+      guidance: "Erro inesperado no servidor. Reenvia o request; se persistir, contacta o suporte com o request_id.",
+      request_id: requestId,
     });
   }
 });
