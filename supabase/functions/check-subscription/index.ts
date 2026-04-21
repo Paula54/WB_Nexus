@@ -149,28 +149,19 @@ async function resolveAuthenticatedUser(authHeader: string): Promise<Authenticat
   return null;
 }
 
-function isMissingColumnError(error: unknown, column: string) {
-  return getErrorMessage(error).toLowerCase().includes(column.toLowerCase());
-}
-
-function buildPlanNamePayload(payload: SubscriptionWritePayload) {
-  const { plan, ...rest } = payload;
-  return { ...rest, plan_name: plan };
-}
-
 function buildPlanTypePayload(payload: SubscriptionWritePayload) {
   const { plan, ...rest } = payload;
   return { ...rest, plan_type: plan };
 }
 
+// Kept for compatibility with the response body shape consumed by the frontend.
+function buildPlanNamePayload(payload: SubscriptionWritePayload) {
+  const { plan, ...rest } = payload;
+  return { ...rest, plan_type: plan, plan_name: plan };
+}
+
 async function insertSubscriptionRecord(supabaseAdmin: ReturnType<typeof createClient>, payload: SubscriptionWritePayload) {
-  let response = await supabaseAdmin.from("subscriptions").insert(buildPlanNamePayload(payload));
-
-  if (response.error && isMissingColumnError(response.error, "plan_name")) {
-    response = await supabaseAdmin.from("subscriptions").insert(buildPlanTypePayload(payload));
-  }
-
-  return response;
+  return await supabaseAdmin.from("subscriptions").insert(buildPlanTypePayload(payload));
 }
 
 async function updateSubscriptionRecord(
@@ -178,19 +169,10 @@ async function updateSubscriptionRecord(
   subscriptionId: string,
   payload: SubscriptionWritePayload,
 ) {
-  let response = await supabaseAdmin
+  return await supabaseAdmin
     .from("subscriptions")
-    .update(buildPlanNamePayload(payload))
+    .update(buildPlanTypePayload(payload))
     .eq("id", subscriptionId);
-
-  if (response.error && isMissingColumnError(response.error, "plan_name")) {
-    response = await supabaseAdmin
-      .from("subscriptions")
-      .update(buildPlanTypePayload(payload))
-      .eq("id", subscriptionId);
-  }
-
-  return response;
 }
 
 function compareCandidates(a: CandidateSubscription, b: CandidateSubscription) {
