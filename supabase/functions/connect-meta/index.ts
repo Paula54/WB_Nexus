@@ -262,15 +262,38 @@ Deno.serve(async (req) => {
       instagram_business_id: instagramBusinessId,
       updated_at: new Date().toISOString(),
     };
-    log("💾 Upserting project_credentials...", { project_id: project.id });
+    log("💾 Saving project_credentials (select-then-insert/update)...", { project_id: project.id });
 
-    const { error: upsertError } = await prodSupabase
+    const { data: existingCred, error: existingCredError } = await prodSupabase
       .from("project_credentials")
-      .upsert(credentialsPayload, { onConflict: "project_id" });
+      .select("id")
+      .eq("project_id", project.id)
+      .maybeSingle();
+
+    if (existingCredError) {
+      const normalized = normalizeError(existingCredError);
+      logError("project_credentials lookup failed", existingCredError);
+      return errorResponse(normalized.message, 500, { stage: "project_credentials_lookup", ...normalized.details });
+    }
+
+    let upsertError: any = null;
+    if (existingCred) {
+      const { error } = await prodSupabase
+        .from("project_credentials")
+        .update(credentialsPayload)
+        .eq("id", (existingCred as any).id);
+      upsertError = error;
+    } else {
+      const { error } = await prodSupabase
+        .from("project_credentials")
+        .insert(credentialsPayload);
+      upsertError = error;
+    }
 
     if (upsertError) {
+      const normalized = normalizeError(upsertError);
       logError("project_credentials upsert failed", upsertError);
-      return errorResponse(upsertError.message, 500, { stage: "project_credentials_upsert" });
+      return errorResponse(normalized.message, 500, { stage: "project_credentials_upsert", ...normalized.details });
     }
 
     // Mirror Meta IDs to projects table (consistency for Dashboard)
