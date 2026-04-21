@@ -22,6 +22,26 @@ function errorResponse(
   return jsonResponse({ ok: false, error: message, diagnostics }, status);
 }
 
+function normalizeError(error: unknown): { message: string; details: Record<string, unknown> } {
+  if (error instanceof Error) {
+    return { message: error.message, details: { name: error.name, stack: error.stack } };
+  }
+
+  if (error && typeof error === "object") {
+    const record = error as Record<string, unknown>;
+    const message = [record.message, record.details, record.hint, record.code]
+      .filter((part) => typeof part === "string" && part.trim().length > 0)
+      .join(" · ");
+
+    return {
+      message: message || JSON.stringify(record),
+      details: record,
+    };
+  }
+
+  return { message: String(error || "Erro desconhecido"), details: {} };
+}
+
 async function ensurePrimaryProject(
   supabase: ReturnType<typeof createClient>,
   userId: string,
@@ -201,7 +221,7 @@ Deno.serve(async (req) => {
     }
 
     // --- Encrypt & Store ---
-    const prodUrl = Deno.env.get("PROD_SUPABASE_URL") || Deno.env.get("SUPABASE_URL");
+    const prodUrl = Deno.env.get("PROD_SUPABASE_URL") || "https://hqyuxponbobmuletqshq.supabase.co";
     const prodServiceKey = Deno.env.get("PROD_SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     if (!prodUrl || !prodServiceKey) {
       logError("Production credentials not configured");
@@ -213,9 +233,13 @@ Deno.serve(async (req) => {
     try {
       project = await ensurePrimaryProject(prodSupabase, user.id, user.email, "START");
     } catch (projectError) {
-      const message = projectError instanceof Error ? projectError.message : String(projectError);
-      logError("Project lookup failed", message);
-      return errorResponse(message, 500, { stage: "project_lookup" });
+      const normalized = normalizeError(projectError);
+      logError("Project lookup failed", normalized);
+      return errorResponse(`Não foi possível encontrar ou criar o projeto: ${normalized.message}`, 500, {
+        stage: "project_lookup",
+        guidance: "Confirma que a sessão pertence ao ambiente de produção e volta a iniciar sessão se necessário.",
+        ...normalized.details,
+      });
     }
 
     if (!project) {
@@ -332,13 +356,14 @@ Deno.serve(async (req) => {
 
     return jsonResponse({ ok: true, ...result });
   } catch (err) {
-    const e = err as { message?: string; stack?: string; name?: string };
-    logError("Unhandled error", { name: e?.name, message: e?.message, stack: e?.stack });
-    return errorResponse(e?.message || "Erro interno desconhecido no connect-meta", 500, {
+    const normalized = normalizeError(err);
+    logError("Unhandled error", normalized);
+    return errorResponse(normalized.message || "Erro interno desconhecido no connect-meta", 500, {
       stage: "unhandled_exception",
-      type: e?.name || "InternalError",
+      type: String(normalized.details.name || "InternalError"),
       guidance: "Erro inesperado no servidor. Reenvia o request; se persistir, contacta o suporte com o request_id.",
       request_id: requestId,
+      ...normalized.details,
     });
   }
 });
