@@ -190,10 +190,15 @@ export function SocialSetupFlow({ open, onOpenChange, onHasPage }: SocialSetupFl
         }
       );
 
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
 
       if (!response.ok || data.error) {
-        throw new Error(data.error || data.detail || `HTTP ${response.status}`);
+        const rawErr = data.error ?? data.detail ?? `HTTP ${response.status}`;
+        const msg = typeof rawErr === "string"
+          ? rawErr
+          : (rawErr?.message || JSON.stringify(rawErr));
+        console.error("[connect-meta] error payload:", data);
+        throw new Error(msg);
       }
 
       toast.success("✅ Meta conectado!", {
