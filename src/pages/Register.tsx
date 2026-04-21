@@ -192,14 +192,18 @@ export default function Register() {
       const isUserExists = msg.includes("already") || msg.includes("database error") || msg.includes("duplicate") || msg.includes("registered");
 
       if (isUserExists) {
-        // User was created by Stripe webhook — send password reset link for activation
-        console.log("[Register] User already exists, sending activation email via resetPasswordForEmail");
-        const { error: resetErr } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${window.location.origin}/reset-password`,
+        // User was created by Stripe webhook — send Magic Link for activation
+        console.log("[Register] User already exists, sending activation Magic Link");
+        const { error: otpErr } = await supabase.auth.signInWithOtp({
+          email,
+          options: {
+            shouldCreateUser: false,
+            emailRedirectTo: `${window.location.origin}/`,
+          },
         });
-        if (resetErr) {
-          console.error("[Register] Failed to send reset email:", resetErr);
-          toast({ variant: "destructive", title: "Erro", description: "Não foi possível enviar o e-mail de ativação. Tente novamente." });
+        if (otpErr) {
+          console.error("[Register] Failed to send magic link:", otpErr);
+          toast({ variant: "destructive", title: "Erro", description: "Não foi possível enviar o link de ativação. Tente novamente." });
         } else {
           setShowActivationMessage(true);
         }
