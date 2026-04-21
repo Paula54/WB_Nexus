@@ -30,32 +30,19 @@ export function useInvoices() {
         return;
       }
 
+      setLoading(true);
+      setError(null);
+
       try {
-        const { data, error: dbError } = await supabase
-          .from("invoices" as any)
-          .select("*")
-          .eq("user_id", user.id)
-          .order("created", { ascending: false })
-          .limit(24);
+        const { data, error: fnError } = await supabase.functions.invoke("list-invoices");
 
-        if (dbError) throw new Error(dbError.message);
+        if (fnError) throw new Error(fnError.message);
 
-        const rows = (data as any[]) ?? [];
-        setInvoices(rows.map((row) => ({
-          id: row.id,
-          number: row.number ?? null,
-          status: row.status ?? null,
-          amount_due: row.amount_due ?? 0,
-          amount_paid: row.amount_paid ?? 0,
-          currency: row.currency ?? "eur",
-          created: row.created ?? 0,
-          period_start: row.period_start ?? 0,
-          period_end: row.period_end ?? 0,
-          hosted_invoice_url: row.hosted_invoice_url ?? null,
-          invoice_pdf: row.invoice_pdf ?? null,
-        })));
+        const rows = (data?.invoices as StripeInvoice[] | undefined) ?? [];
+        setInvoices(rows);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Erro desconhecido");
+        console.error("[useInvoices] Failed to load invoices:", err);
+        setError(err instanceof Error ? err.message : "Não foi possível carregar as faturas.");
       } finally {
         setLoading(false);
       }
