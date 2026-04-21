@@ -343,8 +343,16 @@ Deno.serve(async (req) => {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
-    logError("Unhandled error", { message: err.message, stack: err.stack });
-    return new Response(JSON.stringify({ error: err.message }), {
+    const e = err as { message?: string; stack?: string; name?: string };
+    logError("Unhandled error", { name: e?.name, message: e?.message, stack: e?.stack });
+    return new Response(JSON.stringify({
+      error: {
+        message: e?.message || "Erro interno desconhecido no connect-meta",
+        type: e?.name || "InternalError",
+        guidance: "Erro inesperado no servidor. Reenvia o request; se persistir, contacta o suporte com o request_id.",
+        request_id: requestId,
+      },
+    }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
