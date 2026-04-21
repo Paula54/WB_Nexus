@@ -42,14 +42,22 @@ export function useOnboardingStatus(): OnboardingStatus {
     let hasWhatsapp = false;
 
     if (project) {
-      const { data: creds } = await supabase
-        .from("project_credentials" as any)
-        .select("facebook_page_id, instagram_business_id, whatsapp_business_id")
-        .eq("project_id", project.id)
-        .maybeSingle();
-      const raw = creds as Record<string, unknown> | null;
-      hasFbOrIg = !!(raw?.facebook_page_id || raw?.instagram_business_id);
-      hasWhatsapp = !!raw?.whatsapp_business_id;
+      const [{ data: creds }, { data: projectChannels }] = await Promise.all([
+        supabase
+          .from("project_credentials" as any)
+          .select("facebook_page_id, instagram_business_id")
+          .eq("project_id", project.id)
+          .maybeSingle(),
+        supabase
+          .from("projects" as any)
+          .select("whatsapp_business_id, whatsapp_phone_number_id")
+          .eq("id", project.id)
+          .maybeSingle(),
+      ]);
+      const rawCreds = creds as Record<string, unknown> | null;
+      const rawProject = projectChannels as Record<string, unknown> | null;
+      hasFbOrIg = !!(rawCreds?.facebook_page_id || rawCreds?.instagram_business_id);
+      hasWhatsapp = !!(rawProject?.whatsapp_business_id || rawProject?.whatsapp_phone_number_id);
     }
 
     // Check campaigns
