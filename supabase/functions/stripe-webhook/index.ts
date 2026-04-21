@@ -14,29 +14,46 @@ function getErrorMessage(error: unknown) {
   return String(error);
 }
 
-function isMissingColumnError(error: unknown, column: string) {
-  return getErrorMessage(error).toLowerCase().includes(column.toLowerCase());
-}
-
-function buildPlanPayload(payload: Record<string, unknown>, plan: string, useLegacyColumn = false) {
-  return {
-    ...payload,
-    ...(useLegacyColumn ? { plan_type: plan } : { plan_name: plan }),
-  };
-}
-
 async function upsertSubscriptionRecord(supabase: any, payload: Record<string, unknown>, plan: string) {
-  let response = await supabase
-    .from('subscriptions')
-    .upsert(buildPlanPayload(payload, plan), { onConflict: 'stripe_subscription_id' });
+  // Manual upsert: the `subscriptions` table has no UNIQUE constraint on
+  // `stripe_subscription_id`, so a Postgres ON CONFLICT upsert silently fails.
+  // We always use `plan_type` (the actual column in production).
+  const fullPayload = { ...payload, plan_type: plan };
+  const stripeSubscriptionId = payload.stripe_subscription_id as string | null;
+  const userId = payload.user_id as string;
 
-  if (response.error && isMissingColumnError(response.error, 'plan_name')) {
-    response = await supabase
+  // 1) Try to find an existing row for this Stripe subscription
+  if (stripeSubscriptionId) {
+    const { data: existing, error: lookupErr } = await supabase
       .from('subscriptions')
-      .upsert(buildPlanPayload(payload, plan, true), { onConflict: 'stripe_subscription_id' });
+      .select('id')
+      .eq('stripe_subscription_id', stripeSubscriptionId)
+      .maybeSingle();
+
+    if (lookupErr) {
+      console.error('[stripe-webhook] Lookup error:', lookupErr);
+    }
+
+    if (existing?.id) {
+      return await supabase.from('subscriptions').update(fullPayload).eq('id', existing.id);
+    }
   }
 
-  return response;
+  // 2) Otherwise, look for the user's most recent subscription row to update
+  const { data: userSub } = await supabase
+    .from('subscriptions')
+    .select('id')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (userSub?.id) {
+    return await supabase.from('subscriptions').update(fullPayload).eq('id', userSub.id);
+  }
+
+  // 3) No existing row — insert a fresh one
+  return await supabase.from('subscriptions').insert(fullPayload);
 }
 
 function buildProjectName(identifier: string) {
