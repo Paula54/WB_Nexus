@@ -194,11 +194,25 @@ export function SocialSetupFlow({ open, onOpenChange, onHasPage }: SocialSetupFl
 
       if (!response.ok || data.error) {
         const rawErr = data.error ?? data.detail ?? `HTTP ${response.status}`;
-        const msg = typeof rawErr === "string"
-          ? rawErr
-          : (rawErr?.message || JSON.stringify(rawErr));
-        console.error("[connect-meta] error payload:", data);
-        throw new Error(msg);
+        console.error("[connect-meta] full error payload:", data);
+
+        if (typeof rawErr === "object" && rawErr !== null) {
+          const parts: string[] = [];
+          if (rawErr.message) parts.push(rawErr.message);
+          const meta: string[] = [];
+          if (rawErr.code != null) meta.push(`code ${rawErr.code}`);
+          if (rawErr.subcode != null) meta.push(`subcode ${rawErr.subcode}`);
+          if (rawErr.type) meta.push(rawErr.type);
+          if (meta.length) parts.push(`(${meta.join(" · ")})`);
+          if (rawErr.guidance) parts.push(`→ ${rawErr.guidance}`);
+          if (rawErr.fbtrace_id) parts.push(`[trace ${rawErr.fbtrace_id}]`);
+          const composed = parts.join(" ").trim() || JSON.stringify(rawErr);
+          const e = new Error(composed) as Error & { meta?: unknown };
+          e.meta = rawErr;
+          throw e;
+        }
+
+        throw new Error(typeof rawErr === "string" ? rawErr : JSON.stringify(rawErr));
       }
 
       toast.success("✅ Meta conectado!", {
@@ -207,9 +221,10 @@ export function SocialSetupFlow({ open, onOpenChange, onHasPage }: SocialSetupFl
       handleClose();
       onHasPage();
     } catch (err: any) {
-      console.error("Connect Meta error:", err);
+      console.error("Connect Meta error:", err, err?.meta);
       toast.error("Erro ao conectar Meta", {
-        description: err.message || "Tenta novamente.",
+        description: err?.message || "Tenta novamente.",
+        duration: 12000,
       });
     } finally {
       setConnecting(false);

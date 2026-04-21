@@ -134,7 +134,24 @@ Deno.serve(async (req) => {
 
     if (exchangeData.error) {
       logError("Token exchange failed", exchangeData.error);
-      return new Response(JSON.stringify({ error: "Token exchange failed", detail: exchangeData.error.message }), {
+      const fb = exchangeData.error || {};
+      const guidance = fb.code === 190
+        ? "Token expirado ou inválido. Volta a iniciar sessão no Facebook."
+        : fb.code === 100
+          ? "Parâmetros inválidos. Verifica se o App ID corresponde ao que está em Meta for Developers."
+          : fb.code === 200 || fb.type === "OAuthException"
+            ? "Permissões insuficientes. Aceita TODAS as permissões pedidas (páginas, ads, instagram)."
+            : "Falha na troca de token com a Meta. Tenta novamente daqui a alguns minutos.";
+      return new Response(JSON.stringify({
+        error: {
+          message: fb.message || "Token exchange failed",
+          code: fb.code ?? null,
+          subcode: fb.error_subcode ?? null,
+          type: fb.type ?? null,
+          fbtrace_id: fb.fbtrace_id ?? null,
+          guidance,
+        },
+      }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
