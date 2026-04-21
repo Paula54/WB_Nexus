@@ -17,9 +17,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Card, CardContent } from "@/components/ui/card";
 import { supabase } from "@/lib/supabaseCustom";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Sparkles } from "lucide-react";
+import { Plus, Sparkles, Loader2, ArrowLeft } from "lucide-react";
 
 interface CampaignCreateDialogProps {
   userId: string;
@@ -28,6 +29,14 @@ interface CampaignCreateDialogProps {
   onCreated: () => void;
 }
 
+interface AdCreative {
+  headline: string;
+  body: string;
+  cta: string;
+}
+
+type Step = "brief" | "choose" | "review";
+
 export default function CampaignCreateDialog({
   userId,
   metaConnected,
@@ -35,49 +44,75 @@ export default function CampaignCreateDialog({
   onCreated,
 }: CampaignCreateDialogProps) {
   const [open, setOpen] = useState(false);
+  const [step, setStep] = useState<Step>("brief");
   const [generating, setGenerating] = useState(false);
   const [publishing, setPublishing] = useState(false);
 
   const [platform, setPlatform] = useState<"meta" | "google">("meta");
   const [dailyBudget, setDailyBudget] = useState("");
-  const [adCopy, setAdCopy] = useState("");
+  const [product, setProduct] = useState("");
   const [targetAudience, setTargetAudience] = useState("");
+  const [ads, setAds] = useState<AdCreative[]>([]);
+  const [adCopy, setAdCopy] = useState("");
 
-  async function generateWithAI() {
+  function resetForm() {
+    setStep("brief");
+    setPlatform("meta");
+    setDailyBudget("");
+    setProduct("");
+    setTargetAudience("");
+    setAds([]);
+    setAdCopy("");
+  }
+
+  function handleOpenChange(next: boolean) {
+    setOpen(next);
+    if (!next) resetForm();
+  }
+
+  async function generateAds() {
+    if (!product.trim()) {
+      toast({ variant: "destructive", title: "Descreve o teu produto/serviço." });
+      return;
+    }
     setGenerating(true);
     try {
-      const { data, error } = await supabase.functions.invoke("nexus-concierge", {
-        body: {
-          message: `Gera um texto de anúncio profissional para uma campanha de ${platform === "meta" ? "Facebook/Instagram" : "Google Ads"}. 
-          O anúncio deve ser persuasivo, ter um CTA claro e focar em conversões. 
-          Público-alvo: ${targetAudience || "Empresários e profissionais interessados em tecnologia"}.
-          Retorna apenas o texto do anúncio, sem explicações.`,
-          context: { type: "ad_generation" },
-        },
+      const { data, error } = await supabase.functions.invoke("generate-ad-creatives", {
+        body: { product: product.trim(), audience: targetAudience.trim() },
       });
-
       if (error) throw error;
-
-      if (data?.response) {
-        setAdCopy(data.response);
-        toast({ title: "Texto gerado com sucesso!" });
+      const generated: AdCreative[] = data?.ads || [];
+      if (generated.length === 0) {
+        toast({
+          variant: "destructive",
+          title: "Erro",
+          description: data?.error || "A IA não devolveu anúncios. Tenta novamente.",
+        });
+        return;
       }
-    } catch (error) {
-      console.error("Error generating ad copy:", error);
+      setAds(generated);
+      setStep("choose");
+      toast({ title: `${generated.length} anúncios gerados pela IA!` });
+    } catch (e) {
+      console.error(e);
       toast({
         variant: "destructive",
         title: "Erro",
-        description: "Não foi possível gerar o texto.",
+        description: "Não foi possível gerar os anúncios.",
       });
     } finally {
       setGenerating(false);
     }
   }
 
+  function chooseAd(ad: AdCreative) {
+    setAdCopy(`${ad.headline}\n\n${ad.body}\n\n${ad.cta}`);
+    setStep("review");
+  }
+
   async function createCampaign() {
     if (!adCopy.trim()) return;
 
-    // Save to local DB first
     const { data: campaign, error } = await supabase
       .from("ads_campaigns")
       .insert({
@@ -102,7 +137,6 @@ export default function CampaignCreateDialog({
       return;
     }
 
-    // If Meta is connected and platform is Meta, publish to Meta Ads
     if (platform === "meta" && metaConnected && projectId) {
       setPublishing(true);
       try {
@@ -127,7 +161,8 @@ export default function CampaignCreateDialog({
           toast({
             variant: "destructive",
             title: "Aviso",
-            description: publishResult?.error || "Campanha criada localmente, mas não foi publicada na Meta.",
+            description:
+              publishResult?.error || "Campanha criada localmente, mas não publicada na Meta.",
           });
         }
       } catch (err) {
@@ -144,100 +179,167 @@ export default function CampaignCreateDialog({
       toast({ title: "Campanha criada com sucesso!" });
     }
 
-    setOpen(false);
-    resetForm();
+    handleOpenChange(false);
     onCreated();
   }
 
-  function resetForm() {
-    setPlatform("meta");
-    setDailyBudget("");
-    setAdCopy("");
-    setTargetAudience("");
-  }
-
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button className="gap-2">
           <Plus className="h-4 w-4" />
           Nova Campanha
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Criar Nova Campanha</DialogTitle>
+          <DialogTitle>
+            {step === "brief" && "Criar Nova Campanha"}
+            {step === "choose" && "Escolhe o teu anúncio"}
+            {step === "review" && "Rever e Publicar"}
+          </DialogTitle>
         </DialogHeader>
-        <div className="space-y-4 mt-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Plataforma</Label>
-              <Select value={platform} onValueChange={(v) => setPlatform(v as "meta" | "google")}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="meta">Meta (Facebook/Instagram)</SelectItem>
-                  <SelectItem value="google">Google Ads</SelectItem>
-                </SelectContent>
-              </Select>
+
+        {step === "brief" && (
+          <div className="space-y-4 mt-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Plataforma</Label>
+                <Select
+                  value={platform}
+                  onValueChange={(v) => setPlatform(v as "meta" | "google")}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="meta">Meta (Facebook/Instagram)</SelectItem>
+                    <SelectItem value="google">Google Ads</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Orçamento Diário (€)</Label>
+                <Input
+                  type="number"
+                  placeholder="50"
+                  value={dailyBudget}
+                  onChange={(e) => setDailyBudget(e.target.value)}
+                />
+              </div>
             </div>
+
             <div className="space-y-2">
-              <Label>Orçamento Diário (€)</Label>
-              <Input
-                type="number"
-                placeholder="50"
-                value={dailyBudget}
-                onChange={(e) => setDailyBudget(e.target.value)}
+              <Label>O que vendes ou ofereces?</Label>
+              <Textarea
+                placeholder="Ex: Bolos artesanais para eventos, casamentos e festas"
+                value={product}
+                onChange={(e) => setProduct(e.target.value)}
+                rows={2}
               />
             </div>
-          </div>
 
-          <div className="space-y-2">
-            <Label>Público-Alvo</Label>
-            <Input
-              placeholder="Ex: Empresários, 25-45 anos, interessados em marketing"
-              value={targetAudience}
-              onChange={(e) => setTargetAudience(e.target.value)}
-            />
-          </div>
+            <div className="space-y-2">
+              <Label>
+                Público-Alvo <span className="text-muted-foreground">(opcional)</span>
+              </Label>
+              <Input
+                placeholder="Ex: Mulheres 25-45, Lisboa"
+                value={targetAudience}
+                onChange={(e) => setTargetAudience(e.target.value)}
+              />
+            </div>
 
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label>Texto do Anúncio</Label>
+            <Button
+              onClick={generateAds}
+              disabled={generating || !product.trim()}
+              className="w-full gap-2"
+              size="lg"
+            >
+              {generating ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4" />
+              )}
+              {generating ? "A gerar 3 anúncios..." : "Gerar 3 Anúncios com IA"}
+            </Button>
+          </div>
+        )}
+
+        {step === "choose" && (
+          <div className="space-y-4 mt-4">
+            <div className="grid gap-3">
+              {ads.map((ad, i) => (
+                <Card
+                  key={i}
+                  className="border border-border bg-background/50 hover:border-primary/50 transition-colors"
+                >
+                  <CardContent className="p-4 space-y-2">
+                    <h4 className="font-display font-bold text-foreground text-sm">
+                      {ad.headline}
+                    </h4>
+                    <p className="text-xs text-muted-foreground leading-relaxed">{ad.body}</p>
+                    <p className="text-xs font-medium text-primary">{ad.cta}</p>
+                    <Button
+                      onClick={() => chooseAd(ad)}
+                      className="w-full mt-2"
+                      size="sm"
+                      variant="outline"
+                    >
+                      Escolher este
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setStep("brief")}
+              className="gap-1"
+            >
+              <ArrowLeft className="h-3 w-3" />
+              Voltar
+            </Button>
+          </div>
+        )}
+
+        {step === "review" && (
+          <div className="space-y-4 mt-4">
+            <div className="space-y-2">
+              <Label>Texto do Anúncio (podes editar)</Label>
+              <Textarea
+                value={adCopy}
+                onChange={(e) => setAdCopy(e.target.value)}
+                rows={6}
+              />
+            </div>
+
+            {platform === "meta" && metaConnected && (
+              <p className="text-xs text-primary flex items-center gap-1">
+                ✅ A campanha será publicada diretamente na Meta Ads
+              </p>
+            )}
+
+            <div className="flex gap-2">
               <Button
-                variant="ghost"
-                size="sm"
-                onClick={generateWithAI}
-                disabled={generating}
-                className="gap-1 text-primary"
+                variant="outline"
+                onClick={() => setStep("choose")}
+                className="gap-1"
               >
-                <Sparkles className="h-3 w-3" />
-                {generating ? "A gerar..." : "Gerar com IA"}
+                <ArrowLeft className="h-4 w-4" />
+                Voltar
+              </Button>
+              <Button
+                onClick={createCampaign}
+                className="flex-1"
+                disabled={!adCopy.trim() || publishing}
+              >
+                {publishing ? "A publicar na Meta..." : "Criar Campanha"}
               </Button>
             </div>
-            <Textarea
-              placeholder="Escreve o texto do anúncio ou gere com IA..."
-              value={adCopy}
-              onChange={(e) => setAdCopy(e.target.value)}
-              rows={5}
-            />
           </div>
-
-          {platform === "meta" && metaConnected && (
-            <p className="text-xs text-primary flex items-center gap-1">
-              ✅ A campanha será publicada diretamente na Meta Ads
-            </p>
-          )}
-
-          <Button
-            onClick={createCampaign}
-            className="w-full"
-            disabled={!adCopy.trim() || publishing}
-          >
-            {publishing ? "A publicar na Meta..." : "Criar Campanha"}
-          </Button>
-        </div>
+        )}
       </DialogContent>
     </Dialog>
   );
