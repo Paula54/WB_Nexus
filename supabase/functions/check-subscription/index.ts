@@ -41,6 +41,14 @@ type ProjectPlanRecord = {
   trial_expires_at: string | null;
 };
 
+type AuthenticatedUser = {
+  id: string;
+  email: string;
+};
+
+const PROD_SUPABASE_URL_FALLBACK = "https://hqyuxponbobmuletqshq.supabase.co";
+const PROD_SUPABASE_ANON_KEY_FALLBACK = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhxeXV4cG9uYm9ibXVsZXRxc2hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE0MjM4MTUsImV4cCI6MjA4Njk5OTgxNX0.PR0gfHWMQnFjqnf2TiHSudmJ0k6fnlf8x16AK94jWN4";
+
 function normalizePlanType(planType: string | null | undefined): PlanType | null {
   if (!planType) return null;
 
@@ -93,6 +101,52 @@ function getErrorMessage(error: unknown) {
   if (error instanceof Error) return error.message;
   if (typeof error === "object" && error && "message" in error) return String((error as { message?: unknown }).message ?? "");
   return String(error);
+}
+
+async function resolveAuthenticatedUser(authHeader: string): Promise<AuthenticatedUser | null> {
+  const token = authHeader.replace("Bearer ", "").trim();
+  const validationAttempts = [
+    {
+      label: "prod-service-role",
+      url: Deno.env.get("PROD_SUPABASE_URL") ?? PROD_SUPABASE_URL_FALLBACK,
+      key: Deno.env.get("PROD_SUPABASE_SERVICE_ROLE_KEY"),
+    },
+    {
+      label: "prod-anon",
+      url: Deno.env.get("PROD_SUPABASE_URL") ?? PROD_SUPABASE_URL_FALLBACK,
+      key: Deno.env.get("PROD_SUPABASE_ANON_KEY") ?? PROD_SUPABASE_ANON_KEY_FALLBACK,
+    },
+    {
+      label: "runtime-service-role",
+      url: Deno.env.get("SUPABASE_URL"),
+      key: Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"),
+    },
+  ].filter((attempt): attempt is { label: string; url: string; key: string } => !!attempt.url && !!attempt.key);
+
+  for (const attempt of validationAttempts) {
+    try {
+      const client = createClient(attempt.url, attempt.key, {
+        auth: { autoRefreshToken: false, persistSession: false },
+      });
+
+      const {
+        data: { user },
+        error,
+      } = await client.auth.getUser(token);
+
+      if (error || !user?.email) {
+        console.warn(`[check-subscription] Token validation failed via ${attempt.label}:`, error?.message ?? "missing user/email");
+        continue;
+      }
+
+      console.log(`[check-subscription] Token validated via ${attempt.label} for user ${user.id}`);
+      return { id: user.id, email: user.email };
+    } catch (error) {
+      console.warn(`[check-subscription] Token validation error via ${attempt.label}:`, getErrorMessage(error));
+    }
+  }
+
+  return null;
 }
 
 function isMissingColumnError(error: unknown, column: string) {
@@ -270,8 +324,7 @@ serve(async (req) => {
 
   try {
     const stripeSecretKey = Deno.env.get("STRIPE_SECRET_KEY");
-    // Always validate JWT against production project (hqyuxponbobmuletqshq) where users live
-    const supabaseUrl = Deno.env.get("PROD_SUPABASE_URL") ?? "https://hqyuxponbobmuletqshq.supabase.co";
+    const supabaseUrl = Deno.env.get("PROD_SUPABASE_URL") ?? PROD_SUPABASE_URL_FALLBACK;
     const supabaseServiceRoleKey = Deno.env.get("PROD_SUPABASE_SERVICE_ROLE_KEY");
     const authHeader = req.headers.get("Authorization");
 
@@ -294,13 +347,9 @@ serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    const token = authHeader.replace("Bearer ", "").trim();
-    const {
-      data: { user },
-      error: userError,
-    } = await supabaseAdmin.auth.getUser(token);
+    const user = await resolveAuthenticatedUser(authHeader);
 
-    if (userError || !user?.email) {
+    if (!user?.email) {
       return new Response(JSON.stringify({ error: "Sessão inválida." }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
