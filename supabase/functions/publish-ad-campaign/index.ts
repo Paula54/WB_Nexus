@@ -98,64 +98,89 @@ Deno.serve(async (req) => {
     // Decrypt the Meta access token
     const meta_access_token = await decryptToken(creds.meta_access_token);
 
-    const accountId = meta_ads_account_id.startsWith("act_")
-      ? meta_ads_account_id
-      : `act_${meta_ads_account_id}`;
+    // Normalize account_id: strip "act_" if present, then re-add (Meta requires exactly one)
+    const cleanAccountId = String(meta_ads_account_id).replace(/^act_/, "").trim();
+    const accountId = `act_${cleanAccountId}`;
 
-    // Step 1: Create Campaign
+    if (!/^act_\d+$/.test(accountId)) {
+      return new Response(
+        JSON.stringify({ success: false, error: `ID de conta Meta inválido: "${meta_ads_account_id}". Deve ser numérico.` }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log("[publish-ad-campaign] Creating campaign on account:", accountId);
+
+    // Step 1: Create Campaign — use form-encoded body (Meta API preference) and OUTCOME_TRAFFIC
+    const campaignParams = new URLSearchParams({
+      name: `Nexus Campaign - ${new Date().toISOString().split("T")[0]}`,
+      objective: "OUTCOME_TRAFFIC",
+      status: "PAUSED",
+      special_ad_categories: "[]",
+      access_token: meta_access_token,
+    });
+
     const campaignResponse = await fetch(
       `https://graph.facebook.com/v21.0/${accountId}/campaigns`,
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: `Nexus Campaign - ${new Date().toISOString().split("T")[0]}`,
-          objective: "OUTCOME_TRAFFIC",
-          status: "PAUSED",
-          special_ad_categories: [],
-          access_token: meta_access_token,
-        }),
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: campaignParams.toString(),
       }
     );
 
     const campaignResult = await campaignResponse.json();
 
     if (campaignResult.error) {
-      console.error("Meta Campaign Error:", campaignResult.error);
+      console.error("[publish-ad-campaign] Meta Campaign Error:", JSON.stringify(campaignResult.error));
+      const err = campaignResult.error;
+      const detail = err.error_user_msg || err.error_user_title || err.message || "Erro desconhecido";
       return new Response(
-        JSON.stringify({ success: false, error: `Meta API: ${campaignResult.error.message}`, meta_error: campaignResult.error }),
+        JSON.stringify({
+          success: false,
+          error: `Meta API: ${detail}`,
+          meta_error: err,
+          hint: err.code === 100
+            ? "Verifica se o Ad Account está ativo e se o token tem a permissão 'ads_management'."
+            : undefined,
+        }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     const metaCampaignId = campaignResult.id;
 
-    // Step 2: Create Ad Set
+    // Step 2: Create Ad Set (form-encoded, with promoted page_id required by OUTCOME_TRAFFIC)
+    const adSetParams = new URLSearchParams({
+      name: `Nexus AdSet - ${target_audience || "Broad"}`,
+      campaign_id: metaCampaignId,
+      daily_budget: String(Math.round((daily_budget || 5) * 100)),
+      billing_event: "IMPRESSIONS",
+      optimization_goal: "LINK_CLICKS",
+      bid_strategy: "LOWEST_COST_WITHOUT_CAP",
+      targeting: JSON.stringify({ geo_locations: { countries: ["PT"] } }),
+      promoted_object: JSON.stringify({ page_id: facebook_page_id }),
+      status: "PAUSED",
+      access_token: meta_access_token,
+    });
+
     const adSetResponse = await fetch(
       `https://graph.facebook.com/v21.0/${accountId}/adsets`,
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: `Nexus AdSet - ${target_audience || "Broad"}`,
-          campaign_id: metaCampaignId,
-          daily_budget: Math.round((daily_budget || 5) * 100),
-          billing_event: "IMPRESSIONS",
-          optimization_goal: "LINK_CLICKS",
-          bid_strategy: "LOWEST_COST_WITHOUT_CAP",
-          targeting: { geo_locations: { countries: ["PT"] } },
-          status: "PAUSED",
-          access_token: meta_access_token,
-        }),
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: adSetParams.toString(),
       }
     );
 
     const adSetResult = await adSetResponse.json();
 
     if (adSetResult.error) {
-      console.error("Meta AdSet Error:", adSetResult.error);
+      console.error("[publish-ad-campaign] Meta AdSet Error:", JSON.stringify(adSetResult.error));
+      const err = adSetResult.error;
+      const detail = err.error_user_msg || err.error_user_title || err.message || "Erro desconhecido";
       return new Response(
-        JSON.stringify({ success: false, error: `Meta API (AdSet): ${adSetResult.error.message}`, meta_campaign_id: metaCampaignId, meta_error: adSetResult.error }),
+        JSON.stringify({ success: false, error: `Meta API (AdSet): ${detail}`, meta_campaign_id: metaCampaignId, meta_error: err }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
