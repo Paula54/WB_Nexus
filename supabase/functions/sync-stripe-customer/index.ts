@@ -31,13 +31,18 @@ serve(async (req) => {
       });
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
-
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    // Validate JWT against production project where users actually live
+    const prodSupabaseUrl = Deno.env.get("PROD_SUPABASE_URL") ?? "https://hqyuxponbobmuletqshq.supabase.co";
+    const prodServiceKey = Deno.env.get("PROD_SUPABASE_SERVICE_ROLE_KEY");
+    if (!prodServiceKey) {
+      return new Response(JSON.stringify({ error: "Server configuration error" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const admin = createClient(prodSupabaseUrl, prodServiceKey);
+    const token = authHeader.replace("Bearer ", "");
+    const { data: { user }, error: userError } = await admin.auth.getUser(token);
     if (userError || !user) {
       return new Response(JSON.stringify({ error: "Invalid token" }), {
         status: 401,
