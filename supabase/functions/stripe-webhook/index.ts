@@ -370,33 +370,33 @@ serve(async (req) => {
           console.warn('Non-blocking customer sync error:', syncErr);
         }
 
-        // ── Invite user via Supabase Auth (universal onboarding) ──
+        // ── Send Magic Link via Supabase Auth (universal onboarding) ──
         try {
           const inviteEmail = session.customer_details?.email || session.customer_email;
           if (inviteEmail) {
             const { data: existingUser } = await supabase.auth.admin.getUserById(resolvedUserId);
-            const hasPassword = existingUser?.user?.email_confirmed_at;
+            const alreadyConfirmed = existingUser?.user?.email_confirmed_at;
 
-            if (!hasPassword) {
-              const { error: inviteError } = await supabase.auth.admin.inviteUserByEmail(inviteEmail, {
-                redirectTo: 'https://nexus.web-business.pt/auth/set-password',
-                data: {
-                  project_id: projectId,
-                  plan_type: planType,
+            if (!alreadyConfirmed) {
+              const { error: linkError } = await supabase.auth.admin.generateLink({
+                type: 'magiclink',
+                email: inviteEmail,
+                options: {
+                  redirectTo: 'https://nexus.web-business.pt/',
                 },
               });
 
-              if (inviteError) {
-                console.warn('Invite email warning:', inviteError.message);
+              if (linkError) {
+                console.warn('Magic link warning:', linkError.message);
               } else {
-                console.log(`Invite sent to ${inviteEmail}`);
+                console.log(`Magic link sent to ${inviteEmail}`);
               }
             } else {
-              console.log(`User ${inviteEmail} already confirmed, skipping invite`);
+              console.log(`User ${inviteEmail} already confirmed, skipping magic link`);
             }
           }
-        } catch (inviteErr) {
-          console.warn('Non-blocking invite error:', inviteErr);
+        } catch (linkErr) {
+          console.warn('Non-blocking magic link error:', linkErr);
         }
 
         console.log(`Checkout completed: user=${resolvedUserId}, project=${projectId}, plan=${planType}, lead=${leadId}`);
