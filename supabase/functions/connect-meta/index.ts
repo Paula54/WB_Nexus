@@ -7,6 +7,21 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+function jsonResponse(payload: Record<string, unknown>, status = 200): Response {
+  return new Response(JSON.stringify(payload), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+function errorResponse(
+  message: string,
+  status: number,
+  diagnostics: Record<string, unknown> = {},
+): Response {
+  return jsonResponse({ ok: false, error: message, diagnostics }, status);
+}
+
 async function ensurePrimaryProject(
   supabase: ReturnType<typeof createClient>,
   userId: string,
@@ -84,9 +99,7 @@ Deno.serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       logError("Missing Authorization header");
-      return new Response(JSON.stringify({ error: "Missing Authorization header" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return errorResponse("Sessão inválida: falta autorização.", 401, { stage: "auth_header" });
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -98,9 +111,7 @@ Deno.serve(async (req) => {
 
     if (authError || !user) {
       logError("Auth failed", authError?.message);
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return errorResponse("Sessão inválida ou expirada. Entra novamente na app.", 401, { stage: "auth_user" });
     }
     log(`✅ User=${user.id}`);
 
@@ -110,9 +121,7 @@ Deno.serve(async (req) => {
 
     if (!shortLivedToken) {
       logError("No access_token in body");
-      return new Response(JSON.stringify({ error: "access_token is required" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return errorResponse("Token do Facebook em falta. Repete o login com Facebook.", 400, { stage: "request_body" });
     }
 
     // --- Exchange short-lived for long-lived token ---
@@ -121,9 +130,7 @@ Deno.serve(async (req) => {
 
     if (!META_APP_ID || !META_APP_SECRET) {
       logError("META_APP_ID or META_APP_SECRET not configured");
-      return new Response(JSON.stringify({ error: "Meta app credentials not configured" }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return errorResponse("Credenciais da App Meta em falta no servidor.", 500, { stage: "meta_credentials" });
     }
 
     log("🔄 Exchanging short-lived token for long-lived...");
