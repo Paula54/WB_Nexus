@@ -69,12 +69,22 @@ export default function Profile() {
     const { data: urlData } = supabase.storage.from("assets").getPublicUrl(path);
     const publicUrl = urlData.publicUrl + "?t=" + Date.now();
 
-    await supabase
+    const { data: existing } = await supabase
       .from("profiles")
-      .upsert(
-        { user_id: user.id, avatar_url: publicUrl, contact_email: user.email },
-        { onConflict: "user_id" }
-      );
+      .select("id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (existing) {
+      await supabase
+        .from("profiles")
+        .update({ avatar_url: publicUrl, contact_email: user.email })
+        .eq("user_id", user.id);
+    } else {
+      await supabase
+        .from("profiles")
+        .insert({ user_id: user.id, avatar_url: publicUrl, contact_email: user.email });
+    }
 
     setAvatarUrl(publicUrl);
     setUploading(false);
@@ -86,17 +96,21 @@ export default function Profile() {
     if (!user) return;
     setSaving(true);
 
-    const { error } = await supabase
+    const { data: existing } = await supabase
       .from("profiles")
-      .upsert(
-        {
-          user_id: user.id,
-          full_name: fullName || null,
-          company_name: companyName || null,
-          contact_email: user.email,
-        },
-        { onConflict: "user_id" }
-      );
+      .select("id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    const payload = {
+      full_name: fullName || null,
+      company_name: companyName || null,
+      contact_email: user.email,
+    };
+
+    const { error } = existing
+      ? await supabase.from("profiles").update(payload).eq("user_id", user.id)
+      : await supabase.from("profiles").insert({ user_id: user.id, ...payload });
 
     setSaving(false);
 
