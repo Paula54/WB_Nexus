@@ -357,10 +357,62 @@ serve(async (req) => {
       });
     }
 
-    const customers = await stripe.customers.list({ email: user.email, limit: 10 });
+    // 1) Exact-match lookup (fast path)
+    const customersById = new Map<string, Stripe.Customer>();
+    const exactMatch = await stripe.customers.list({ email: user.email, limit: 10 });
+    for (const c of exactMatch.data) customersById.set(c.id, c);
+
+    // 2) Case-insensitive fallback via Stripe Search API.
+    // Stripe stores email as-typed; if user signed up with different casing
+    // on Stripe vs Supabase, the exact list() above misses them.
+    if (customersById.size === 0) {
+      try {
+        const normalizedEmail = user.email.toLowerCase().replace(/'/g, "\\'");
+        const searchRes = await stripe.customers.search({
+          query: `email:'${normalizedEmail}'`,
+          limit: 10,
+        });
+        for (const c of searchRes.data) {
+          if (c.email?.toLowerCase() === user.email.toLowerCase()) {
+            customersById.set(c.id, c);
+          }
+        }
+        if (customersById.size > 0) {
+          console.log(`[check-subscription] Resolved ${customersById.size} customer(s) via case-insensitive search for ${user.email}`);
+        }
+      } catch (searchErr) {
+        console.warn("[check-subscription] Stripe customers.search failed:", getErrorMessage(searchErr));
+      }
+    }
+
+    // 3) Last-resort: if we have a stripe_customer_id stored from a previous sync, use it.
+    if (customersById.size === 0) {
+      const { data: storedSub } = await supabaseAdmin
+        .from("subscriptions")
+        .select("stripe_customer_id")
+        .eq("user_id", user.id)
+        .not("stripe_customer_id", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const storedCustomerId = (storedSub as { stripe_customer_id?: string | null } | null)?.stripe_customer_id;
+      if (storedCustomerId) {
+        try {
+          const customer = await stripe.customers.retrieve(storedCustomerId);
+          if (customer && !(customer as Stripe.DeletedCustomer).deleted) {
+            customersById.set(customer.id, customer as Stripe.Customer);
+            console.log(`[check-subscription] Recovered customer ${storedCustomerId} from stored subscription record`);
+          }
+        } catch (retrieveErr) {
+          console.warn(`[check-subscription] Failed to retrieve stored customer ${storedCustomerId}:`, getErrorMessage(retrieveErr));
+        }
+      }
+    }
+
     const candidates: CandidateSubscription[] = [];
 
-    for (const customer of customers.data) {
+    for (const customer of customersById.values()) {
       const subscriptions = await stripe.subscriptions.list({
         customer: customer.id,
         status: "all",
