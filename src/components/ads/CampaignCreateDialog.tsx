@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
-import { supabase } from "@/lib/supabaseCustom";
+import { supabase, supabaseAnonKey, supabaseUrl } from "@/lib/supabaseCustom";
 import { toast } from "@/hooks/use-toast";
 import { Plus, Sparkles, Loader2, ArrowLeft } from "lucide-react";
 
@@ -77,10 +77,18 @@ export default function CampaignCreateDialog({
     }
     setGenerating(true);
     try {
-      const { data, error } = await supabase.functions.invoke("generate-ad-creatives", {
-        body: { product: product.trim(), audience: targetAudience.trim() },
+      const { data: sessionData } = await supabase.auth.getSession();
+      const response = await fetch(`${supabaseUrl}/functions/v1/generate-ad-creatives`, {
+        method: "POST",
+        headers: {
+          apikey: supabaseAnonKey,
+          Authorization: `Bearer ${sessionData.session?.access_token || supabaseAnonKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ product: product.trim(), audience: targetAudience.trim() }),
       });
-      if (error) throw error;
+      const data = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(data?.error || "A função de IA não respondeu.");
       const generated: AdCreative[] = data?.ads || [];
       if (generated.length === 0) {
         toast({
