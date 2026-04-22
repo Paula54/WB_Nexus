@@ -1,6 +1,6 @@
 project_id = "hqyuxponbobmuletqshq"
 
-[functions._diagnostic]
+[functions.diagnostic-prod]
 verify_jwt = false
 
 [functions.whatsapp-webhook]
