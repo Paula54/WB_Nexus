@@ -95,8 +95,64 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Decrypt the Meta access token
+    // Decrypt the user (long-lived) access token — used for campaign/adset creation
     const meta_access_token = await decryptToken(creds.meta_access_token);
+
+    // Fetch a fresh PAGE access token (required for ad creatives that reference a page)
+    let page_access_token: string | null = null;
+    try {
+      // 1) Try meta_connections.page_access_token (encrypted)
+      const { data: metaConn } = await adminClient
+        .from("meta_connections")
+        .select("page_access_token")
+        .eq("project_id", project_id)
+        .maybeSingle();
+      if (metaConn?.page_access_token) {
+        try {
+          page_access_token = await decryptToken(metaConn.page_access_token);
+        } catch (_) {
+          page_access_token = null;
+        }
+      }
+    } catch (_) { /* table may be missing in cache; continue */ }
+
+    // 2) Fallback: fetch directly from Graph API using the user token
+    if (!page_access_token) {
+      try {
+        const pageRes = await fetch(
+          `https://graph.facebook.com/v21.0/${facebook_page_id}?fields=access_token&access_token=${encodeURIComponent(meta_access_token)}`
+        );
+        const pageJson = await pageRes.json();
+        if (pageJson?.access_token) {
+          page_access_token = pageJson.access_token;
+        } else if (pageJson?.error) {
+          console.error("[publish-ad-campaign] page token fetch error:", JSON.stringify(pageJson.error));
+          const e = pageJson.error;
+          return new Response(
+            JSON.stringify({
+              success: false,
+              error: `Meta API: ${e.error_user_msg || e.message || "Página: o token não é válido"}`,
+              meta_error: e,
+              hint: "O token expirou ou perdeste permissões da Página. Vai a Definições → Liga novamente o Facebook e aceita TODAS as permissões (pages_show_list, pages_manage_posts, pages_read_engagement, ads_management).",
+            }),
+            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+      } catch (e) {
+        console.error("[publish-ad-campaign] page token fetch exception:", e);
+      }
+    }
+
+    if (!page_access_token) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: `Página nº ${facebook_page_id}: o token não é válido ou está em falta.`,
+          hint: "Vai a Definições → Redes Sociais e liga novamente o Facebook, aceitando TODAS as permissões.",
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     // Normalize account_id: strip "act_" if present, then re-add (Meta requires exactly one)
     const cleanAccountId = String(meta_ads_account_id).replace(/^act_/, "").trim();
