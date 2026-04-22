@@ -383,7 +383,7 @@ export default function CampaignCreateDialog({
                 )}
                 <p className="text-muted-foreground">{metaError.message}</p>
                 {metaError.hint && (
-                  <p className="text-amber-500">💡 {metaError.hint}</p>
+                  <p className="text-primary">💡 {metaError.hint}</p>
                 )}
                 {metaError.fbtrace_id && (
                   <p className="text-[10px] text-muted-foreground font-mono">
