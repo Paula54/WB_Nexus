@@ -132,6 +132,7 @@ export default function CampaignCreateDialog({
 
   async function createCampaign() {
     if (!adCopy.trim()) return;
+    setMetaError(null);
 
     const { data: campaign, error } = await supabase
       .from("ads_campaigns")
@@ -160,47 +161,70 @@ export default function CampaignCreateDialog({
     if (platform === "meta" && metaConnected && projectId) {
       setPublishing(true);
       try {
-        const { data: publishResult, error: publishError } = await supabase.functions.invoke(
-          "publish-ad-campaign",
-          {
-            body: {
-              campaign_id: campaign.id,
-              project_id: projectId,
-              ad_copy: adCopy,
-              daily_budget: parseFloat(dailyBudget) || 0,
-              target_audience: targetAudience,
-            },
-          }
-        );
+        const { data: sessionData } = await supabase.auth.getSession();
+        const response = await fetch(`${supabaseUrl}/functions/v1/publish-ad-campaign`, {
+          method: "POST",
+          headers: {
+            apikey: supabaseAnonKey,
+            Authorization: `Bearer ${sessionData.session?.access_token || supabaseAnonKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            campaign_id: campaign.id,
+            project_id: projectId,
+            ad_copy: adCopy,
+            daily_budget: parseFloat(dailyBudget) || 0,
+            target_audience: targetAudience,
+          }),
+        });
 
-        if (publishError) throw publishError;
+        const publishResult = await response.json().catch(() => null);
 
         if (publishResult?.success) {
           toast({ title: "🚀 Campanha publicada na Meta Ads!" });
-        } else {
-          toast({
-            variant: "destructive",
-            title: "Aviso",
-            description:
-              publishResult?.error || "Campanha criada localmente, mas não publicada na Meta.",
-          });
+          handleOpenChange(false);
+          onCreated();
+          return;
         }
-      } catch (err) {
+
+        // Failure — extract Meta detail
+        const metaErr = publishResult?.meta_error || {};
+        setMetaError({
+          message: publishResult?.error || "Falha ao publicar na Meta Ads.",
+          user_msg: metaErr.error_user_msg,
+          user_title: metaErr.error_user_title,
+          code: metaErr.code,
+          subcode: metaErr.error_subcode,
+          type: metaErr.type,
+          fbtrace_id: metaErr.fbtrace_id,
+          hint: publishResult?.hint,
+          raw: publishResult,
+        });
+        toast({
+          variant: "destructive",
+          title: metaErr.error_user_title || "Erro Meta API",
+          description: metaErr.error_user_msg || publishResult?.error || "Ver detalhes abaixo.",
+        });
+        // Keep dialog open so user sees the detailed panel
+      } catch (err: any) {
         console.error("Error publishing to Meta:", err);
+        setMetaError({
+          message: err?.message || "Erro de rede ao contactar a Edge Function.",
+          raw: String(err),
+        });
         toast({
           variant: "destructive",
           title: "Erro ao publicar",
-          description: "Campanha criada localmente. Erro ao publicar na Meta Ads.",
+          description: "Falha de comunicação. Ver detalhes abaixo.",
         });
       } finally {
         setPublishing(false);
       }
     } else {
       toast({ title: "Campanha criada com sucesso!" });
+      handleOpenChange(false);
+      onCreated();
     }
-
-    handleOpenChange(false);
-    onCreated();
   }
 
   return (
