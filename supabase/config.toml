@@ -3,7 +3,7 @@ project_id = "hqyuxponbobmuletqshq"
 [functions.diagnostic-prod]
 verify_jwt = false
 
-[functions._diagnostic]
+[functions.diagnostic-prod]
 verify_jwt = false
 
 [functions.whatsapp-webhook]
