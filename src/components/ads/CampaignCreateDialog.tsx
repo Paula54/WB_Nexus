@@ -54,6 +54,17 @@ export default function CampaignCreateDialog({
   const [targetAudience, setTargetAudience] = useState("");
   const [ads, setAds] = useState<AdCreative[]>([]);
   const [adCopy, setAdCopy] = useState("");
+  const [metaError, setMetaError] = useState<{
+    message: string;
+    user_msg?: string;
+    user_title?: string;
+    code?: number | string;
+    type?: string;
+    subcode?: number | string;
+    fbtrace_id?: string;
+    hint?: string;
+    raw?: unknown;
+  } | null>(null);
 
   function resetForm() {
     setStep("brief");
