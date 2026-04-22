@@ -63,16 +63,32 @@ Deno.serve(async (req) => {
       console.log("Using meta_client_id from env vars");
     }
 
+    const META_APP_SECRET_PRESENT = !!(Deno.env.get("META_APP_SECRET") || Deno.env.get("FACEBOOK_APP_SECRET"));
+
+    console.log("🔍 [meta-ads-auth] Diagnóstico de credenciais:", {
+      META_APP_ID_present: !!META_APP_ID,
+      META_APP_ID_length: META_APP_ID.length,
+      META_APP_ID_preview: META_APP_ID ? `${META_APP_ID.slice(0, 4)}...${META_APP_ID.slice(-4)}` : "VAZIO",
+      META_APP_SECRET_present: META_APP_SECRET_PRESENT,
+      SUPABASE_URL,
+      source: creds?.meta_client_id ? "project_credentials" : "env_vars",
+    });
+
     if (!META_APP_ID) {
-      console.error("META_APP_ID not configured anywhere");
+      console.error("❌ META_APP_ID not configured anywhere");
       return new Response(
         JSON.stringify({ error: "A configuração da aplicação Meta não está disponível. Contacte o suporte." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
+    if (!META_APP_SECRET_PRESENT) {
+      console.error("❌ META_APP_SECRET ausente — callback irá falhar na troca do code por token");
+    }
+
     const requestUrl = new URL(req.url);
     const returnOrigin = requestUrl.searchParams.get("return_origin") || "";
+    const requestOrigin = req.headers.get("origin") || req.headers.get("referer") || "(none)";
 
     const redirectUri = `${SUPABASE_URL}/functions/v1/meta-ads-callback`;
 
@@ -88,8 +104,19 @@ Deno.serve(async (req) => {
 
     const authUrl = `${FB_AUTH_URL}?${params.toString()}`;
 
+    console.log("🔗 [meta-ads-auth] OAuth URL gerada:", {
+      redirect_uri: redirectUri,
+      redirect_uri_length: redirectUri.length,
+      request_origin: requestOrigin,
+      return_origin: returnOrigin,
+      user_id: user.id,
+      auth_url_preview: authUrl.slice(0, 200) + "...",
+    });
+    console.log("⚠️ [meta-ads-auth] CONFIRMA na Meta App > Facebook Login > Valid OAuth Redirect URIs:");
+    console.log(`   ${redirectUri}`);
+
     return new Response(
-      JSON.stringify({ auth_url: authUrl }),
+      JSON.stringify({ auth_url: authUrl, debug: { redirect_uri: redirectUri, app_id_preview: `${META_APP_ID.slice(0, 4)}...${META_APP_ID.slice(-4)}` } }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
