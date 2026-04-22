@@ -74,6 +74,7 @@ export default function CampaignCreateDialog({
     setTargetAudience("");
     setAds([]);
     setAdCopy("");
+    setMetaError(null);
   }
 
   function handleOpenChange(next: boolean) {
