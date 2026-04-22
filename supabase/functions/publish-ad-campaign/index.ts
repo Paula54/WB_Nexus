@@ -257,12 +257,29 @@ Deno.serve(async (req) => {
               call_to_action: { type: "LEARN_MORE" },
             },
           },
-          access_token: meta_access_token,
+          access_token: page_access_token,
         }),
       }
     );
 
     const creativeResult = await creativeResponse.json();
+
+    if (creativeResult.error) {
+      console.error("[publish-ad-campaign] Meta Creative Error:", JSON.stringify(creativeResult.error));
+      const err = creativeResult.error;
+      const detail = err.error_user_msg || err.error_user_title || err.message || "Erro desconhecido";
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: `Meta API (Creative): ${detail}`,
+          meta_campaign_id: metaCampaignId,
+          meta_adset_id: adSetResult.id || null,
+          meta_error: err,
+          hint: "Se diz que o token da página não é válido, vai a Definições e liga novamente o Facebook aceitando todas as permissões.",
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     // Update the local campaign with Meta IDs
     if (campaign_id) {
