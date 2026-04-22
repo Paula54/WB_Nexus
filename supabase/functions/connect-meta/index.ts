@@ -42,17 +42,7 @@ function normalizeError(error: unknown): { message: string; details: Record<stri
   return { message: String(error || "Erro desconhecido"), details: {} };
 }
 
-function isSchemaCacheColumnError(error: unknown, table: string) {
-  if (!error || typeof error !== "object") return false;
-
-  const record = error as Record<string, unknown>;
-  const haystack = [record.message, record.details, record.hint, record.code]
-    .filter((part): part is string => typeof part === "string")
-    .join(" ")
-    .toLowerCase();
-
-  return haystack.includes("schema cache") && haystack.includes(`'${table.toLowerCase()}'`);
-}
+// (removed legacy isSchemaCacheColumnError fallback — schema must be correct)
 
 async function ensurePrimaryProject(
   supabase: ReturnType<typeof createClient>,
