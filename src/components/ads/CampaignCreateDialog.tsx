@@ -54,6 +54,17 @@ export default function CampaignCreateDialog({
   const [targetAudience, setTargetAudience] = useState("");
   const [ads, setAds] = useState<AdCreative[]>([]);
   const [adCopy, setAdCopy] = useState("");
+  const [metaError, setMetaError] = useState<{
+    message: string;
+    user_msg?: string;
+    user_title?: string;
+    code?: number | string;
+    type?: string;
+    subcode?: number | string;
+    fbtrace_id?: string;
+    hint?: string;
+    raw?: unknown;
+  } | null>(null);
 
   function resetForm() {
     setStep("brief");
@@ -63,6 +74,7 @@ export default function CampaignCreateDialog({
     setTargetAudience("");
     setAds([]);
     setAdCopy("");
+    setMetaError(null);
   }
 
   function handleOpenChange(next: boolean) {
@@ -120,6 +132,7 @@ export default function CampaignCreateDialog({
 
   async function createCampaign() {
     if (!adCopy.trim()) return;
+    setMetaError(null);
 
     const { data: campaign, error } = await supabase
       .from("ads_campaigns")
@@ -148,47 +161,70 @@ export default function CampaignCreateDialog({
     if (platform === "meta" && metaConnected && projectId) {
       setPublishing(true);
       try {
-        const { data: publishResult, error: publishError } = await supabase.functions.invoke(
-          "publish-ad-campaign",
-          {
-            body: {
-              campaign_id: campaign.id,
-              project_id: projectId,
-              ad_copy: adCopy,
-              daily_budget: parseFloat(dailyBudget) || 0,
-              target_audience: targetAudience,
-            },
-          }
-        );
+        const { data: sessionData } = await supabase.auth.getSession();
+        const response = await fetch(`${supabaseUrl}/functions/v1/publish-ad-campaign`, {
+          method: "POST",
+          headers: {
+            apikey: supabaseAnonKey,
+            Authorization: `Bearer ${sessionData.session?.access_token || supabaseAnonKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            campaign_id: campaign.id,
+            project_id: projectId,
+            ad_copy: adCopy,
+            daily_budget: parseFloat(dailyBudget) || 0,
+            target_audience: targetAudience,
+          }),
+        });
 
-        if (publishError) throw publishError;
+        const publishResult = await response.json().catch(() => null);
 
         if (publishResult?.success) {
           toast({ title: "🚀 Campanha publicada na Meta Ads!" });
-        } else {
-          toast({
-            variant: "destructive",
-            title: "Aviso",
-            description:
-              publishResult?.error || "Campanha criada localmente, mas não publicada na Meta.",
-          });
+          handleOpenChange(false);
+          onCreated();
+          return;
         }
-      } catch (err) {
+
+        // Failure — extract Meta detail
+        const metaErr = publishResult?.meta_error || {};
+        setMetaError({
+          message: publishResult?.error || "Falha ao publicar na Meta Ads.",
+          user_msg: metaErr.error_user_msg,
+          user_title: metaErr.error_user_title,
+          code: metaErr.code,
+          subcode: metaErr.error_subcode,
+          type: metaErr.type,
+          fbtrace_id: metaErr.fbtrace_id,
+          hint: publishResult?.hint,
+          raw: publishResult,
+        });
+        toast({
+          variant: "destructive",
+          title: metaErr.error_user_title || "Erro Meta API",
+          description: metaErr.error_user_msg || publishResult?.error || "Ver detalhes abaixo.",
+        });
+        // Keep dialog open so user sees the detailed panel
+      } catch (err: any) {
         console.error("Error publishing to Meta:", err);
+        setMetaError({
+          message: err?.message || "Erro de rede ao contactar a Edge Function.",
+          raw: String(err),
+        });
         toast({
           variant: "destructive",
           title: "Erro ao publicar",
-          description: "Campanha criada localmente. Erro ao publicar na Meta Ads.",
+          description: "Falha de comunicação. Ver detalhes abaixo.",
         });
       } finally {
         setPublishing(false);
       }
     } else {
       toast({ title: "Campanha criada com sucesso!" });
+      handleOpenChange(false);
+      onCreated();
     }
-
-    handleOpenChange(false);
-    onCreated();
   }
 
   return (
@@ -323,10 +359,46 @@ export default function CampaignCreateDialog({
               />
             </div>
 
-            {platform === "meta" && metaConnected && (
+            {platform === "meta" && metaConnected && !metaError && (
               <p className="text-xs text-primary flex items-center gap-1">
                 ✅ A campanha será publicada diretamente na Meta Ads
               </p>
+            )}
+
+            {metaError && (
+              <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 space-y-2 text-xs">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-semibold text-destructive">
+                    {metaError.user_title || "Erro Meta API"}
+                  </p>
+                  {metaError.code !== undefined && (
+                    <span className="text-[10px] text-destructive/80">
+                      code: {String(metaError.code)}
+                      {metaError.subcode ? ` / ${String(metaError.subcode)}` : ""}
+                    </span>
+                  )}
+                </div>
+                {metaError.user_msg && (
+                  <p className="text-foreground leading-relaxed">{metaError.user_msg}</p>
+                )}
+                <p className="text-muted-foreground">{metaError.message}</p>
+                {metaError.hint && (
+                  <p className="text-primary">💡 {metaError.hint}</p>
+                )}
+                {metaError.fbtrace_id && (
+                  <p className="text-[10px] text-muted-foreground font-mono">
+                    fbtrace_id: {metaError.fbtrace_id}
+                  </p>
+                )}
+                <details className="mt-2">
+                  <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
+                    Ver resposta completa
+                  </summary>
+                  <pre className="mt-2 max-h-48 overflow-auto rounded bg-background/60 p-2 text-[10px] leading-snug">
+                    {JSON.stringify(metaError.raw, null, 2)}
+                  </pre>
+                </details>
+              </div>
             )}
 
             <div className="flex gap-2">
