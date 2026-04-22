@@ -42,6 +42,18 @@ function normalizeError(error: unknown): { message: string; details: Record<stri
   return { message: String(error || "Erro desconhecido"), details: {} };
 }
 
+function isSchemaCacheColumnError(error: unknown, table: string) {
+  if (!error || typeof error !== "object") return false;
+
+  const record = error as Record<string, unknown>;
+  const haystack = [record.message, record.details, record.hint, record.code]
+    .filter((part): part is string => typeof part === "string")
+    .join(" ")
+    .toLowerCase();
+
+  return haystack.includes("schema cache") && haystack.includes(`'${table.toLowerCase()}'`);
+}
+
 async function ensurePrimaryProject(
   supabase: ReturnType<typeof createClient>,
   userId: string,
@@ -338,6 +350,8 @@ Deno.serve(async (req) => {
       updated_at: new Date().toISOString(),
     };
 
+    let metaConnectionsWarning: string | null = null;
+
     const { data: existingMetaConnection, error: metaLookupError } = await prodSupabase
       .from("meta_connections")
       .select("id")
@@ -345,25 +359,35 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (metaLookupError) {
-      logError("meta_connections lookup failed", metaLookupError);
-      return errorResponse(metaLookupError.message, 500, { stage: "meta_connections_lookup" });
-    }
+      if (isSchemaCacheColumnError(metaLookupError, "meta_connections")) {
+        metaConnectionsWarning = "meta_connections schema cache desatualizada; ligação guardada via project_credentials.";
+        logError("meta_connections lookup skipped due to stale schema cache", metaLookupError);
+      } else {
+        logError("meta_connections lookup failed", metaLookupError);
+        return errorResponse(metaLookupError.message, 500, { stage: "meta_connections_lookup" });
+      }
+    } else {
+      const { error: metaWriteError } = existingMetaConnection
+        ? await prodSupabase
+            .from("meta_connections")
+            .update(metaConnectionPayload)
+            .eq("id", existingMetaConnection.id)
+        : await prodSupabase
+            .from("meta_connections")
+            .insert({
+              ...metaConnectionPayload,
+              created_at: new Date().toISOString(),
+            });
 
-    const { error: metaWriteError } = existingMetaConnection
-      ? await prodSupabase
-          .from("meta_connections")
-          .update(metaConnectionPayload)
-          .eq("id", existingMetaConnection.id)
-      : await prodSupabase
-          .from("meta_connections")
-          .insert({
-            ...metaConnectionPayload,
-            created_at: new Date().toISOString(),
-          });
-
-    if (metaWriteError) {
-      logError("meta_connections write failed", metaWriteError);
-      return errorResponse(metaWriteError.message, 500, { stage: "meta_connections_write" });
+      if (metaWriteError) {
+        if (isSchemaCacheColumnError(metaWriteError, "meta_connections")) {
+          metaConnectionsWarning = "meta_connections schema cache desatualizada; ligação guardada via project_credentials.";
+          logError("meta_connections write skipped due to stale schema cache", metaWriteError);
+        } else {
+          logError("meta_connections write failed", metaWriteError);
+          return errorResponse(metaWriteError.message, 500, { stage: "meta_connections_write" });
+        }
+      }
     }
 
     const expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
@@ -374,6 +398,7 @@ Deno.serve(async (req) => {
       instagram_business_id: instagramBusinessId,
       ad_account_id: adAccountId,
       token_expires_at: expiresAt,
+      warning: metaConnectionsWarning,
     };
     log("✅ connect-meta completed", result);
 
