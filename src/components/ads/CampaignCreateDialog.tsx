@@ -359,10 +359,46 @@ export default function CampaignCreateDialog({
               />
             </div>
 
-            {platform === "meta" && metaConnected && (
+            {platform === "meta" && metaConnected && !metaError && (
               <p className="text-xs text-primary flex items-center gap-1">
                 ✅ A campanha será publicada diretamente na Meta Ads
               </p>
+            )}
+
+            {metaError && (
+              <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 space-y-2 text-xs">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-semibold text-destructive">
+                    {metaError.user_title || "Erro Meta API"}
+                  </p>
+                  {metaError.code !== undefined && (
+                    <span className="text-[10px] text-destructive/80">
+                      code: {String(metaError.code)}
+                      {metaError.subcode ? ` / ${String(metaError.subcode)}` : ""}
+                    </span>
+                  )}
+                </div>
+                {metaError.user_msg && (
+                  <p className="text-foreground leading-relaxed">{metaError.user_msg}</p>
+                )}
+                <p className="text-muted-foreground">{metaError.message}</p>
+                {metaError.hint && (
+                  <p className="text-amber-500">💡 {metaError.hint}</p>
+                )}
+                {metaError.fbtrace_id && (
+                  <p className="text-[10px] text-muted-foreground font-mono">
+                    fbtrace_id: {metaError.fbtrace_id}
+                  </p>
+                )}
+                <details className="mt-2">
+                  <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
+                    Ver resposta completa
+                  </summary>
+                  <pre className="mt-2 max-h-48 overflow-auto rounded bg-background/60 p-2 text-[10px] leading-snug">
+                    {JSON.stringify(metaError.raw, null, 2)}
+                  </pre>
+                </details>
+              </div>
             )}
 
             <div className="flex gap-2">
