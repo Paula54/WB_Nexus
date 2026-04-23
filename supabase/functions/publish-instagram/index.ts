@@ -1,10 +1,25 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+
+const META_API_VERSION = "v24.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
+
+function logMetaError(stage: string, errObj: Record<string, unknown> | undefined) {
+  if (!errObj) return;
+  console.error(`[publish-instagram] Meta API error @ ${stage}:`, JSON.stringify({
+    message: errObj.message,
+    type: errObj.type,
+    code: errObj.code,
+    error_subcode: errObj.error_subcode,
+    error_user_title: errObj.error_user_title,
+    error_user_msg: errObj.error_user_msg,
+    fbtrace_id: errObj.fbtrace_id,
+  }));
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -44,7 +59,6 @@ Deno.serve(async (req) => {
 
     const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Get post
     const { data: post, error: postError } = await adminClient
       .from("social_posts")
       .select("*")
@@ -59,7 +73,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Get project
     const { data: project } = await adminClient
       .from("projects")
       .select("id")
@@ -74,12 +87,22 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Get Meta credentials from project_credentials
+    // LATEST credentials
     const { data: creds } = await adminClient
       .from("project_credentials")
-      .select("meta_access_token")
+      .select("meta_access_token, instagram_business_id, updated_at")
       .eq("project_id", project.id)
+      .order("updated_at", { ascending: false })
+      .limit(1)
       .maybeSingle();
+
+    console.log("[publish-instagram] creds freshness:", {
+      project_id: project.id,
+      has_token: !!creds?.meta_access_token,
+      token_len: creds?.meta_access_token ? String(creds.meta_access_token).length : 0,
+      stored_ig_id: creds?.instagram_business_id ?? null,
+      updated_at: creds?.updated_at ?? null,
+    });
 
     if (!creds?.meta_access_token) {
       return new Response(
@@ -88,19 +111,26 @@ Deno.serve(async (req) => {
       );
     }
 
-    const accessToken = creds.meta_access_token;
+    const accessToken = String(creds.meta_access_token);
 
-    // Get Instagram Business Account ID via pages
-    const pagesRes = await fetch(
-      `https://graph.facebook.com/v21.0/me/accounts?fields=instagram_business_account{id}&access_token=${accessToken}`
-    );
-    const pagesData = await pagesRes.json();
+    // Resolve IG business account: prefer stored, fall back to discovery
+    let igAccountId: string | null = creds.instagram_business_id ? String(creds.instagram_business_id) : null;
 
-    let igAccountId: string | null = null;
-    for (const page of pagesData.data || []) {
-      if (page.instagram_business_account) {
-        igAccountId = page.instagram_business_account.id;
-        break;
+    if (!igAccountId) {
+      const pagesRes = await fetch(
+        `https://graph.facebook.com/${META_API_VERSION}/me/accounts?fields=instagram_business_account{id}&access_token=${encodeURIComponent(accessToken)}`
+      );
+      const pagesData = await pagesRes.json();
+
+      if (pagesData.error) {
+        logMetaError("me/accounts", pagesData.error);
+      }
+
+      for (const page of pagesData.data || []) {
+        if (page.instagram_business_account) {
+          igAccountId = String(page.instagram_business_account.id);
+          break;
+        }
       }
     }
 
@@ -116,7 +146,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Build caption with hashtags
     let caption = post.caption || "";
     if (post.hashtags && post.hashtags.length > 0) {
       const hashtagStr = post.hashtags
@@ -125,7 +154,6 @@ Deno.serve(async (req) => {
       caption = `${caption}\n\n${hashtagStr}`;
     }
 
-    // Step 1: Create media container
     const containerBody: Record<string, string> = {
       caption,
       access_token: accessToken,
@@ -145,7 +173,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Handle scheduling
     if (post.scheduled_at) {
       const scheduledTimestamp = Math.floor(new Date(post.scheduled_at).getTime() / 1000);
       const now = Math.floor(Date.now() / 1000);
@@ -157,8 +184,10 @@ Deno.serve(async (req) => {
       }
     }
 
+    console.log(`[publish-instagram] Creating container @ ${META_API_VERSION} for IG ${igAccountId}`);
+
     const containerRes = await fetch(
-      `https://graph.facebook.com/v21.0/${igAccountId}/media`,
+      `https://graph.facebook.com/${META_API_VERSION}/${igAccountId}/media`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -168,29 +197,30 @@ Deno.serve(async (req) => {
     const containerData = await containerRes.json();
 
     if (containerData.error) {
-      console.error("IG Container error:", containerData.error);
+      logMetaError("create-container", containerData.error);
+      const userMsg = containerData.error.error_user_msg || containerData.error.message;
+
       await adminClient.from("social_posts").update({
         status: "failed",
-        error_log: containerData.error.message,
+        error_log: userMsg,
         webhook_response: containerData,
       }).eq("id", postId);
 
       return new Response(
-        JSON.stringify({ success: false, error: containerData.error.message }),
+        JSON.stringify({ success: false, error: userMsg, meta_error: containerData.error }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const creationId = containerData.id;
+    const creationId = String(containerData.id);
 
-    // Step 2: Poll container status until ready
     const maxAttempts = 15;
     for (let i = 0; i < maxAttempts; i++) {
       const statusRes = await fetch(
-        `https://graph.facebook.com/v21.0/${creationId}?fields=status_code&access_token=${accessToken}`
+        `https://graph.facebook.com/${META_API_VERSION}/${creationId}?fields=status_code&access_token=${encodeURIComponent(accessToken)}`
       );
       const statusData = await statusRes.json();
-      console.log(`Container status (attempt ${i + 1}):`, statusData.status_code);
+      console.log(`[publish-instagram] Container status (${i + 1}):`, statusData.status_code);
 
       if (statusData.status_code === "FINISHED") break;
       if (statusData.status_code === "ERROR") {
@@ -209,9 +239,8 @@ Deno.serve(async (req) => {
       await new Promise((resolve) => setTimeout(resolve, 2000));
     }
 
-    // Step 3: Publish the container
     const publishRes = await fetch(
-      `https://graph.facebook.com/v21.0/${igAccountId}/media_publish`,
+      `https://graph.facebook.com/${META_API_VERSION}/${igAccountId}/media_publish`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -224,20 +253,21 @@ Deno.serve(async (req) => {
     const publishData = await publishRes.json();
 
     if (publishData.error) {
-      console.error("IG Publish error:", publishData.error);
+      logMetaError("media_publish", publishData.error);
+      const userMsg = publishData.error.error_user_msg || publishData.error.message;
+
       await adminClient.from("social_posts").update({
         status: "failed",
-        error_log: publishData.error.message,
+        error_log: userMsg,
         webhook_response: publishData,
       }).eq("id", postId);
 
       return new Response(
-        JSON.stringify({ success: false, error: publishData.error.message }),
+        JSON.stringify({ success: false, error: userMsg, meta_error: publishData.error }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Success
     const isScheduled = Boolean(post.scheduled_at);
     await adminClient.from("social_posts").update({
       status: isScheduled ? "scheduled" : "published",
@@ -251,13 +281,14 @@ Deno.serve(async (req) => {
         success: true,
         message: isScheduled ? "Post agendado no Instagram!" : "Post publicado no Instagram!",
         ig_media_id: publishData.id,
+        api_version: META_API_VERSION,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
-    console.error("publish-instagram error:", error);
+    console.error("[publish-instagram] internal error:", error);
     return new Response(
-      JSON.stringify({ success: false, error: error.message }),
+      JSON.stringify({ success: false, error: (error as Error).message }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
