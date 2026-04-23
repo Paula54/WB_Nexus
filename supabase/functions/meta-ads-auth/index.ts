@@ -132,7 +132,15 @@ Deno.serve(async (req) => {
     console.log(`   ${redirectUri}`);
 
     return new Response(
-      JSON.stringify({ auth_url: authUrl, debug: { redirect_uri: redirectUri, app_id_preview: `${META_APP_ID.slice(0, 4)}...${META_APP_ID.slice(-4)}` } }),
+      JSON.stringify({
+        auth_url: authUrl,
+        debug: {
+          api_version: "v21.0",
+          client_id: META_APP_ID,
+          redirect_uri: redirectUri,
+          full_auth_url: authUrl,
+        },
+      }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
