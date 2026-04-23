@@ -3,15 +3,6 @@ project_id = "hqyuxponbobmuletqshq"
 [functions.diagnostic-prod]
 verify_jwt = false
 
-[functions.diagnostic-prod]
-verify_jwt = false
-
-[functions.diagnostic-prod]
-verify_jwt = false
-
-[functions.whatsapp-webhook]
-verify_jwt = false
-
 [functions.nexus-concierge]
 verify_jwt = false
 
@@ -106,4 +97,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.create-billing-portal]
+verify_jwt = false
+
+[functions.whatsapp-webhook]
 verify_jwt = false

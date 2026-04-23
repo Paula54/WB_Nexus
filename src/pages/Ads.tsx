@@ -60,7 +60,6 @@ export default function Ads() {
 
   const fetchMetaStatus = useCallback(async () => {
     if (!user) return;
-    // Get project id
     const { data: proj } = await supabase
       .from("projects")
       .select("id")
@@ -90,7 +89,6 @@ export default function Ads() {
     fetchMetaStatus();
   }, [fetchCampaigns, fetchMetaStatus]);
 
-  // KPI calculations
   const totalImpressions = campaigns.reduce((sum, c) => sum + (c.metrics?.impressions || 0), 0);
   const totalClicks = campaigns.reduce((sum, c) => sum + (c.metrics?.clicks || 0), 0);
   const totalSpend = campaigns.reduce((sum, c) => sum + (c.metrics?.spend || 0), 0);
@@ -100,7 +98,6 @@ export default function Ads() {
   return (
     <div className="space-y-6">
       {trial.isExpired && <TrialExpiredBanner plan={trial.plan} />}
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-display font-bold text-foreground">Anúncios</h1>
@@ -139,7 +136,6 @@ export default function Ads() {
         </div>
       </div>
 
-      {/* Tabs: Google Ads vs Meta/Local */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
          <TabsList>
           <TabsTrigger value="google">Google Ads</TabsTrigger>
@@ -148,7 +144,6 @@ export default function Ads() {
         </TabsList>
 
         <TabsContent value="google" className="space-y-6">
-          {/* Google Ads KPI Cards */}
           <KpiCards
             totalImpressions={googleAds.totalImpressions}
             totalClicks={googleAds.totalClicks}
@@ -156,8 +151,6 @@ export default function Ads() {
             ctr={googleAds.ctr}
             costPerLead={googleAds.costPerLead}
           />
-
-          {/* Google Ads Campaign List */}
           <GoogleCampaignList
             campaigns={googleAds.campaigns}
             loading={googleAds.loading}
@@ -174,7 +167,6 @@ export default function Ads() {
         </TabsContent>
 
         <TabsContent value="local" className="space-y-6">
-          {/* Local/Meta KPI Cards */}
           <KpiCards
             totalImpressions={totalImpressions}
             totalClicks={totalClicks}
@@ -182,8 +174,6 @@ export default function Ads() {
             ctr={ctr}
             costPerLead={costPerLead}
           />
-
-          {/* Local Campaigns List */}
           <CampaignList
             campaigns={campaigns}
             loading={loading}
@@ -192,7 +182,6 @@ export default function Ads() {
         </TabsContent>
       </Tabs>
 
-      {/* Meta Ads Connect Modal */}
       <MetaAdsConnectModal
         open={connectModalOpen}
         onOpenChange={setConnectModalOpen}
