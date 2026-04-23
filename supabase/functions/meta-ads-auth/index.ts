@@ -14,7 +14,10 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const SUPABASE_URL = Deno.env.get("PROD_SUPABASE_URL") || Deno.env.get("SUPABASE_URL")!;
+    // CRITICAL: redirect_uri MUST match exactly what's registered in Meta App Settings.
+    // Force production URL so the callback always lands on the prod project — never on Lovable Cloud.
+    const PROD_SUPABASE_URL = "https://hqyuxponbobmuletqshq.supabase.co";
+    const SUPABASE_URL = Deno.env.get("PROD_SUPABASE_URL") || PROD_SUPABASE_URL;
     const SERVICE_KEY = Deno.env.get("PROD_SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 
@@ -90,7 +93,17 @@ Deno.serve(async (req) => {
     const returnOrigin = requestUrl.searchParams.get("return_origin") || "";
     const requestOrigin = req.headers.get("origin") || req.headers.get("referer") || "(none)";
 
+    // EXACT redirect_uri registered in Meta App > Facebook Login > Valid OAuth Redirect URIs
     const redirectUri = `${SUPABASE_URL}/functions/v1/meta-ads-callback`;
+
+    // Validate client_id one more time right before building the URL
+    if (!META_APP_ID || META_APP_ID.length < 10) {
+      console.error("❌ [meta-ads-auth] META_APP_ID inválido no momento de gerar a URL:", META_APP_ID);
+      return new Response(
+        JSON.stringify({ error: "client_id (META_APP_ID) inválido ou ausente. Verifique a Secret no Supabase." }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     const state = `${user.id}|${returnOrigin}`;
 
