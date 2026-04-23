@@ -69,14 +69,19 @@ export default function Ads() {
 
     if (proj) {
       setProjectId(proj.id);
-      // Check credentials from project_credentials
-      const { data: creds } = await supabase
-        .from("project_credentials" as any)
-        .select("meta_ads_account_id, meta_access_token")
+      // Fonte de verdade: meta_connections COM token + user_id válidos
+      const { data: conn } = await supabase
+        .from("meta_connections" as any)
+        .select("user_id, page_access_token, ad_account_id, is_active")
         .eq("project_id", proj.id)
+        .eq("user_id", user.id)
+        .eq("is_active", true)
         .maybeSingle();
-      const raw = creds as Record<string, unknown> | null;
-      setMetaConnected(!!raw?.meta_ads_account_id && !!raw?.meta_access_token);
+      const raw = conn as Record<string, unknown> | null;
+      const tokenValid = !!raw?.page_access_token && String(raw.page_access_token).length > 10;
+      const userValid = !!raw?.user_id;
+      const hasAdAccount = !!raw?.ad_account_id;
+      setMetaConnected(tokenValid && userValid && hasAdAccount);
     }
   }, [user]);
 
