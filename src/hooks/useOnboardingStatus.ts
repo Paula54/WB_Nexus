@@ -42,11 +42,14 @@ export function useOnboardingStatus(): OnboardingStatus {
     let hasWhatsapp = false;
 
     if (project) {
-      const [{ data: creds }, { data: projectChannels }] = await Promise.all([
+      const [{ data: metaConn }, { data: projectChannels }] = await Promise.all([
+        // Fonte de verdade: meta_connections COM token válido + user_id correto
         supabase
-          .from("project_credentials" as any)
-          .select("facebook_page_id, instagram_business_id")
+          .from("meta_connections" as any)
+          .select("user_id, page_access_token, facebook_page_id, instagram_business_id, is_active")
           .eq("project_id", project.id)
+          .eq("user_id", user.id)
+          .eq("is_active", true)
           .maybeSingle(),
         supabase
           .from("projects" as any)
@@ -54,9 +57,15 @@ export function useOnboardingStatus(): OnboardingStatus {
           .eq("id", project.id)
           .maybeSingle(),
       ]);
-      const rawCreds = creds as Record<string, unknown> | null;
+      const conn = metaConn as Record<string, unknown> | null;
       const rawProject = projectChannels as Record<string, unknown> | null;
-      hasFbOrIg = !!(rawCreds?.facebook_page_id || rawCreds?.instagram_business_id);
+
+      // Só conta como ligado se: user_id presente + token válido + (FB page OU IG business)
+      const tokenValid = !!conn?.page_access_token && String(conn.page_access_token).length > 10;
+      const userValid = !!conn?.user_id;
+      const hasChannel = !!(conn?.facebook_page_id || conn?.instagram_business_id);
+      hasFbOrIg = tokenValid && userValid && hasChannel;
+
       hasWhatsapp = !!(rawProject?.whatsapp_business_id || rawProject?.whatsapp_phone_number_id);
     }
 

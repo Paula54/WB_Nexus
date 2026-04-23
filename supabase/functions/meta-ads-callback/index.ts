@@ -75,11 +75,23 @@ Deno.serve(async (req) => {
       ? `${returnOrigin}/settings`
       : "https://nexus.web-business.pt/settings";
 
+    console.log("🔍 [meta-ads-callback] Diagnóstico:", {
+      META_APP_ID_present: !!META_APP_ID,
+      META_APP_ID_preview: META_APP_ID ? `${META_APP_ID.slice(0, 4)}...${META_APP_ID.slice(-4)}` : "VAZIO",
+      META_APP_SECRET_present: !!META_APP_SECRET,
+      SUPABASE_URL,
+      has_code: !!code,
+      has_state: !!state,
+      oauth_error: error || null,
+    });
+
     if (!META_APP_ID || !META_APP_SECRET) {
+      console.error("❌ Meta credentials missing in callback");
       return Response.redirect(`${returnUrl}?meta_ads_error=${encodeURIComponent("Meta app credentials not configured")}`, 302);
     }
 
     if (error) {
+      console.error("❌ OAuth error from Meta:", error);
       return Response.redirect(`${returnUrl}?meta_ads_error=${encodeURIComponent(error)}`, 302);
     }
     if (!code || !userId) {
@@ -87,6 +99,7 @@ Deno.serve(async (req) => {
     }
 
     const redirectUri = `${SUPABASE_URL}/functions/v1/meta-ads-callback`;
+    console.log("🔗 [meta-ads-callback] Trocando code por token. redirect_uri:", redirectUri);
 
     // Exchange code for token
     const tokenResponse = await fetch(
@@ -94,8 +107,12 @@ Deno.serve(async (req) => {
     );
     const tokenData = await tokenResponse.json();
     if (tokenData.error) {
-      return Response.redirect(`${returnUrl}?meta_ads_error=${encodeURIComponent(tokenData.error.message)}`, 302);
+      console.error("❌ [meta-ads-callback] Token exchange falhou:", JSON.stringify(tokenData.error));
+      const fb = tokenData.error;
+      const detail = `${fb.message || "erro"} (code=${fb.code ?? "?"}, type=${fb.type ?? "?"}, subcode=${fb.error_subcode ?? "?"}, fbtrace=${fb.fbtrace_id ?? "?"})`;
+      return Response.redirect(`${returnUrl}?meta_ads_error=${encodeURIComponent(detail)}`, 302);
     }
+    console.log("✅ [meta-ads-callback] Code trocado com sucesso por access_token");
 
     // Long-lived token
     const longLivedResponse = await fetch(
