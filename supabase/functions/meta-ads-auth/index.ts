@@ -118,13 +118,16 @@ Deno.serve(async (req) => {
     const authUrl = `${FB_AUTH_URL}?${params.toString()}`;
 
     console.log("🔗 [meta-ads-auth] OAuth URL gerada:", {
+      api_version: "v21.0",
+      client_id_sent: META_APP_ID,
       redirect_uri: redirectUri,
       redirect_uri_length: redirectUri.length,
       request_origin: requestOrigin,
       return_origin: returnOrigin,
       user_id: user.id,
-      auth_url_preview: authUrl.slice(0, 200) + "...",
     });
+    console.log("🔗 [meta-ads-auth] FULL AUTH URL:");
+    console.log(authUrl);
     console.log("⚠️ [meta-ads-auth] CONFIRMA na Meta App > Facebook Login > Valid OAuth Redirect URIs:");
     console.log(`   ${redirectUri}`);
 
