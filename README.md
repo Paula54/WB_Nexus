@@ -1,1 +1,1 @@
-# Nexus AI Cor
+# WBNexus

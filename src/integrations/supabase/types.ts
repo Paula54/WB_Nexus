@@ -1037,7 +1037,6 @@ export type Database = {
           instagram_business_id: string | null
           meta_access_token: string | null
           meta_ads_account_id: string | null
-          meta_client_id: string | null
           project_id: string
           updated_at: string
           user_id: string
@@ -1051,7 +1050,6 @@ export type Database = {
           instagram_business_id?: string | null
           meta_access_token?: string | null
           meta_ads_account_id?: string | null
-          meta_client_id?: string | null
           project_id: string
           updated_at?: string
           user_id: string
@@ -1065,7 +1063,6 @@ export type Database = {
           instagram_business_id?: string | null
           meta_access_token?: string | null
           meta_ads_account_id?: string | null
-          meta_client_id?: string | null
           project_id?: string
           updated_at?: string
           user_id?: string

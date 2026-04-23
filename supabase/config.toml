@@ -1,4 +1,10 @@
-project_id = "ubzvsjyfebuqtiwzpcly"
+project_id = "hqyuxponbobmuletqshq"
+
+[functions.diagnostic-prod]
+verify_jwt = false
+
+[functions.diagnostic-prod]
+verify_jwt = false
 
 [functions.diagnostic-prod]
 verify_jwt = false
