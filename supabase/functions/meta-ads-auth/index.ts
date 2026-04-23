@@ -93,7 +93,17 @@ Deno.serve(async (req) => {
     const returnOrigin = requestUrl.searchParams.get("return_origin") || "";
     const requestOrigin = req.headers.get("origin") || req.headers.get("referer") || "(none)";
 
+    // EXACT redirect_uri registered in Meta App > Facebook Login > Valid OAuth Redirect URIs
     const redirectUri = `${SUPABASE_URL}/functions/v1/meta-ads-callback`;
+
+    // Validate client_id one more time right before building the URL
+    if (!META_APP_ID || META_APP_ID.length < 10) {
+      console.error("❌ [meta-ads-auth] META_APP_ID inválido no momento de gerar a URL:", META_APP_ID);
+      return new Response(
+        JSON.stringify({ error: "client_id (META_APP_ID) inválido ou ausente. Verifique a Secret no Supabase." }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     const state = `${user.id}|${returnOrigin}`;
 
