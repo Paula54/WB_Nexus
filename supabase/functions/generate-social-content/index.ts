@@ -90,7 +90,7 @@ ${company ? `A empresa chama-se "${company}".` : ""}
 ${customInstr ? `Instruções extra do cliente: ${customInstr}` : ""}
 Devolve SEMPRE JSON válido com a estrutura: { "caption": string, "hashtags": string[], "image_prompt": string }
 - caption: legenda final pronta a publicar (máx 2200 chars), com emojis quando fizer sentido
-- hashtags: 8 a 12 hashtags relevantes em PT, sem o símbolo #
+- hashtags: NO MÁXIMO 5 hashtags relevantes em PT (3 a 5), sem o símbolo #. NUNCA mais do que 5, pois o Instagram rejeita publicações com excesso de hashtags.
 - image_prompt: descrição em INGLÊS, fotorrealista, profissional, focada no setor do cliente, sem texto na imagem`;
 
     const chatRes = await fetch(OPENAI_CHAT_URL, {
@@ -134,7 +134,7 @@ Devolve SEMPRE JSON válido com a estrutura: { "caption": string, "hashtags": st
 
     const caption = (parsed.caption || "").toString().trim();
     const hashtags = Array.isArray(parsed.hashtags)
-      ? parsed.hashtags.map((h) => h.toString().replace(/^#/, "").trim()).filter(Boolean).slice(0, 12)
+      ? parsed.hashtags.map((h) => h.toString().replace(/^#/, "").trim()).filter(Boolean).slice(0, 5)
       : [];
     const imagePrompt = (parsed.image_prompt || `Professional ${sector} marketing image, high quality, photorealistic, no text`).toString();
 
