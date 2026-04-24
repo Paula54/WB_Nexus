@@ -22,7 +22,7 @@ export function useProfile() {
 
     const { data, error } = await supabase
       .from("profiles")
-      .select("full_name, avatar_url")
+      .select("full_name, avatar_url, company_name")
       .eq("user_id", user.id)
       .order("updated_at", { ascending: false })
       .limit(1);
