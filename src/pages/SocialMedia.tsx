@@ -143,7 +143,69 @@ export default function SocialMedia() {
       setAiGenerating(false);
     }
   }
-...
+  const toggleErrorExpand = (postId: string) => {
+    setExpandedErrors(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(postId)) {
+        newSet.delete(postId);
+      } else {
+        newSet.add(postId);
+      }
+      return newSet;
+    });
+  };
+
+  const parseErrorMessage = (errorLog: string | null): string => {
+    if (!errorLog) return "Erro desconhecido";
+    try {
+      const parsed = JSON.parse(errorLog);
+      if (parsed.errors && Array.isArray(parsed.errors) && parsed.errors.length > 0) {
+        return parsed.errors[0].message || "Erro na publicação";
+      }
+      if (parsed.message) return parsed.message;
+      if (parsed.error) return parsed.error;
+      return "Erro na publicação";
+    } catch {
+      return errorLog.length > 100 ? errorLog.substring(0, 100) + "..." : errorLog;
+    }
+  };
+
+  const renderTextWithLinks = (text: string) => {
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const parts = text.split(urlRegex);
+    
+    return parts.map((part, index) => {
+      if (urlRegex.test(part)) {
+        urlRegex.lastIndex = 0;
+        return (
+          <a
+            key={index}
+            href={part}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary underline hover:text-primary/80 break-all"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {part}
+          </a>
+        );
+      }
+      return <span key={index}>{part}</span>;
+    });
+  };
+
+  useEffect(() => {
+    if (user) {
+      fetchData();
+    }
+  }, [user]);
+
+  async function fetchData() {
+    if (!user) return;
+    
+    await Promise.all([fetchPosts(), fetchLatestStrategy()]);
+    setLoading(false);
+  }
   async function fetchPosts() {
     const { data, error } = await supabase
       .from("social_posts")
