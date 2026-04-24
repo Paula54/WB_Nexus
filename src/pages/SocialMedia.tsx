@@ -265,7 +265,6 @@ export default function SocialMedia() {
           caption: day.caption,
           platform,
           status: "draft",
-          hashtags: [],
           image_url: null,
         }));
       });
@@ -300,7 +299,7 @@ export default function SocialMedia() {
       .from("social_posts")
       .insert({
         user_id: user.id,
-        caption,
+        caption: buildCaptionWithHashtags(caption),
         platform,
         status: "draft",
       });
@@ -338,10 +337,9 @@ export default function SocialMedia() {
     const { error } = await supabase
       .from("social_posts")
       .update({
-        caption: data.caption,
+        caption: buildCaptionWithHashtags(data.caption, data.hashtags),
         platform: data.platform,
         image_url: data.image_url,
-        hashtags: data.hashtags,
         scheduled_at: data.scheduled_at,
       })
       .eq("id", postId);
