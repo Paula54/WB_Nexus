@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
 import { useSubscription } from "@/hooks/useSubscription";
 import { toast } from "@/hooks/use-toast";
-import { User, Camera, Save, Loader2, Building2, Mail, Lock, CreditCard } from "lucide-react";
+import { User, Camera, Save, Loader2, Building2, Mail, Lock, CreditCard, ArrowRight, AlertCircle } from "lucide-react";
 
 export default function Profile() {
   const { user } = useAuth();
