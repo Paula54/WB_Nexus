@@ -137,6 +137,7 @@ function AppRoutes() {
         <Route path="crm" element={<CRM />} />
         <Route path="notes" element={<NotesReminders />} />
         <Route path="social-media" element={<SocialMedia />} />
+        <Route path="social-media/log" element={<SocialPostsLog />} />
         <Route path="ads" element={<Ads />} />
         <Route path="marketing" element={<Marketing />} />
         <Route path="seo" element={<SEO />} />
