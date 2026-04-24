@@ -193,14 +193,31 @@ serve(async (req) => {
     // Determine the status based on whether it was scheduled or published immediately
     const isScheduled = Boolean(post.scheduled_at);
     const newStatus = isScheduled ? "scheduled" : "published";
-    
+
+    // Extract Ayrshare post id (top-level "id") and per-platform ids from "postIds"
+    const ayrshareId: string | null =
+      (ayrshareData?.id as string | undefined) ??
+      (Array.isArray(ayrshareData?.postIds) && ayrshareData.postIds.length > 0
+        ? (ayrshareData.postIds[0]?.id as string | undefined) ?? null
+        : null);
+
+    console.log("[publish-social-post] Ayrshare post id:", ayrshareId);
+
+    // Merge Ayrshare ids into webhook_response so we always keep a log,
+    // even though we don't add new DB columns.
+    const enrichedResponse = {
+      ...ayrshareData,
+      _ayrshare_post_id: ayrshareId,
+      _platform_post_ids: ayrshareData?.postIds ?? null,
+    };
+
     // Update post with success status
     const { error: updateError } = await supabase
       .from("social_posts")
       .update({
         status: newStatus,
         published_at: isScheduled ? null : new Date().toISOString(),
-        webhook_response: ayrshareData,
+        webhook_response: enrichedResponse,
         error_log: null,
       })
       .eq("id", postId);
@@ -214,12 +231,13 @@ serve(async (req) => {
       : "Post publicado com sucesso!";
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
+      JSON.stringify({
+        success: true,
         message: successMessage,
         scheduled: isScheduled,
         image_warning: imageWarning,
-        ayrshare_response: ayrshareData 
+        ayrshare_post_id: ayrshareId,
+        ayrshare_response: ayrshareData,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
