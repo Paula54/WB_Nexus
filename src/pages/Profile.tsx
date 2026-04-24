@@ -75,9 +75,10 @@ export default function Profile() {
       .from("profiles")
       .select("id")
       .eq("user_id", user.id)
-      .maybeSingle();
+      .order("updated_at", { ascending: false })
+      .limit(1);
 
-    if (existing) {
+    if (existing?.length) {
       await supabase
         .from("profiles")
         .update({ avatar_url: publicUrl, contact_email: user.email })
@@ -102,7 +103,8 @@ export default function Profile() {
       .from("profiles")
       .select("id")
       .eq("user_id", user.id)
-      .maybeSingle();
+      .order("updated_at", { ascending: false })
+      .limit(1);
 
     const payload = {
       full_name: fullName || null,
@@ -110,7 +112,7 @@ export default function Profile() {
       contact_email: user.email,
     };
 
-    const { error } = existing
+    const { error } = existing?.length
       ? await supabase.from("profiles").update(payload).eq("user_id", user.id)
       : await supabase.from("profiles").insert({ user_id: user.id, ...payload });
 
