@@ -153,22 +153,32 @@ export default function Profile() {
         </p>
       </div>
 
-      {/* Two-step setup guidance */}
-      <Card className="border-primary/40 bg-primary/5">
-        <CardContent className="pt-6 flex items-start gap-3">
-          <AlertCircle className="h-5 w-5 text-primary mt-0.5 shrink-0" />
-          <div className="text-sm space-y-1">
-            <p className="font-medium text-foreground">
-              Configuração em 2 passos
-            </p>
-            <p className="text-muted-foreground">
-              <span className="font-medium text-foreground">1.</span> Preenche o teu nome aqui.{" "}
-              <span className="font-medium text-foreground">2.</span> Em seguida vais para{" "}
-              <span className="font-medium text-foreground">Configurações da Empresa</span> (NIF, morada, logo) — só depois entras no dashboard para ligar redes sociais.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+      <Tabs defaultValue="perfil" className="w-full">
+        <TabsList>
+          <TabsTrigger value="perfil">Perfil</TabsTrigger>
+          <TabsTrigger value="historico" className="gap-2">
+            <History className="h-4 w-4" />
+            Histórico
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="perfil" className="space-y-8 mt-6">
+          {/* Two-step setup guidance */}
+          <Card className="border-primary/40 bg-primary/5">
+            <CardContent className="pt-6 flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+              <div className="text-sm space-y-1">
+                <p className="font-medium text-foreground">
+                  Configuração em 2 passos
+                </p>
+                <p className="text-muted-foreground">
+                  <span className="font-medium text-foreground">1.</span> Preenche o teu nome aqui.{" "}
+                  <span className="font-medium text-foreground">2.</span> Em seguida vais para{" "}
+                  <span className="font-medium text-foreground">Configurações da Empresa</span> (NIF, morada, logo) — só depois entras no dashboard para ligar redes sociais.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
 
       <Card>
         <CardHeader>
