@@ -18,6 +18,7 @@ import ResetPassword from "@/pages/ResetPassword";
 import Dashboard from "@/pages/Dashboard";
 import CRM from "@/pages/CRM";
 import SocialMedia from "@/pages/SocialMedia";
+import SocialPostsLog from "@/pages/SocialPostsLog";
 import WhatsAppInbox from "@/pages/WhatsAppInbox";
 import Settings from "@/pages/Settings";
 import SiteBuilder from "@/pages/SiteBuilder";
@@ -136,6 +137,7 @@ function AppRoutes() {
         <Route path="crm" element={<CRM />} />
         <Route path="notes" element={<NotesReminders />} />
         <Route path="social-media" element={<SocialMedia />} />
+        <Route path="social-media/log" element={<SocialPostsLog />} />
         <Route path="ads" element={<Ads />} />
         <Route path="marketing" element={<Marketing />} />
         <Route path="seo" element={<SEO />} />
