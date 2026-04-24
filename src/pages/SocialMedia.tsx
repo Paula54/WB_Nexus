@@ -50,12 +50,45 @@ interface SocialPost {
   error_log: string | null;
 }
 
+interface SocialPostRow {
+  id: string;
+  caption: string;
+  platform: string;
+  status: string;
+  image_url: string | null;
+  scheduled_at: string | null;
+  published_at: string | null;
+  created_at: string;
+  error_log: string | null;
+}
+
 interface Project {
   id: string;
   name: string;
   content: MarketingStrategyResult | null;
   created_at: string;
 }
+
+const extractHashtagsFromCaption = (caption: string): string[] => {
+  const matches = caption.match(/#([\p{L}\p{N}_]+)/gu) ?? [];
+  return Array.from(new Set(matches.map((tag) => tag.replace(/^#/, ""))));
+};
+
+const buildCaptionWithHashtags = (caption: string, hashtags: string[] = []) => {
+  const cleanCaption = caption.replace(/\n\n#([\p{L}\p{N}_]+)(\s+#([\p{L}\p{N}_]+))*/gu, "").trim();
+  const cleanHashtags = hashtags
+    .map((tag) => tag.trim().replace(/^#/, ""))
+    .filter(Boolean);
+
+  if (cleanHashtags.length === 0) return cleanCaption;
+
+  return `${cleanCaption}\n\n${cleanHashtags.map((tag) => `#${tag}`).join(" ")}`;
+};
+
+const mapPostRow = (post: SocialPostRow): SocialPost => ({
+  ...post,
+  hashtags: extractHashtagsFromCaption(post.caption),
+});
 
 export default function SocialMedia() {
   const { user } = useAuth();
@@ -88,7 +121,10 @@ export default function SocialMedia() {
       const { data, error } = await supabase.functions.invoke("generate-social-content", {
         body: { topic: aiTopic.trim(), platform: aiPlatform, generate_image: true },
       });
-      if (error) throw error;
+      if (error) {
+        const message = (error as Error)?.message || "Erro ao gerar conteúdo com IA.";
+        throw new Error(message);
+      }
       if (data?.error) {
         toast.error("Falha na geração", { description: data.error });
         return;
@@ -100,12 +136,13 @@ export default function SocialMedia() {
       fetchPosts();
     } catch (err) {
       console.error("AI generation error:", err);
-      toast.error("Erro ao gerar conteúdo com IA.");
+      toast.error("Erro ao gerar conteúdo com IA.", {
+        description: err instanceof Error ? err.message : "Tenta novamente dentro de instantes.",
+      });
     } finally {
       setAiGenerating(false);
     }
   }
-
   const toggleErrorExpand = (postId: string) => {
     setExpandedErrors(prev => {
       const newSet = new Set(prev);
@@ -169,21 +206,20 @@ export default function SocialMedia() {
     await Promise.all([fetchPosts(), fetchLatestStrategy()]);
     setLoading(false);
   }
-
   async function fetchPosts() {
     const { data, error } = await supabase
       .from("social_posts")
-      .select("id, caption, platform, status, image_url, hashtags, scheduled_at, published_at, created_at, error_log")
+      .select("id, caption, platform, status, image_url, scheduled_at, published_at, created_at, error_log")
       .order("created_at", { ascending: false });
 
     if (error) {
       console.error("Error fetching posts:", error);
     } else {
-      setPosts(data || []);
-      // Initialize schedule dates from existing posts
+      const mappedPosts = ((data as SocialPostRow[] | null) || []).map(mapPostRow);
+      setPosts(mappedPosts);
       const dates: Record<string, Date | undefined> = {};
       const times: Record<string, string> = {};
-      (data || []).forEach(post => {
+      mappedPosts.forEach(post => {
         if (post.scheduled_at) {
           const date = new Date(post.scheduled_at);
           dates[post.id] = date;
@@ -199,7 +235,6 @@ export default function SocialMedia() {
     const { data, error } = await supabase
       .from("projects")
       .select("id, name, content, created_at")
-      .eq("project_type", "marketing")
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -230,7 +265,6 @@ export default function SocialMedia() {
           caption: day.caption,
           platform,
           status: "draft",
-          hashtags: [],
           image_url: null,
         }));
       });
@@ -265,7 +299,7 @@ export default function SocialMedia() {
       .from("social_posts")
       .insert({
         user_id: user.id,
-        caption,
+        caption: buildCaptionWithHashtags(caption),
         platform,
         status: "draft",
       });
@@ -303,10 +337,9 @@ export default function SocialMedia() {
     const { error } = await supabase
       .from("social_posts")
       .update({
-        caption: data.caption,
+        caption: buildCaptionWithHashtags(data.caption, data.hashtags),
         platform: data.platform,
         image_url: data.image_url,
-        hashtags: data.hashtags,
         scheduled_at: data.scheduled_at,
       })
       .eq("id", postId);

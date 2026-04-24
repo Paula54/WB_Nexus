@@ -145,6 +145,10 @@ Devolve SEMPRE JSON válido com a estrutura: { "caption": string, "hashtags": st
       );
     }
 
+    const captionWithHashtags = hashtags.length > 0
+      ? `${caption}\n\n${hashtags.map((tag) => `#${tag}`).join(" ")}`
+      : caption;
+
     // ===== 2) Generate image via DALL-E 3 =====
     let imageUrl: string | null = null;
     if (generateImage) {
@@ -166,13 +170,11 @@ Devolve SEMPRE JSON válido com a estrutura: { "caption": string, "hashtags": st
       if (!imgRes.ok) {
         const errTxt = await imgRes.text();
         console.error("[generate-social-content] DALL-E error:", imgRes.status, errTxt);
-        // Non-fatal: continue without image
       } else {
         const imgJson = await imgRes.json();
         const remoteUrl = imgJson?.data?.[0]?.url as string | undefined;
 
         if (remoteUrl) {
-          // Download and persist to our storage so it doesn't expire
           try {
             const fetched = await fetch(remoteUrl);
             const buf = new Uint8Array(await fetched.arrayBuffer());
@@ -182,7 +184,7 @@ Devolve SEMPRE JSON válido com a estrutura: { "caption": string, "hashtags": st
               .upload(path, buf, { contentType: "image/png", upsert: false });
             if (uploadErr) {
               console.error("[generate-social-content] storage upload error:", uploadErr);
-              imageUrl = remoteUrl; // fallback to OpenAI temp URL
+              imageUrl = remoteUrl;
             } else {
               const { data: pub } = supabase.storage.from("social-images").getPublicUrl(path);
               imageUrl = pub.publicUrl;
@@ -200,8 +202,7 @@ Devolve SEMPRE JSON válido com a estrutura: { "caption": string, "hashtags": st
       .from("social_posts")
       .insert({
         user_id: userId,
-        caption,
-        hashtags,
+        caption: captionWithHashtags,
         platform,
         image_url: imageUrl,
         status: "draft",
@@ -221,7 +222,7 @@ Devolve SEMPRE JSON válido com a estrutura: { "caption": string, "hashtags": st
       JSON.stringify({
         success: true,
         post_id: inserted.id,
-        caption,
+        caption: captionWithHashtags,
         hashtags,
         image_url: imageUrl,
       }),
