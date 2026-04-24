@@ -15,6 +15,7 @@ export default function Profile() {
   const { user } = useAuth();
   const { profile, loading, refetch } = useProfile();
   const { hasSubscription } = useSubscription();
+  const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [fullName, setFullName] = useState("");
