@@ -14,17 +14,34 @@ export function useProfile() {
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = useCallback(async () => {
-    if (!user) return;
-    const { data } = await supabase
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+    const { data, error } = await supabase
       .from("profiles")
       .select("full_name, avatar_url, company_name")
       .eq("user_id", user.id)
       .maybeSingle();
-    setProfile(data);
+
+    if (error) {
+      console.warn("[useProfile] fetch error:", error.message);
+      setLoading(false);
+      return;
+    }
+
+    // Only overwrite state with non-null data to avoid race conditions
+    // wiping out freshly-saved values before the row is visible to the read replica.
+    if (data) {
+      setProfile(data);
+    } else {
+      setProfile((prev) => prev ?? null);
+    }
     setLoading(false);
   }, [user]);
 
   useEffect(() => {
+    setLoading(true);
     fetchProfile();
   }, [fetchProfile]);
 
