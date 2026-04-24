@@ -9,7 +9,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
 import { useSubscription } from "@/hooks/useSubscription";
 import { toast } from "@/hooks/use-toast";
-import { User, Camera, Save, Loader2, Building2, Mail, Lock, CreditCard, ArrowRight, AlertCircle } from "lucide-react";
+import { User, Camera, Save, Loader2, Building2, Mail, Lock, CreditCard, ArrowRight, AlertCircle, History } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import ProfileHistoryTab from "@/components/profile/ProfileHistoryTab";
 
 export default function Profile() {
   const { user } = useAuth();
@@ -151,22 +153,32 @@ export default function Profile() {
         </p>
       </div>
 
-      {/* Two-step setup guidance */}
-      <Card className="border-primary/40 bg-primary/5">
-        <CardContent className="pt-6 flex items-start gap-3">
-          <AlertCircle className="h-5 w-5 text-primary mt-0.5 shrink-0" />
-          <div className="text-sm space-y-1">
-            <p className="font-medium text-foreground">
-              Configuração em 2 passos
-            </p>
-            <p className="text-muted-foreground">
-              <span className="font-medium text-foreground">1.</span> Preenche o teu nome aqui.{" "}
-              <span className="font-medium text-foreground">2.</span> Em seguida vais para{" "}
-              <span className="font-medium text-foreground">Configurações da Empresa</span> (NIF, morada, logo) — só depois entras no dashboard para ligar redes sociais.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+      <Tabs defaultValue="perfil" className="w-full">
+        <TabsList>
+          <TabsTrigger value="perfil">Perfil</TabsTrigger>
+          <TabsTrigger value="historico" className="gap-2">
+            <History className="h-4 w-4" />
+            Histórico
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="perfil" className="space-y-8 mt-6">
+          {/* Two-step setup guidance */}
+          <Card className="border-primary/40 bg-primary/5">
+            <CardContent className="pt-6 flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+              <div className="text-sm space-y-1">
+                <p className="font-medium text-foreground">
+                  Configuração em 2 passos
+                </p>
+                <p className="text-muted-foreground">
+                  <span className="font-medium text-foreground">1.</span> Preenche o teu nome aqui.{" "}
+                  <span className="font-medium text-foreground">2.</span> Em seguida vais para{" "}
+                  <span className="font-medium text-foreground">Configurações da Empresa</span> (NIF, morada, logo) — só depois entras no dashboard para ligar redes sociais.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
 
       <Card>
         <CardHeader>
@@ -285,21 +297,27 @@ export default function Profile() {
         </CardContent>
       </Card>
 
-      {/* Billing Portal */}
-      {hasSubscription && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Faturação & Assinatura</CardTitle>
-            <CardDescription>Gere os teus pagamentos, faturas e plano diretamente no Stripe</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button onClick={openBillingPortal} disabled={portalLoading} variant="outline" className="gap-2">
-              {portalLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
-              Gerir Faturas e Assinatura
-            </Button>
-          </CardContent>
-        </Card>
-      )}
+          {/* Billing Portal */}
+          {hasSubscription && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Faturação & Assinatura</CardTitle>
+                <CardDescription>Gere os teus pagamentos, faturas e plano diretamente no Stripe</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button onClick={openBillingPortal} disabled={portalLoading} variant="outline" className="gap-2">
+                  {portalLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
+                  Gerir Faturas e Assinatura
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        <TabsContent value="historico" className="mt-6">
+          <ProfileHistoryTab />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
