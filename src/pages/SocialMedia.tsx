@@ -73,6 +73,38 @@ export default function SocialMedia() {
   const [scheduleTimes, setScheduleTimes] = useState<Record<string, string>>({});
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [selectedPost, setSelectedPost] = useState<SocialPost | null>(null);
+  const [aiTopic, setAiTopic] = useState("");
+  const [aiPlatform, setAiPlatform] = useState<string>("instagram");
+  const [aiGenerating, setAiGenerating] = useState(false);
+
+  async function generateWithAI() {
+    if (!user) return;
+    if (!aiTopic.trim() || aiTopic.trim().length < 3) {
+      toast.error("Indica um tema (mínimo 3 caracteres).");
+      return;
+    }
+    setAiGenerating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-social-content", {
+        body: { topic: aiTopic.trim(), platform: aiPlatform, generate_image: true },
+      });
+      if (error) throw error;
+      if (data?.error) {
+        toast.error("Falha na geração", { description: data.error });
+        return;
+      }
+      toast.success("Post gerado com IA! ✨", {
+        description: data?.image_url ? "Legenda + imagem prontas." : "Legenda pronta (sem imagem).",
+      });
+      setAiTopic("");
+      fetchPosts();
+    } catch (err) {
+      console.error("AI generation error:", err);
+      toast.error("Erro ao gerar conteúdo com IA.");
+    } finally {
+      setAiGenerating(false);
+    }
+  }
 
   const toggleErrorExpand = (postId: string) => {
     setExpandedErrors(prev => {
@@ -806,6 +838,42 @@ export default function SocialMedia() {
           </CardContent>
         </Card>
       )}
+
+      {/* AI Generator */}
+      <Card className="glass border-primary/30">
+        <CardContent className="p-4 space-y-3">
+          <h3 className="font-semibold flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-primary" />
+            Gerar Post com IA (GPT-4o + DALL·E 3)
+          </h3>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Input
+              placeholder="Tema do post (ex: T2 novo em Cascais com vista mar)"
+              value={aiTopic}
+              onChange={(e) => setAiTopic(e.target.value)}
+              disabled={aiGenerating}
+              className="flex-1"
+            />
+            <select
+              value={aiPlatform}
+              onChange={(e) => setAiPlatform(e.target.value)}
+              disabled={aiGenerating}
+              className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+            >
+              <option value="instagram">Instagram</option>
+              <option value="facebook">Facebook</option>
+              <option value="linkedin">LinkedIn</option>
+            </select>
+            <Button onClick={generateWithAI} disabled={aiGenerating}>
+              <Sparkles className="h-4 w-4 mr-2" />
+              {aiGenerating ? "A gerar..." : "Gerar Post"}
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            A IA gera legenda + hashtags + imagem profissional e guarda como rascunho. Depois publicas via Ayrshare.
+          </p>
+        </CardContent>
+      </Card>
 
       {/* Quick Create */}
       <Card className="glass">
