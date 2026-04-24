@@ -18,6 +18,7 @@ import ResetPassword from "@/pages/ResetPassword";
 import Dashboard from "@/pages/Dashboard";
 import CRM from "@/pages/CRM";
 import SocialMedia from "@/pages/SocialMedia";
+import SocialPostsLog from "@/pages/SocialPostsLog";
 import WhatsAppInbox from "@/pages/WhatsAppInbox";
 import Settings from "@/pages/Settings";
 import SiteBuilder from "@/pages/SiteBuilder";
