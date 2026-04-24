@@ -261,14 +261,23 @@ export default function Profile() {
             </p>
           </div>
 
-          <div className="pt-2">
+          <div className="pt-2 flex flex-wrap gap-3">
             <Button onClick={handleSave} disabled={saving} className="w-full sm:w-auto">
               {saving ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
               ) : (
                 <Save className="h-4 w-4 mr-2" />
               )}
-              Guardar Alterações
+              Guardar e continuar
+              <ArrowRight className="h-4 w-4 ml-2" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => navigate("/settings")}
+              className="w-full sm:w-auto"
+            >
+              Saltar para Dados da Empresa
             </Button>
           </div>
         </CardContent>
