@@ -119,8 +119,13 @@ export default function Profile() {
     if (error) {
       toast({ title: "Erro ao guardar", description: error.message, variant: "destructive" });
     } else {
-      refetch();
-      toast({ title: "Perfil atualizado com sucesso!" });
+      await refetch();
+      toast({
+        title: "Perfil guardado!",
+        description: "Próximo passo: preenche os dados da empresa para ativar o teu dashboard.",
+      });
+      // Guide user to the next mandatory step
+      setTimeout(() => navigate("/settings"), 800);
     }
   };
 
