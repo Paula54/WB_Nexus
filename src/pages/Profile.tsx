@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,12 +9,13 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
 import { useSubscription } from "@/hooks/useSubscription";
 import { toast } from "@/hooks/use-toast";
-import { User, Camera, Save, Loader2, Building2, Mail, Lock, CreditCard } from "lucide-react";
+import { User, Camera, Save, Loader2, Building2, Mail, Lock, CreditCard, ArrowRight, AlertCircle } from "lucide-react";
 
 export default function Profile() {
   const { user } = useAuth();
   const { profile, loading, refetch } = useProfile();
   const { hasSubscription } = useSubscription();
+  const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [fullName, setFullName] = useState("");
@@ -42,9 +44,9 @@ export default function Profile() {
 
   useEffect(() => {
     if (profile) {
-      setFullName(profile.full_name ?? "");
-      setCompanyName(profile.company_name ?? "");
-      setAvatarUrl(profile.avatar_url);
+      setFullName((prev) => prev || profile.full_name || "");
+      setCompanyName((prev) => prev || profile.company_name || "");
+      setAvatarUrl((prev) => prev || profile.avatar_url);
     }
   }, [profile]);
 
@@ -117,8 +119,13 @@ export default function Profile() {
     if (error) {
       toast({ title: "Erro ao guardar", description: error.message, variant: "destructive" });
     } else {
-      refetch();
-      toast({ title: "Perfil atualizado com sucesso!" });
+      await refetch();
+      toast({
+        title: "Perfil guardado!",
+        description: "Próximo passo: preenche os dados da empresa para ativar o teu dashboard.",
+      });
+      // Guide user to the next mandatory step
+      setTimeout(() => navigate("/settings"), 800);
     }
   };
 
@@ -142,7 +149,23 @@ export default function Profile() {
         </p>
       </div>
 
-      {/* Avatar Section */}
+      {/* Two-step setup guidance */}
+      <Card className="border-primary/40 bg-primary/5">
+        <CardContent className="pt-6 flex items-start gap-3">
+          <AlertCircle className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+          <div className="text-sm space-y-1">
+            <p className="font-medium text-foreground">
+              Configuração em 2 passos
+            </p>
+            <p className="text-muted-foreground">
+              <span className="font-medium text-foreground">1.</span> Preenche o teu nome aqui.{" "}
+              <span className="font-medium text-foreground">2.</span> Em seguida vais para{" "}
+              <span className="font-medium text-foreground">Configurações da Empresa</span> (NIF, morada, logo) — só depois entras no dashboard para ligar redes sociais.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Fotografia de Perfil</CardTitle>
@@ -238,14 +261,23 @@ export default function Profile() {
             </p>
           </div>
 
-          <div className="pt-2">
+          <div className="pt-2 flex flex-wrap gap-3">
             <Button onClick={handleSave} disabled={saving} className="w-full sm:w-auto">
               {saving ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
               ) : (
                 <Save className="h-4 w-4 mr-2" />
               )}
-              Guardar Alterações
+              Guardar e continuar
+              <ArrowRight className="h-4 w-4 ml-2" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => navigate("/settings")}
+              className="w-full sm:w-auto"
+            >
+              Saltar para Dados da Empresa
             </Button>
           </div>
         </CardContent>
