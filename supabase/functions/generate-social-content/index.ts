@@ -134,7 +134,7 @@ Devolve SEMPRE JSON válido com a estrutura: { "caption": string, "hashtags": st
 
     const caption = (parsed.caption || "").toString().trim();
     const hashtags = Array.isArray(parsed.hashtags)
-      ? parsed.hashtags.map((h) => h.toString().replace(/^#/, "").trim()).filter(Boolean).slice(0, 12)
+      ? parsed.hashtags.map((h) => h.toString().replace(/^#/, "").trim()).filter(Boolean).slice(0, 5)
       : [];
     const imagePrompt = (parsed.image_prompt || `Professional ${sector} marketing image, high quality, photorealistic, no text`).toString();
 
