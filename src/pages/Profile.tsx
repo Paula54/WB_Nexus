@@ -297,21 +297,27 @@ export default function Profile() {
         </CardContent>
       </Card>
 
-      {/* Billing Portal */}
-      {hasSubscription && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Faturação & Assinatura</CardTitle>
-            <CardDescription>Gere os teus pagamentos, faturas e plano diretamente no Stripe</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button onClick={openBillingPortal} disabled={portalLoading} variant="outline" className="gap-2">
-              {portalLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
-              Gerir Faturas e Assinatura
-            </Button>
-          </CardContent>
-        </Card>
-      )}
+          {/* Billing Portal */}
+          {hasSubscription && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Faturação & Assinatura</CardTitle>
+                <CardDescription>Gere os teus pagamentos, faturas e plano diretamente no Stripe</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button onClick={openBillingPortal} disabled={portalLoading} variant="outline" className="gap-2">
+                  {portalLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
+                  Gerir Faturas e Assinatura
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        <TabsContent value="historico" className="mt-6">
+          <ProfileHistoryTab />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
