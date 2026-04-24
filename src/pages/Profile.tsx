@@ -44,9 +44,9 @@ export default function Profile() {
 
   useEffect(() => {
     if (profile) {
-      setFullName(profile.full_name ?? "");
-      setCompanyName(profile.company_name ?? "");
-      setAvatarUrl(profile.avatar_url);
+      setFullName((prev) => prev || profile.full_name || "");
+      setCompanyName((prev) => prev || profile.company_name || "");
+      setAvatarUrl((prev) => prev || profile.avatar_url);
     }
   }, [profile]);
 
