@@ -231,12 +231,13 @@ serve(async (req) => {
       : "Post publicado com sucesso!";
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
+      JSON.stringify({
+        success: true,
         message: successMessage,
         scheduled: isScheduled,
         image_warning: imageWarning,
-        ayrshare_response: ayrshareData 
+        ayrshare_post_id: ayrshareId,
+        ayrshare_response: ayrshareData,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
