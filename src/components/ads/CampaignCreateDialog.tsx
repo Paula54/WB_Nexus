@@ -219,16 +219,19 @@ export default function CampaignCreateDialog({
         const publishResult = await response.json().catch(() => null);
 
         if (publishResult?.success) {
-          toast({ title: "🚀 Campanha publicada na Meta Ads!" });
+          toast({
+            title: "🚀 Campanha publicada!",
+            description: publishResult.message || `Debitámos ${publishResult.wallet_charged?.toFixed(2)}€ da tua Wallet Nexus.`,
+          });
           handleOpenChange(false);
           onCreated();
           return;
         }
 
-        // Failure — extract Meta detail
+        // Failure — extract Meta detail or wallet topup
         const metaErr = publishResult?.meta_error || {};
         setMetaError({
-          message: publishResult?.error || "Falha ao publicar na Meta Ads.",
+          message: publishResult?.error || "Falha ao publicar a campanha.",
           user_msg: metaErr.error_user_msg,
           user_title: metaErr.error_user_title,
           code: metaErr.code,
@@ -236,16 +239,19 @@ export default function CampaignCreateDialog({
           type: metaErr.type,
           fbtrace_id: metaErr.fbtrace_id,
           hint: publishResult?.hint,
-          requires_payment_setup: publishResult?.requires_payment_setup,
-          payment_setup_url: publishResult?.payment_setup_url,
+          requires_wallet_topup: publishResult?.requires_wallet_topup,
+          wallet_balance: publishResult?.wallet_balance,
+          required_amount: publishResult?.required_amount,
+          missing_amount: publishResult?.missing_amount,
+          breakdown: publishResult?.breakdown,
           raw: publishResult,
         });
         toast({
           variant: "destructive",
-          title: publishResult?.requires_payment_setup
-            ? "Configura o método de pagamento"
-            : metaErr.error_user_title || "Erro Meta API",
-          description: metaErr.error_user_msg || publishResult?.error || "Ver detalhes abaixo.",
+          title: publishResult?.requires_wallet_topup
+            ? "💰 Saldo insuficiente na Wallet Nexus"
+            : metaErr.error_user_title || "Erro ao publicar",
+          description: publishResult?.error || metaErr.error_user_msg || "Ver detalhes abaixo.",
         });
         // Keep dialog open so user sees the detailed panel
       } catch (err: any) {
