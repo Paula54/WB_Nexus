@@ -73,10 +73,13 @@ Deno.serve(async (req) => {
     }
 
     // ============= VERIFICAÇÃO DE SALDO NA WALLET NEXUS =============
+    // Cálculo: (budget × dias) + Taxa Agência (15%) + Taxa Stripe (1.4% + 0.25€)
     const dailyBudgetNum = Number(daily_budget);
     const totalBudget = dailyBudgetNum * PRE_AUTH_DAYS;
     const serviceFee = totalBudget * AGENCY_MARKUP;
-    const requiredAmount = +(totalBudget + serviceFee).toFixed(2);
+    const subtotal = totalBudget + serviceFee;
+    const stripeFee = +(subtotal * STRIPE_FEE_PCT + STRIPE_FEE_FIXED).toFixed(2);
+    const requiredAmount = +(subtotal + stripeFee).toFixed(2);
 
     const { data: txs, error: txError } = await adminClient
       .from("wallet_transactions")
@@ -103,6 +106,7 @@ Deno.serve(async (req) => {
           days_pre_auth: PRE_AUTH_DAYS,
           total_budget: +totalBudget.toFixed(2),
           service_fee: +serviceFee.toFixed(2),
+          stripe_fee: stripeFee,
           markup_pct: AGENCY_MARKUP * 100,
         },
         hint: `Carrega pelo menos ${(requiredAmount - balance).toFixed(2)} € na tua Wallet Nexus para publicar esta campanha.`,
