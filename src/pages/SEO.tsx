@@ -229,6 +229,19 @@ export default function SEO() {
     }
   };
 
+  const handleFetchGA4 = async () => {
+    setGaLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("fetch-ga4-traffic", { body: {} });
+      if (error) throw error;
+      setGaData(data);
+    } catch (e) {
+      console.error("GA4 traffic error:", e);
+    } finally {
+      setGaLoading(false);
+    }
+  };
+
   const handleGenerateMeta = async () => {
     if (!domain) return;
     setMetaLoading(true);
