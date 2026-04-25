@@ -63,6 +63,8 @@ export default function CampaignCreateDialog({
     subcode?: number | string;
     fbtrace_id?: string;
     hint?: string;
+    requires_payment_setup?: boolean;
+    payment_setup_url?: string;
     raw?: unknown;
   } | null>(null);
 
