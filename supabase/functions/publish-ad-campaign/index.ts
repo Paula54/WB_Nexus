@@ -183,18 +183,17 @@ Deno.serve(async (req) => {
       });
     }
 
-    // ============= DÉBITO DA WALLET (pré-autorização) =============
+    // ============= DÉBITO DA WALLET (HOLD / pré-autorização) =============
     const { error: debitError } = await adminClient.from("wallet_transactions").insert({
       user_id: userId,
       amount: -requiredAmount,
       type: "ad_campaign_hold",
-      description: `Pré-autorização campanha Meta (7d × ${dailyBudgetNum.toFixed(2)}€ + 15% taxa de gestão)`,
+      description: `HOLD campanha Meta (7d × ${dailyBudgetNum.toFixed(2)}€ + 15% gestão + taxa Stripe ${stripeFee.toFixed(2)}€)`,
       reference_id: metaCampaignId,
     });
 
     if (debitError) {
       console.error("[publish-ad-campaign] wallet debit error:", debitError);
-      // Campanha ficou em PAUSED na Meta sem débito → ainda assim avisa
       return json({
         success: false,
         error: "Campanha criada mas não foi possível debitar a Wallet. Contacta o suporte.",
@@ -202,17 +201,22 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Atualiza registo local
+    // Atualiza registo local — status 'hold' até a Meta confirmar publicação ativa
     if (campaign_id) {
       await adminClient
         .from("ads_campaigns")
         .update({
+          status: "hold",
           metrics: {
             impressions: 0, clicks: 0, conversions: 0, spend: 0,
             meta_campaign_id: metaCampaignId,
             meta_adset_id: adSetResult.id || null,
             wallet_pre_auth: requiredAmount,
             service_fee: +serviceFee.toFixed(2),
+            stripe_fee: stripeFee,
+            hold_started_at: new Date().toISOString(),
+            pre_auth_days: PRE_AUTH_DAYS,
+            daily_budget: dailyBudgetNum,
           },
         })
         .eq("id", campaign_id);
@@ -220,11 +224,13 @@ Deno.serve(async (req) => {
 
     return json({
       success: true,
+      status: "hold",
       meta_campaign_id: metaCampaignId,
       meta_adset_id: adSetResult.id || null,
       wallet_charged: requiredAmount,
       service_fee: +serviceFee.toFixed(2),
-      message: `Campanha criada! Debitámos ${requiredAmount.toFixed(2)}€ da tua Wallet Nexus (7 dias × ${dailyBudgetNum.toFixed(2)}€ + 15% taxa).`,
+      stripe_fee: stripeFee,
+      message: `Campanha em HOLD! Reservámos ${requiredAmount.toFixed(2)}€ na tua Wallet (7d × ${dailyBudgetNum.toFixed(2)}€ + 15% gestão + ${stripeFee.toFixed(2)}€ Stripe). Será debitado conforme a Meta reportar gasto real; o restante volta automaticamente à Wallet se cancelares.`,
     });
   } catch (error) {
     console.error("[publish-ad-campaign] internal error:", error);
