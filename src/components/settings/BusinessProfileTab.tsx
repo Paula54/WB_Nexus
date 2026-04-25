@@ -200,6 +200,10 @@ export default function BusinessProfileTab() {
     if (!payload.country) payload.country = "Portugal";
     // Keep `name` in sync with the trade/legal name so the project is identifiable
     payload.name = profile.business_name.trim() || profile.legal_name.trim() || "Meu Negócio";
+    // Sync domain field with website (used by SEO module)
+    if (profile.website.trim()) {
+      payload.domain = profile.website.trim();
+    }
 
     const { error } = await persistField(payload);
 
