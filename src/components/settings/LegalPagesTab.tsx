@@ -22,6 +22,14 @@ interface BusinessData {
   website: string;
 }
 
+type BusinessSource = Partial<BusinessData> & {
+  trade_name?: string | null;
+  name?: string | null;
+  company_name?: string | null;
+  contact_email?: string | null;
+  full_name?: string | null;
+};
+
 type PageType = "privacidade" | "termos" | "cookies";
 
 const PAGE_LABELS: Record<PageType, string> = {
@@ -29,6 +37,33 @@ const PAGE_LABELS: Record<PageType, string> = {
   termos: "Termos e Condições",
   cookies: "Política de Cookies",
 };
+
+const cleanValue = (value: unknown): string => (typeof value === "string" ? value.trim() : "");
+
+function firstFilled(sources: BusinessSource[], keys: (keyof BusinessSource)[]): string {
+  for (const source of sources) {
+    for (const key of keys) {
+      const value = cleanValue(source[key]);
+      if (value) return value;
+    }
+  }
+  return "";
+}
+
+function normalizeBusinessData(sources: BusinessSource[], userEmail?: string): BusinessData {
+  return {
+    legal_name: firstFilled(sources, ["legal_name", "company_name", "full_name"]),
+    business_name: firstFilled(sources, ["trade_name", "business_name", "name", "company_name", "legal_name"]),
+    nif: firstFilled(sources, ["nif"]),
+    address_line1: firstFilled(sources, ["address_line1"]),
+    postal_code: firstFilled(sources, ["postal_code"]),
+    city: firstFilled(sources, ["city"]),
+    country: firstFilled(sources, ["country"]) || "Portugal",
+    email: firstFilled(sources, ["email", "contact_email"]) || userEmail || "",
+    phone: firstFilled(sources, ["phone"]),
+    website: firstFilled(sources, ["website"]),
+  };
+}
 
 
 function generatePrivacy(d: BusinessData): string {
