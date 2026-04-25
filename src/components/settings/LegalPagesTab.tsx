@@ -30,11 +30,6 @@ const PAGE_LABELS: Record<PageType, string> = {
   cookies: "Política de Cookies",
 };
 
-const EMPTY_BUSINESS: BusinessData = {
-  legal_name: "", business_name: "", nif: "", address_line1: "",
-  postal_code: "", city: "", country: "Portugal",
-  email: "", phone: "", website: "",
-};
 
 function generatePrivacy(d: BusinessData): string {
   const name = d.business_name || d.legal_name || "[Nome da Empresa]";
