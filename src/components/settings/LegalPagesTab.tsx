@@ -7,7 +7,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/lib/supabaseCustom";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
-import { FileText, Eye, Save, Loader2, AlertTriangle, Printer, Pencil, Lock, RotateCcw } from "lucide-react";
+import { FileText, Eye, Save, Loader2, AlertTriangle, Printer, Pencil, Lock, RotateCcw, RefreshCw, Building2 } from "lucide-react";
+import { Link } from "react-router-dom";
 
 interface BusinessData {
   legal_name: string;
@@ -226,61 +227,67 @@ export default function LegalPagesTab() {
   const { user } = useAuth();
   const [businessData, setBusinessData] = useState<BusinessData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState<PageType | null>(null);
   const [activePreview, setActivePreview] = useState<PageType>("privacidade");
   const [editing, setEditing] = useState<Record<PageType, boolean>>({ privacidade: false, termos: false, cookies: false });
   const [drafts, setDrafts] = useState<Record<PageType, string | null>>({ privacidade: null, termos: null, cookies: null });
   const printRef = useRef<HTMLDivElement>(null);
 
+  const loadBusinessData = async () => {
+    if (!user) return;
+    // Use select("*") to survive any schema variation between dev and prod.
+    const [businessProfiles, projects, profiles] = await Promise.all([
+      supabase.from("business_profiles").select("*").eq("user_id", user.id).order("updated_at", { ascending: false }).limit(5),
+      supabase.from("projects").select("*").eq("user_id", user.id).order("updated_at", { ascending: false }).limit(5),
+      supabase.from("profiles").select("*").eq("user_id", user.id).order("updated_at", { ascending: false }).limit(1),
+    ]);
+
+    const sources = [
+      ...((businessProfiles.data || []) as BusinessSource[]),
+      ...((projects.data || []) as BusinessSource[]),
+      ...((profiles.data || []) as BusinessSource[]),
+    ];
+
+    console.info("[LegalPagesTab] Sources fetched:", {
+      business_profiles: businessProfiles.data?.length || 0,
+      projects: projects.data?.length || 0,
+      profiles: profiles.data?.length || 0,
+      bp_error: businessProfiles.error?.message,
+      proj_error: projects.error?.message,
+    });
+
+    const normalized = normalizeBusinessData(sources, user.email || "");
+    setBusinessData(normalized);
+
+    // Load saved overrides if any
+    const { data: pages } = await supabase
+      .from("compliance_pages")
+      .select("page_type, content")
+      .eq("user_id", user.id);
+
+    if (pages?.length) {
+      const next: Record<PageType, string | null> = { privacidade: null, termos: null, cookies: null };
+      for (const row of pages as Array<{ page_type: string; content: string }>) {
+        if (row.page_type in next) next[row.page_type as PageType] = row.content;
+      }
+      setDrafts(next);
+    }
+  };
+
   useEffect(() => {
     if (!user) return;
-    (async () => {
-      const [businessProfiles, projects, profiles] = await Promise.all([
-        supabase
-          .from("business_profiles")
-          .select("legal_name, trade_name, nif, address_line1, postal_code, city, country, email, phone, website")
-          .eq("user_id", user.id)
-          .order("updated_at", { ascending: false })
-          .limit(5),
-        supabase
-          .from("projects")
-          .select("legal_name, business_name, trade_name, name, nif, address_line1, postal_code, city, country, email, phone, website")
-          .eq("user_id", user.id)
-          .order("updated_at", { ascending: false })
-          .limit(5),
-        supabase
-          .from("profiles")
-          .select("full_name, company_name, contact_email")
-          .eq("user_id", user.id)
-          .order("updated_at", { ascending: false })
-          .limit(1),
-      ]);
-
-      const sources = [
-        ...((businessProfiles.data || []) as BusinessSource[]),
-        ...((projects.data || []) as BusinessSource[]),
-        ...((profiles.data || []) as BusinessSource[]),
-      ];
-
-      setBusinessData(normalizeBusinessData(sources, user.email || ""));
-
-      // Load saved overrides if any
-      const { data: pages } = await supabase
-        .from("compliance_pages")
-        .select("page_type, content")
-        .eq("user_id", user.id);
-
-      if (pages?.length) {
-        const next: Record<PageType, string | null> = { privacidade: null, termos: null, cookies: null };
-        for (const row of pages as Array<{ page_type: string; content: string }>) {
-          if (row.page_type in next) next[row.page_type as PageType] = row.content;
-        }
-        setDrafts(next);
-      }
-
-      setLoading(false);
-    })();
+    setLoading(true);
+    loadBusinessData().finally(() => setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadBusinessData();
+    setRefreshing(false);
+    toast({ title: "Dados atualizados ✅", description: "Recolhidos do perfil da empresa." });
+  };
 
   const missingFields = useMemo(() => {
     if (!businessData) return [];
@@ -367,6 +374,43 @@ export default function LegalPagesTab() {
 
   return (
     <div className="space-y-6">
+      {/* Dados detetados — transparência ao utilizador */}
+      <Card className="glass border-primary/20">
+        <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2 pb-3">
+          <div>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Building2 className="h-5 w-5 text-primary" />
+              Dados recolhidos do Perfil da Empresa
+            </CardTitle>
+            <CardDescription>
+              Estes dados são usados nos documentos legais. Para alterar, edita em{" "}
+              <Link to="/settings" className="text-primary underline">Dados da Empresa</Link>.
+            </CardDescription>
+          </div>
+          <Button size="sm" variant="outline" onClick={handleRefresh} disabled={refreshing}>
+            {refreshing ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-1" />}
+            Atualizar
+          </Button>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
+          {[
+            { label: "Denominação Social", value: businessData?.legal_name },
+            { label: "NIF", value: businessData?.nif },
+            { label: "Telefone", value: businessData?.phone },
+            { label: "Email", value: businessData?.email },
+            { label: "Morada", value: [businessData?.address_line1, businessData?.postal_code, businessData?.city].filter(Boolean).join(", ") },
+            { label: "Website", value: businessData?.website },
+          ].map((item) => (
+            <div key={item.label} className="flex justify-between gap-2 border-b border-border/40 py-1">
+              <span className="text-muted-foreground">{item.label}:</span>
+              <span className={item.value ? "font-medium text-foreground text-right" : "italic text-muted-foreground/60"}>
+                {item.value || "— em falta —"}
+              </span>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+
       {missingFields.length > 0 && (
         <Card className="border-amber-500/30 bg-amber-500/5">
           <CardContent className="p-4 flex items-start gap-3">
@@ -374,7 +418,9 @@ export default function LegalPagesTab() {
             <div>
               <p className="text-sm font-medium">Dados em falta nos Dados da Empresa</p>
               <p className="text-xs text-muted-foreground mt-1">
-                Faltam: <strong>{missingFields.join(", ")}</strong>. Preenche em <em>Dados da Empresa</em> para gerar documentos completos. Podes na mesma editar e imprimir abaixo — a responsabilidade legal é da empresa contratante.
+                Faltam: <strong>{missingFields.join(", ")}</strong>. Preenche em{" "}
+                <Link to="/settings" className="underline text-primary">Dados da Empresa</Link>{" "}
+                e clica em <em>Atualizar</em>. Podes na mesma editar e imprimir abaixo — a responsabilidade legal é da empresa contratante.
               </p>
             </div>
           </CardContent>
