@@ -162,7 +162,7 @@ Deno.serve(async (req) => {
       google_access_token: encryptedAccessToken,
       google_email: googleEmail,
       token_expires_at: tokenExpiresAt,
-      scopes: ["webmasters.readonly", "analytics.readonly"],
+      scopes: ["webmasters", "analytics.readonly", "analytics.edit", "tagmanager.edit.containers"],
       updated_at: new Date().toISOString(),
     };
 

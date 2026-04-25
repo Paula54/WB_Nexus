@@ -169,12 +169,116 @@ Deno.serve(async (req) => {
     const streamData = await streamRes.json();
     const measurementId = streamData?.webStreamData?.measurementId || null;
 
-    // Save measurement ID + property ID
+    // ============= GTM PROVISIONING =============
+    // 1. Find or create a GTM Account
+    // 2. Create a Container (web) inside that account
+    // 3. Create a workspace + GA4 Configuration tag using the measurementId
+    // 4. Create the All Pages trigger and bind it
+    // 5. Return public ID (GTM-XXXXXX)
+    let gtmContainerPublicId: string | null = null;
+    try {
+      const gtmHost = "https://tagmanager.googleapis.com/tagmanager/v2";
+
+      // List existing GTM accounts
+      const accListRes = await fetch(`${gtmHost}/accounts`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      const accListData = await accListRes.json();
+      let gtmAccountPath: string | null = accListData?.account?.[0]?.path || null;
+
+      // Create one if none exists
+      if (!gtmAccountPath) {
+        const createAccRes = await fetch(`${gtmHost}/accounts`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ name: displayName, shareData: false }),
+        });
+        const createAccData = await createAccRes.json();
+        gtmAccountPath = createAccData?.path || null;
+      }
+
+      if (gtmAccountPath) {
+        // Create container (web)
+        const domainName = siteUrl.replace(/^https?:\/\//, "").replace(/\/$/, "");
+        const containerRes = await fetch(`${gtmHost}/${gtmAccountPath}/containers`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            name: displayName,
+            usageContext: ["web"],
+            domainName: [domainName],
+          }),
+        });
+        const containerData = await containerRes.json();
+        gtmContainerPublicId = containerData?.publicId || null; // GTM-XXXXXX
+        const containerPath = containerData?.path; // accounts/X/containers/Y
+
+        // Provision GA4 Config tag in default workspace (best-effort)
+        if (containerPath && measurementId) {
+          try {
+            const wsRes = await fetch(`${gtmHost}/${containerPath}/workspaces`, {
+              headers: { Authorization: `Bearer ${accessToken}` },
+            });
+            const wsData = await wsRes.json();
+            const workspacePath = wsData?.workspace?.[0]?.path;
+
+            if (workspacePath) {
+              // Create All Pages trigger
+              const trigRes = await fetch(`${gtmHost}/${workspacePath}/triggers`, {
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${accessToken}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ name: "All Pages", type: "pageview" }),
+              });
+              const trigData = await trigRes.json();
+              const triggerId = trigData?.triggerId;
+
+              // Create GA4 Configuration tag
+              await fetch(`${gtmHost}/${workspacePath}/tags`, {
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${accessToken}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  name: "GA4 Configuration",
+                  type: "gaawc",
+                  parameter: [
+                    { type: "template", key: "measurementId", value: measurementId },
+                    { type: "boolean", key: "sendPageView", value: "true" },
+                  ],
+                  firingTriggerId: triggerId ? [triggerId] : [],
+                }),
+              });
+            }
+          } catch (tagErr) {
+            console.warn("GTM tag provisioning failed:", tagErr);
+          }
+        }
+      }
+    } catch (gtmErr) {
+      console.warn("GTM provisioning failed (non-fatal):", gtmErr);
+    }
+
+    // Save measurement ID + property ID + GTM container
+    const projectUpdate: Record<string, string> = {};
     if (measurementId) {
-      await admin
-        .from("projects")
-        .update({ google_analytics_id: measurementId, measurement_id: measurementId })
-        .eq("id", project.id);
+      projectUpdate.google_analytics_id = measurementId;
+      projectUpdate.measurement_id = measurementId;
+    }
+    if (gtmContainerPublicId) {
+      projectUpdate.gtm_container_id = gtmContainerPublicId;
+    }
+    if (Object.keys(projectUpdate).length > 0) {
+      await admin.from("projects").update(projectUpdate).eq("id", project.id);
     }
     await admin
       .from("google_analytics_connections")
@@ -196,7 +300,10 @@ Deno.serve(async (req) => {
       success: true,
       propertyId,
       measurementId,
-      message: "Google Analytics criado e configurado com sucesso!",
+      gtmContainerId: gtmContainerPublicId,
+      message: gtmContainerPublicId
+        ? "Google Analytics + GTM criados e configurados com sucesso!"
+        : "Google Analytics criado. GTM não foi provisionado (verifica permissões).",
     }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
