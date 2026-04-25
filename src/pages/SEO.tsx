@@ -63,12 +63,38 @@ export default function SEO() {
   const [scLoading, setScLoading] = useState(false);
   const [scData, setScData] = useState<ScData | null>(null);
   const [scConnected, setScConnected] = useState<boolean | null>(null);
+  const [hasGA4, setHasGA4] = useState<boolean | null>(null);
+  const [creatingGA4, setCreatingGA4] = useState(false);
 
   // Meta tag generator
   const [metaLoading, setMetaLoading] = useState(false);
   const [metaSuggestions, setMetaSuggestions] = useState<MetaSuggestion[] | null>(null);
 
   useEffect(() => { fetchProjectDomain(); }, [user]);
+
+  // Handle OAuth callback flags (auto-verify SC + GA4 detection)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("google_analytics_connected") === "true") {
+      const autoVerified = params.get("sc_auto_verified") === "1";
+      const ga4 = params.get("has_ga4") === "1";
+      setHasGA4(ga4);
+      toast({
+        title: "Inteligência Google ativada ✅",
+        description: autoVerified
+          ? "Site adicionado automaticamente ao Search Console."
+          : "Liga concluída. Pode ser necessário verificar o site manualmente.",
+      });
+      window.history.replaceState({}, "", window.location.pathname);
+    } else if (params.get("google_analytics_error")) {
+      toast({
+        variant: "destructive",
+        title: "Erro Google",
+        description: params.get("google_analytics_error") || "",
+      });
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, []);
 
   async function fetchProjectDomain() {
     if (!user) return;
@@ -159,6 +185,38 @@ export default function SEO() {
       });
     } finally {
       setScLoading(false);
+    }
+  };
+
+  const handleCreateGA4 = async () => {
+    setCreatingGA4(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("create-ga4-property", { body: {} });
+      if (error) throw error;
+      if (data?.needsAccount) {
+        toast({
+          title: "Cria a conta Google Analytics primeiro",
+          description: data.message,
+        });
+        window.open(data.accountUrl, "_blank");
+        return;
+      }
+      if (data?.error) throw new Error(data.error);
+      setHasGA4(true);
+      toast({
+        title: "Google Analytics criado ✅",
+        description: data?.measurementId
+          ? `Measurement ID: ${data.measurementId}`
+          : "Propriedade GA4 configurada.",
+      });
+    } catch (e) {
+      toast({
+        variant: "destructive",
+        title: "Erro a criar GA4",
+        description: e instanceof Error ? e.message : "Falha desconhecida.",
+      });
+    } finally {
+      setCreatingGA4(false);
     }
   };
 
@@ -404,14 +462,14 @@ export default function SEO() {
                     <BarChart3 className="h-8 w-8 text-blue-500 shrink-0" />
                     <div className="space-y-3 flex-1">
                       <div>
-                        <h3 className="font-semibold text-foreground">Conecta o Google Search Console</h3>
+                        <h3 className="font-semibold text-foreground">Ativa a Inteligência Google para o teu Site</h3>
                         <p className="text-sm text-muted-foreground mt-1">
-                          Liga a tua conta Google para puxar dados reais de Cliques, Impressões, CTR e Posição Média das tuas keywords.
+                          O Nexus liga-se à tua conta Google e tenta verificar automaticamente o teu site no Search Console. Depois puxamos dados reais de Cliques, Impressões, CTR e Posição Média.
                         </p>
                       </div>
                       <Button onClick={handleConnectSearchConsole}>
                         <LinkIcon className="h-4 w-4 mr-2" />
-                        Conectar Google Search Console
+                        Ativar Inteligência Google para o meu Site
                       </Button>
                     </div>
                   </div>
@@ -436,6 +494,32 @@ export default function SEO() {
                     </div>
                   </CardContent>
                 </Card>
+
+                {hasGA4 === false && (
+                  <Card className="glass border-primary/30 bg-primary/5">
+                    <CardContent className="pt-6">
+                      <div className="flex items-start gap-4">
+                        <Sparkles className="h-8 w-8 text-primary shrink-0" />
+                        <div className="space-y-3 flex-1">
+                          <div>
+                            <h3 className="font-semibold text-foreground">Ainda não tens Google Analytics</h3>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              O Nexus pode criar e configurar uma propriedade GA4 para o teu site automaticamente — sem teres de mexer em painéis técnicos.
+                            </p>
+                          </div>
+                          <Button onClick={handleCreateGA4} disabled={creatingGA4}>
+                            {creatingGA4 ? (
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            ) : (
+                              <Sparkles className="h-4 w-4 mr-2" />
+                            )}
+                            IA: Criar e Configurar Google Analytics para mim
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
 
                 {scData?.needsSiteUrl && scData.sites && (
                   <Card className="glass">
