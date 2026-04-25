@@ -81,6 +81,14 @@ export default function SEO() {
 
   useEffect(() => { fetchProjectDomain(); }, [user]);
 
+  // Auto-fetch GA4 traffic when connected
+  useEffect(() => {
+    if (scConnected) {
+      handleFetchGA4();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scConnected]);
+
   // Handle OAuth callback flags (auto-verify SC + GA4 detection)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
