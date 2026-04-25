@@ -374,6 +374,43 @@ export default function LegalPagesTab() {
 
   return (
     <div className="space-y-6">
+      {/* Dados detetados — transparência ao utilizador */}
+      <Card className="glass border-primary/20">
+        <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2 pb-3">
+          <div>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Building2 className="h-5 w-5 text-primary" />
+              Dados recolhidos do Perfil da Empresa
+            </CardTitle>
+            <CardDescription>
+              Estes dados são usados nos documentos legais. Para alterar, edita em{" "}
+              <Link to="/settings" className="text-primary underline">Dados da Empresa</Link>.
+            </CardDescription>
+          </div>
+          <Button size="sm" variant="outline" onClick={handleRefresh} disabled={refreshing}>
+            {refreshing ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-1" />}
+            Atualizar
+          </Button>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
+          {[
+            { label: "Denominação Social", value: businessData?.legal_name },
+            { label: "NIF", value: businessData?.nif },
+            { label: "Telefone", value: businessData?.phone },
+            { label: "Email", value: businessData?.email },
+            { label: "Morada", value: [businessData?.address_line1, businessData?.postal_code, businessData?.city].filter(Boolean).join(", ") },
+            { label: "Website", value: businessData?.website },
+          ].map((item) => (
+            <div key={item.label} className="flex justify-between gap-2 border-b border-border/40 py-1">
+              <span className="text-muted-foreground">{item.label}:</span>
+              <span className={item.value ? "font-medium text-foreground text-right" : "italic text-muted-foreground/60"}>
+                {item.value || "— em falta —"}
+              </span>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+
       {missingFields.length > 0 && (
         <Card className="border-amber-500/30 bg-amber-500/5">
           <CardContent className="p-4 flex items-start gap-3">
@@ -381,7 +418,9 @@ export default function LegalPagesTab() {
             <div>
               <p className="text-sm font-medium">Dados em falta nos Dados da Empresa</p>
               <p className="text-xs text-muted-foreground mt-1">
-                Faltam: <strong>{missingFields.join(", ")}</strong>. Preenche em <em>Dados da Empresa</em> para gerar documentos completos. Podes na mesma editar e imprimir abaixo — a responsabilidade legal é da empresa contratante.
+                Faltam: <strong>{missingFields.join(", ")}</strong>. Preenche em{" "}
+                <Link to="/settings" className="underline text-primary">Dados da Empresa</Link>{" "}
+                e clica em <em>Atualizar</em>. Podes na mesma editar e imprimir abaixo — a responsabilidade legal é da empresa contratante.
               </p>
             </div>
           </CardContent>
