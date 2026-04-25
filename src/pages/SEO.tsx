@@ -404,14 +404,14 @@ export default function SEO() {
                     <BarChart3 className="h-8 w-8 text-blue-500 shrink-0" />
                     <div className="space-y-3 flex-1">
                       <div>
-                        <h3 className="font-semibold text-foreground">Conecta o Google Search Console</h3>
+                        <h3 className="font-semibold text-foreground">Ativa a Inteligência Google para o teu Site</h3>
                         <p className="text-sm text-muted-foreground mt-1">
-                          Liga a tua conta Google para puxar dados reais de Cliques, Impressões, CTR e Posição Média das tuas keywords.
+                          O Nexus liga-se à tua conta Google e tenta verificar automaticamente o teu site no Search Console. Depois puxamos dados reais de Cliques, Impressões, CTR e Posição Média.
                         </p>
                       </div>
                       <Button onClick={handleConnectSearchConsole}>
                         <LinkIcon className="h-4 w-4 mr-2" />
-                        Conectar Google Search Console
+                        Ativar Inteligência Google para o meu Site
                       </Button>
                     </div>
                   </div>

@@ -228,7 +228,7 @@ export function PerformanceTab() {
           </p>
           <Button onClick={handleConnect} disabled={connecting} className="gap-2">
             {connecting ? <Loader2 className="h-4 w-4 animate-spin" /> : <ExternalLink className="h-4 w-4" />}
-            Conectar Google Analytics & Search Console
+            Ativar Inteligência Google para o meu Site
           </Button>
         </CardContent>
       </Card>
