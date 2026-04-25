@@ -167,12 +167,60 @@ Deno.serve(async (req) => {
 
     console.log("[publish-ad-campaign] Creating campaign on account:", accountId);
 
+    // Pre-check: verify Ad Account has a funding source (payment method) configured
+    try {
+      const acctRes = await fetch(
+        `https://graph.facebook.com/v21.0/${accountId}?fields=funding_source,account_status,currency,disable_reason&access_token=${encodeURIComponent(meta_access_token)}`
+      );
+      const acctJson = await acctRes.json();
+      if (acctJson?.error) {
+        const e = acctJson.error;
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: `Meta API: ${e.error_user_msg || e.message || "Não foi possível ler a Conta de Anúncios"}`,
+            meta_error: e,
+            hint: "Verifica se o token tem 'ads_management' e 'ads_read' e se tens acesso a esta Ad Account.",
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      // account_status: 1 = ACTIVE; anything else means not usable
+      if (acctJson.account_status && acctJson.account_status !== 1) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: `A Conta de Anúncios Meta não está ativa (status ${acctJson.account_status}).`,
+            requires_payment_setup: true,
+            payment_setup_url: `https://business.facebook.com/billing_hub/payment_settings?asset_id=${cleanAccountId}`,
+            hint: "Abre o Meta Business Suite → Centro de Faturação e ativa/configura a conta antes de publicar.",
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      if (!acctJson.funding_source) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: "A tua Conta de Anúncios Meta não tem método de pagamento configurado.",
+            requires_payment_setup: true,
+            payment_setup_url: `https://business.facebook.com/billing_hub/payment_settings?asset_id=${cleanAccountId}`,
+            hint: "Adiciona um cartão ou outro método de pagamento na Meta antes de publicar a campanha.",
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    } catch (e) {
+      console.warn("[publish-ad-campaign] funding_source check failed (continuing):", e);
+    }
+
     // Step 1: Create Campaign — use form-encoded body (Meta API preference) and OUTCOME_TRAFFIC
     const campaignParams = new URLSearchParams({
       name: `Nexus Campaign - ${new Date().toISOString().split("T")[0]}`,
       objective: "OUTCOME_TRAFFIC",
       status: "PAUSED",
       special_ad_categories: "[]",
+      is_adset_budget_sharing_enabled: "false",
       access_token: meta_access_token,
     });
 
