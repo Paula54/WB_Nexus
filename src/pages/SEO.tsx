@@ -66,6 +66,15 @@ export default function SEO() {
   const [hasGA4, setHasGA4] = useState<boolean | null>(null);
   const [creatingGA4, setCreatingGA4] = useState(false);
 
+  // GA4 Traffic
+  const [gaLoading, setGaLoading] = useState(false);
+  const [gaData, setGaData] = useState<{
+    hasProperty: boolean;
+    hasData?: boolean;
+    totals?: { sessions: number; users: number; pageviews: number; engagementRate: number };
+    error?: string;
+  } | null>(null);
+
   // Meta tag generator
   const [metaLoading, setMetaLoading] = useState(false);
   const [metaSuggestions, setMetaSuggestions] = useState<MetaSuggestion[] | null>(null);
