@@ -227,61 +227,67 @@ export default function LegalPagesTab() {
   const { user } = useAuth();
   const [businessData, setBusinessData] = useState<BusinessData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState<PageType | null>(null);
   const [activePreview, setActivePreview] = useState<PageType>("privacidade");
   const [editing, setEditing] = useState<Record<PageType, boolean>>({ privacidade: false, termos: false, cookies: false });
   const [drafts, setDrafts] = useState<Record<PageType, string | null>>({ privacidade: null, termos: null, cookies: null });
   const printRef = useRef<HTMLDivElement>(null);
 
+  const loadBusinessData = async () => {
+    if (!user) return;
+    // Use select("*") to survive any schema variation between dev and prod.
+    const [businessProfiles, projects, profiles] = await Promise.all([
+      supabase.from("business_profiles").select("*").eq("user_id", user.id).order("updated_at", { ascending: false }).limit(5),
+      supabase.from("projects").select("*").eq("user_id", user.id).order("updated_at", { ascending: false }).limit(5),
+      supabase.from("profiles").select("*").eq("user_id", user.id).order("updated_at", { ascending: false }).limit(1),
+    ]);
+
+    const sources = [
+      ...((businessProfiles.data || []) as BusinessSource[]),
+      ...((projects.data || []) as BusinessSource[]),
+      ...((profiles.data || []) as BusinessSource[]),
+    ];
+
+    console.info("[LegalPagesTab] Sources fetched:", {
+      business_profiles: businessProfiles.data?.length || 0,
+      projects: projects.data?.length || 0,
+      profiles: profiles.data?.length || 0,
+      bp_error: businessProfiles.error?.message,
+      proj_error: projects.error?.message,
+    });
+
+    const normalized = normalizeBusinessData(sources, user.email || "");
+    setBusinessData(normalized);
+
+    // Load saved overrides if any
+    const { data: pages } = await supabase
+      .from("compliance_pages")
+      .select("page_type, content")
+      .eq("user_id", user.id);
+
+    if (pages?.length) {
+      const next: Record<PageType, string | null> = { privacidade: null, termos: null, cookies: null };
+      for (const row of pages as Array<{ page_type: string; content: string }>) {
+        if (row.page_type in next) next[row.page_type as PageType] = row.content;
+      }
+      setDrafts(next);
+    }
+  };
+
   useEffect(() => {
     if (!user) return;
-    (async () => {
-      const [businessProfiles, projects, profiles] = await Promise.all([
-        supabase
-          .from("business_profiles")
-          .select("legal_name, trade_name, nif, address_line1, postal_code, city, country, email, phone, website")
-          .eq("user_id", user.id)
-          .order("updated_at", { ascending: false })
-          .limit(5),
-        supabase
-          .from("projects")
-          .select("legal_name, business_name, trade_name, name, nif, address_line1, postal_code, city, country, email, phone, website")
-          .eq("user_id", user.id)
-          .order("updated_at", { ascending: false })
-          .limit(5),
-        supabase
-          .from("profiles")
-          .select("full_name, company_name, contact_email")
-          .eq("user_id", user.id)
-          .order("updated_at", { ascending: false })
-          .limit(1),
-      ]);
-
-      const sources = [
-        ...((businessProfiles.data || []) as BusinessSource[]),
-        ...((projects.data || []) as BusinessSource[]),
-        ...((profiles.data || []) as BusinessSource[]),
-      ];
-
-      setBusinessData(normalizeBusinessData(sources, user.email || ""));
-
-      // Load saved overrides if any
-      const { data: pages } = await supabase
-        .from("compliance_pages")
-        .select("page_type, content")
-        .eq("user_id", user.id);
-
-      if (pages?.length) {
-        const next: Record<PageType, string | null> = { privacidade: null, termos: null, cookies: null };
-        for (const row of pages as Array<{ page_type: string; content: string }>) {
-          if (row.page_type in next) next[row.page_type as PageType] = row.content;
-        }
-        setDrafts(next);
-      }
-
-      setLoading(false);
-    })();
+    setLoading(true);
+    loadBusinessData().finally(() => setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadBusinessData();
+    setRefreshing(false);
+    toast({ title: "Dados atualizados ✅", description: "Recolhidos do perfil da empresa." });
+  };
 
   const missingFields = useMemo(() => {
     if (!businessData) return [];
