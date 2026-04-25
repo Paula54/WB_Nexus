@@ -63,10 +63,46 @@ export default function CampaignCreateDialog({
     subcode?: number | string;
     fbtrace_id?: string;
     hint?: string;
-    requires_payment_setup?: boolean;
-    payment_setup_url?: string;
+    requires_wallet_topup?: boolean;
+    wallet_balance?: number;
+    required_amount?: number;
+    missing_amount?: number;
+    breakdown?: {
+      daily_budget: number;
+      days_pre_auth: number;
+      total_budget: number;
+      service_fee: number;
+      markup_pct: number;
+    };
     raw?: unknown;
   } | null>(null);
+  const [toppingUp, setToppingUp] = useState(false);
+
+  async function handleTopupWallet() {
+    if (!metaError?.missing_amount) return;
+    setToppingUp(true);
+    try {
+      const amount = Math.max(5, Math.ceil(metaError.missing_amount));
+      const { data, error } = await supabase.functions.invoke("wallet-topup", {
+        body: { amount: String(amount) },
+      });
+      if (error) throw new Error(error.message);
+      if (data?.url) {
+        window.location.href = data.url;
+        return;
+      }
+      throw new Error("Sessão de pagamento inválida.");
+    } catch (e) {
+      console.error("topup error", e);
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Não foi possível iniciar o carregamento da Wallet.",
+      });
+    } finally {
+      setToppingUp(false);
+    }
+  }
 
   function resetForm() {
     setStep("brief");
@@ -183,16 +219,19 @@ export default function CampaignCreateDialog({
         const publishResult = await response.json().catch(() => null);
 
         if (publishResult?.success) {
-          toast({ title: "🚀 Campanha publicada na Meta Ads!" });
+          toast({
+            title: "🚀 Campanha publicada!",
+            description: publishResult.message || `Debitámos ${publishResult.wallet_charged?.toFixed(2)}€ da tua Wallet Nexus.`,
+          });
           handleOpenChange(false);
           onCreated();
           return;
         }
 
-        // Failure — extract Meta detail
+        // Failure — extract Meta detail or wallet topup
         const metaErr = publishResult?.meta_error || {};
         setMetaError({
-          message: publishResult?.error || "Falha ao publicar na Meta Ads.",
+          message: publishResult?.error || "Falha ao publicar a campanha.",
           user_msg: metaErr.error_user_msg,
           user_title: metaErr.error_user_title,
           code: metaErr.code,
@@ -200,16 +239,19 @@ export default function CampaignCreateDialog({
           type: metaErr.type,
           fbtrace_id: metaErr.fbtrace_id,
           hint: publishResult?.hint,
-          requires_payment_setup: publishResult?.requires_payment_setup,
-          payment_setup_url: publishResult?.payment_setup_url,
+          requires_wallet_topup: publishResult?.requires_wallet_topup,
+          wallet_balance: publishResult?.wallet_balance,
+          required_amount: publishResult?.required_amount,
+          missing_amount: publishResult?.missing_amount,
+          breakdown: publishResult?.breakdown,
           raw: publishResult,
         });
         toast({
           variant: "destructive",
-          title: publishResult?.requires_payment_setup
-            ? "Configura o método de pagamento"
-            : metaErr.error_user_title || "Erro Meta API",
-          description: metaErr.error_user_msg || publishResult?.error || "Ver detalhes abaixo.",
+          title: publishResult?.requires_wallet_topup
+            ? "💰 Saldo insuficiente na Wallet Nexus"
+            : metaErr.error_user_title || "Erro ao publicar",
+          description: publishResult?.error || metaErr.error_user_msg || "Ver detalhes abaixo.",
         });
         // Keep dialog open so user sees the detailed panel
       } catch (err: any) {
@@ -365,19 +407,28 @@ export default function CampaignCreateDialog({
               />
             </div>
 
-            {platform === "meta" && metaConnected && !metaError && (
-              <p className="text-xs text-primary flex items-center gap-1">
-                ✅ A campanha será publicada diretamente na Meta Ads
-              </p>
+            {platform === "meta" && metaConnected && !metaError && dailyBudget && (
+              <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-xs space-y-1">
+                <p className="font-semibold text-primary">💰 Pré-autorização da Wallet Nexus</p>
+                <p className="text-muted-foreground">
+                  Orçamento: <strong>{(parseFloat(dailyBudget) || 0).toFixed(2)}€/dia × 7 dias</strong> = {((parseFloat(dailyBudget) || 0) * 7).toFixed(2)}€
+                </p>
+                <p className="text-muted-foreground">
+                  Taxa de gestão (15%): <strong>{((parseFloat(dailyBudget) || 0) * 7 * 0.15).toFixed(2)}€</strong>
+                </p>
+                <p className="text-foreground pt-1 border-t border-primary/20">
+                  Total a debitar: <strong className="text-primary">{((parseFloat(dailyBudget) || 0) * 7 * 1.15).toFixed(2)}€</strong>
+                </p>
+              </div>
             )}
 
             {metaError && (
               <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 space-y-2 text-xs">
                 <div className="flex items-center justify-between gap-2">
                   <p className="font-semibold text-destructive">
-                    {metaError.requires_payment_setup
-                      ? "💳 Método de pagamento em falta na Meta"
-                      : metaError.user_title || "Erro Meta API"}
+                    {metaError.requires_wallet_topup
+                      ? "💰 Saldo insuficiente na Wallet Nexus"
+                      : metaError.user_title || "Erro ao publicar"}
                   </p>
                   {metaError.code !== undefined && (
                     <span className="text-[10px] text-destructive/80">
@@ -386,36 +437,46 @@ export default function CampaignCreateDialog({
                     </span>
                   )}
                 </div>
+
+                {metaError.requires_wallet_topup && metaError.breakdown && (
+                  <div className="rounded bg-background/60 p-2 space-y-1 text-foreground">
+                    <p>Saldo atual: <strong>{metaError.wallet_balance?.toFixed(2)}€</strong></p>
+                    <p>Necessário: <strong>{metaError.required_amount?.toFixed(2)}€</strong> ({metaError.breakdown.daily_budget.toFixed(2)}€/dia × 7d + {metaError.breakdown.markup_pct}% taxa)</p>
+                    <p className="text-destructive">Em falta: <strong>{metaError.missing_amount?.toFixed(2)}€</strong></p>
+                  </div>
+                )}
+
                 {metaError.user_msg && (
                   <p className="text-foreground leading-relaxed">{metaError.user_msg}</p>
                 )}
-                <p className="text-muted-foreground">{metaError.message}</p>
-                {metaError.hint && (
+                {!metaError.requires_wallet_topup && (
+                  <p className="text-muted-foreground">{metaError.message}</p>
+                )}
+                {metaError.hint && !metaError.requires_wallet_topup && (
                   <p className="text-primary">💡 {metaError.hint}</p>
                 )}
-                {metaError.requires_payment_setup && metaError.payment_setup_url && (
-                  <a
-                    href={metaError.payment_setup_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 mt-1 px-3 py-2 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 transition"
+
+                {metaError.requires_wallet_topup && (
+                  <Button
+                    onClick={handleTopupWallet}
+                    disabled={toppingUp}
+                    className="w-full mt-1 gap-2"
+                    size="sm"
                   >
-                    Configurar pagamento na Meta →
-                  </a>
+                    {toppingUp ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-3 w-3" />
+                    )}
+                    Carregar Wallet Nexus ({Math.max(5, Math.ceil(metaError.missing_amount || 5))}€)
+                  </Button>
                 )}
+
                 {metaError.fbtrace_id && (
                   <p className="text-[10px] text-muted-foreground font-mono">
                     fbtrace_id: {metaError.fbtrace_id}
                   </p>
                 )}
-                <details className="mt-2">
-                  <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
-                    Ver resposta completa
-                  </summary>
-                  <pre className="mt-2 max-h-48 overflow-auto rounded bg-background/60 p-2 text-[10px] leading-snug">
-                    {JSON.stringify(metaError.raw, null, 2)}
-                  </pre>
-                </details>
               </div>
             )}
 
