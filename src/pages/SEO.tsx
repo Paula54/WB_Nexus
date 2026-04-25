@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Search, TrendingUp, AlertCircle, CheckCircle, Globe, Clock, Gauge,
   FileWarning, ArrowRight, BarChart3, MousePointerClick, Eye, Award,
-  Sparkles, Copy, Link as LinkIcon, Loader2,
+  Sparkles, Copy, Link as LinkIcon, Loader2, Users, Activity, Hourglass,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseCustom";
