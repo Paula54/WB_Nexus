@@ -63,10 +63,46 @@ export default function CampaignCreateDialog({
     subcode?: number | string;
     fbtrace_id?: string;
     hint?: string;
-    requires_payment_setup?: boolean;
-    payment_setup_url?: string;
+    requires_wallet_topup?: boolean;
+    wallet_balance?: number;
+    required_amount?: number;
+    missing_amount?: number;
+    breakdown?: {
+      daily_budget: number;
+      days_pre_auth: number;
+      total_budget: number;
+      service_fee: number;
+      markup_pct: number;
+    };
     raw?: unknown;
   } | null>(null);
+  const [toppingUp, setToppingUp] = useState(false);
+
+  async function handleTopupWallet() {
+    if (!metaError?.missing_amount) return;
+    setToppingUp(true);
+    try {
+      const amount = Math.max(5, Math.ceil(metaError.missing_amount));
+      const { data, error } = await supabase.functions.invoke("wallet-topup", {
+        body: { amount: String(amount) },
+      });
+      if (error) throw new Error(error.message);
+      if (data?.url) {
+        window.location.href = data.url;
+        return;
+      }
+      throw new Error("Sessão de pagamento inválida.");
+    } catch (e) {
+      console.error("topup error", e);
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Não foi possível iniciar o carregamento da Wallet.",
+      });
+    } finally {
+      setToppingUp(false);
+    }
+  }
 
   function resetForm() {
     setStep("brief");
