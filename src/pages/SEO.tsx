@@ -188,6 +188,38 @@ export default function SEO() {
     }
   };
 
+  const handleCreateGA4 = async () => {
+    setCreatingGA4(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("create-ga4-property", { body: {} });
+      if (error) throw error;
+      if (data?.needsAccount) {
+        toast({
+          title: "Cria a conta Google Analytics primeiro",
+          description: data.message,
+        });
+        window.open(data.accountUrl, "_blank");
+        return;
+      }
+      if (data?.error) throw new Error(data.error);
+      setHasGA4(true);
+      toast({
+        title: "Google Analytics criado ✅",
+        description: data?.measurementId
+          ? `Measurement ID: ${data.measurementId}`
+          : "Propriedade GA4 configurada.",
+      });
+    } catch (e) {
+      toast({
+        variant: "destructive",
+        title: "Erro a criar GA4",
+        description: e instanceof Error ? e.message : "Falha desconhecida.",
+      });
+    } finally {
+      setCreatingGA4(false);
+    }
+  };
+
   const handleGenerateMeta = async () => {
     if (!domain) return;
     setMetaLoading(true);
