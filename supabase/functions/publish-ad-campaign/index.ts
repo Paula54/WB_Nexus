@@ -7,8 +7,10 @@ const corsHeaders = {
 };
 
 // Modelo de Agência Centralizada
-const AGENCY_MARKUP = 0.15; // 15% sobre o orçamento
-const PRE_AUTH_DAYS = 7;    // pré-autoriza 7 dias
+const AGENCY_MARKUP = 0.15;       // 15% taxa de gestão sobre o orçamento
+const STRIPE_FEE_PCT = 0.014;     // 1.4% Stripe (cartões EU)
+const STRIPE_FEE_FIXED = 0.25;    // 0.25 € fixo Stripe
+const PRE_AUTH_DAYS = 7;          // pré-autoriza 7 dias
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -71,10 +73,13 @@ Deno.serve(async (req) => {
     }
 
     // ============= VERIFICAÇÃO DE SALDO NA WALLET NEXUS =============
+    // Cálculo: (budget × dias) + Taxa Agência (15%) + Taxa Stripe (1.4% + 0.25€)
     const dailyBudgetNum = Number(daily_budget);
     const totalBudget = dailyBudgetNum * PRE_AUTH_DAYS;
     const serviceFee = totalBudget * AGENCY_MARKUP;
-    const requiredAmount = +(totalBudget + serviceFee).toFixed(2);
+    const subtotal = totalBudget + serviceFee;
+    const stripeFee = +(subtotal * STRIPE_FEE_PCT + STRIPE_FEE_FIXED).toFixed(2);
+    const requiredAmount = +(subtotal + stripeFee).toFixed(2);
 
     const { data: txs, error: txError } = await adminClient
       .from("wallet_transactions")
@@ -101,6 +106,7 @@ Deno.serve(async (req) => {
           days_pre_auth: PRE_AUTH_DAYS,
           total_budget: +totalBudget.toFixed(2),
           service_fee: +serviceFee.toFixed(2),
+          stripe_fee: stripeFee,
           markup_pct: AGENCY_MARKUP * 100,
         },
         hint: `Carrega pelo menos ${(requiredAmount - balance).toFixed(2)} € na tua Wallet Nexus para publicar esta campanha.`,
@@ -177,18 +183,17 @@ Deno.serve(async (req) => {
       });
     }
 
-    // ============= DÉBITO DA WALLET (pré-autorização) =============
+    // ============= DÉBITO DA WALLET (HOLD / pré-autorização) =============
     const { error: debitError } = await adminClient.from("wallet_transactions").insert({
       user_id: userId,
       amount: -requiredAmount,
       type: "ad_campaign_hold",
-      description: `Pré-autorização campanha Meta (7d × ${dailyBudgetNum.toFixed(2)}€ + 15% taxa de gestão)`,
+      description: `HOLD campanha Meta (7d × ${dailyBudgetNum.toFixed(2)}€ + 15% gestão + taxa Stripe ${stripeFee.toFixed(2)}€)`,
       reference_id: metaCampaignId,
     });
 
     if (debitError) {
       console.error("[publish-ad-campaign] wallet debit error:", debitError);
-      // Campanha ficou em PAUSED na Meta sem débito → ainda assim avisa
       return json({
         success: false,
         error: "Campanha criada mas não foi possível debitar a Wallet. Contacta o suporte.",
@@ -196,17 +201,22 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Atualiza registo local
+    // Atualiza registo local — status 'hold' até a Meta confirmar publicação ativa
     if (campaign_id) {
       await adminClient
         .from("ads_campaigns")
         .update({
+          status: "hold",
           metrics: {
             impressions: 0, clicks: 0, conversions: 0, spend: 0,
             meta_campaign_id: metaCampaignId,
             meta_adset_id: adSetResult.id || null,
             wallet_pre_auth: requiredAmount,
             service_fee: +serviceFee.toFixed(2),
+            stripe_fee: stripeFee,
+            hold_started_at: new Date().toISOString(),
+            pre_auth_days: PRE_AUTH_DAYS,
+            daily_budget: dailyBudgetNum,
           },
         })
         .eq("id", campaign_id);
@@ -214,11 +224,13 @@ Deno.serve(async (req) => {
 
     return json({
       success: true,
+      status: "hold",
       meta_campaign_id: metaCampaignId,
       meta_adset_id: adSetResult.id || null,
       wallet_charged: requiredAmount,
       service_fee: +serviceFee.toFixed(2),
-      message: `Campanha criada! Debitámos ${requiredAmount.toFixed(2)}€ da tua Wallet Nexus (7 dias × ${dailyBudgetNum.toFixed(2)}€ + 15% taxa).`,
+      stripe_fee: stripeFee,
+      message: `Campanha em HOLD! Reservámos ${requiredAmount.toFixed(2)}€ na tua Wallet (7d × ${dailyBudgetNum.toFixed(2)}€ + 15% gestão + ${stripeFee.toFixed(2)}€ Stripe). Será debitado conforme a Meta reportar gasto real; o restante volta automaticamente à Wallet se cancelares.`,
     });
   } catch (error) {
     console.error("[publish-ad-campaign] internal error:", error);
