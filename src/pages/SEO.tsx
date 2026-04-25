@@ -63,12 +63,38 @@ export default function SEO() {
   const [scLoading, setScLoading] = useState(false);
   const [scData, setScData] = useState<ScData | null>(null);
   const [scConnected, setScConnected] = useState<boolean | null>(null);
+  const [hasGA4, setHasGA4] = useState<boolean | null>(null);
+  const [creatingGA4, setCreatingGA4] = useState(false);
 
   // Meta tag generator
   const [metaLoading, setMetaLoading] = useState(false);
   const [metaSuggestions, setMetaSuggestions] = useState<MetaSuggestion[] | null>(null);
 
   useEffect(() => { fetchProjectDomain(); }, [user]);
+
+  // Handle OAuth callback flags (auto-verify SC + GA4 detection)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("google_analytics_connected") === "true") {
+      const autoVerified = params.get("sc_auto_verified") === "1";
+      const ga4 = params.get("has_ga4") === "1";
+      setHasGA4(ga4);
+      toast({
+        title: "Inteligência Google ativada ✅",
+        description: autoVerified
+          ? "Site adicionado automaticamente ao Search Console."
+          : "Liga concluída. Pode ser necessário verificar o site manualmente.",
+      });
+      window.history.replaceState({}, "", window.location.pathname);
+    } else if (params.get("google_analytics_error")) {
+      toast({
+        variant: "destructive",
+        title: "Erro Google",
+        description: params.get("google_analytics_error") || "",
+      });
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, []);
 
   async function fetchProjectDomain() {
     if (!user) return;
