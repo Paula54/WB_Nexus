@@ -375,7 +375,9 @@ export default function CampaignCreateDialog({
               <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 space-y-2 text-xs">
                 <div className="flex items-center justify-between gap-2">
                   <p className="font-semibold text-destructive">
-                    {metaError.user_title || "Erro Meta API"}
+                    {metaError.requires_payment_setup
+                      ? "💳 Método de pagamento em falta na Meta"
+                      : metaError.user_title || "Erro Meta API"}
                   </p>
                   {metaError.code !== undefined && (
                     <span className="text-[10px] text-destructive/80">
@@ -390,6 +392,16 @@ export default function CampaignCreateDialog({
                 <p className="text-muted-foreground">{metaError.message}</p>
                 {metaError.hint && (
                   <p className="text-primary">💡 {metaError.hint}</p>
+                )}
+                {metaError.requires_payment_setup && metaError.payment_setup_url && (
+                  <a
+                    href={metaError.payment_setup_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 mt-1 px-3 py-2 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 transition"
+                  >
+                    Configurar pagamento na Meta →
+                  </a>
                 )}
                 {metaError.fbtrace_id && (
                   <p className="text-[10px] text-muted-foreground font-mono">
