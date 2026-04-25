@@ -7,7 +7,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/lib/supabaseCustom";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
-import { FileText, Eye, Save, Loader2, AlertTriangle, Printer, Pencil, Lock, RotateCcw } from "lucide-react";
+import { FileText, Eye, Save, Loader2, AlertTriangle, Printer, Pencil, Lock, RotateCcw, RefreshCw, Building2 } from "lucide-react";
+import { Link } from "react-router-dom";
 
 interface BusinessData {
   legal_name: string;
