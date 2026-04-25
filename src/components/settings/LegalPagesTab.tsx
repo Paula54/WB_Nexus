@@ -1,12 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/lib/supabaseCustom";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
-import { FileText, Eye, Save, Loader2, AlertTriangle } from "lucide-react";
+import { FileText, Eye, Save, Loader2, AlertTriangle, Printer, Pencil, Lock, RotateCcw } from "lucide-react";
 
 interface BusinessData {
   legal_name: string;
@@ -16,6 +17,9 @@ interface BusinessData {
   postal_code: string;
   city: string;
   country: string;
+  email: string;
+  phone: string;
+  website: string;
 }
 
 type PageType = "privacidade" | "termos" | "cookies";
@@ -26,18 +30,23 @@ const PAGE_LABELS: Record<PageType, string> = {
   cookies: "Política de Cookies",
 };
 
-function generateTemplate(type: PageType, data: BusinessData): string {
-  const name = data.business_name || data.legal_name || "[Nome da Empresa]";
-  const legalName = data.legal_name || "[Denominação Social]";
-  const nif = data.nif || "[NIF]";
-  const address = [data.address_line1, data.postal_code, data.city, data.country].filter(Boolean).join(", ") || "[Morada]";
-  const email = "[email]";
-  const phone = "[telefone]";
-  const website = "[website]";
+const EMPTY_BUSINESS: BusinessData = {
+  legal_name: "", business_name: "", nif: "", address_line1: "",
+  postal_code: "", city: "", country: "Portugal",
+  email: "", phone: "", website: "",
+};
+
+function generatePrivacy(d: BusinessData): string {
+  const name = d.business_name || d.legal_name || "[Nome da Empresa]";
+  const legalName = d.legal_name || "[Denominação Social]";
+  const nif = d.nif || "[NIF]";
+  const address = [d.address_line1, d.postal_code, d.city, d.country].filter(Boolean).join(", ") || "[Morada]";
+  const email = d.email || "[email]";
+  const phone = d.phone || "[telefone]";
+  const website = d.website || "[website]";
   const complaints = "https://www.livroreclamacoes.pt";
 
-  if (type === "privacidade") {
-    return `# Política de Privacidade — ${name}
+  return `# Política de Privacidade — ${name}
 
 **Última atualização:** ${new Date().toLocaleDateString("pt-PT")}
 
@@ -75,10 +84,19 @@ Disponível em: ${complaints}
 
 ---
 ${name} | ${website}`;
-  }
+}
 
-  if (type === "termos") {
-    return `# Termos e Condições — ${name}
+function generateTerms(d: BusinessData): string {
+  const name = d.business_name || d.legal_name || "[Nome da Empresa]";
+  const legalName = d.legal_name || "[Denominação Social]";
+  const nif = d.nif || "[NIF]";
+  const address = [d.address_line1, d.postal_code, d.city, d.country].filter(Boolean).join(", ") || "[Morada]";
+  const email = d.email || "[email]";
+  const phone = d.phone || "[telefone]";
+  const website = d.website || "[website]";
+  const complaints = "https://www.livroreclamacoes.pt";
+
+  return `# Termos e Condições — ${name}
 
 **Última atualização:** ${new Date().toLocaleDateString("pt-PT")}
 
@@ -95,7 +113,7 @@ Estes termos regulam o acesso e utilização dos serviços prestados por ${name}
 A utilização dos serviços implica a aceitação plena destes termos.
 
 ## 4. Serviços
-${name} fornece serviços de marketing digital e gestão empresarial através da sua plataforma online.
+${name} fornece serviços através do seu website e canais de comunicação oficiais.
 
 ## 5. Obrigações do Utilizador
 O utilizador compromete-se a:
@@ -104,53 +122,74 @@ O utilizador compromete-se a:
 - Manter a confidencialidade das suas credenciais
 
 ## 6. Propriedade Intelectual
-Todo o conteúdo da plataforma é propriedade de ${legalName}.
+Todo o conteúdo é propriedade de ${legalName}.
 
 ## 7. Responsabilidade
 ${name} não se responsabiliza por danos indiretos decorrentes da utilização dos serviços.
 
 ## 8. Lei Aplicável
-Estes termos são regidos pela lei portuguesa. Foro: Comarca de ${data.city || "Lisboa"}.
+Estes termos são regidos pela lei portuguesa. Foro: Comarca de ${d.city || "Lisboa"}.
 
 ## 9. Livro de Reclamações
 Disponível em: ${complaints}
 
 ---
 ${name} | ${website}`;
-  }
+}
 
-  // cookies
+/** Política de Cookies fixa — descreve as cookies que a APP (Nexus Machine) utiliza nas suas ferramentas. Não editável pelo utilizador. */
+function generateCookies(d: BusinessData): string {
+  const name = d.business_name || d.legal_name || "o website";
   return `# Política de Cookies — ${name}
 
 **Última atualização:** ${new Date().toLocaleDateString("pt-PT")}
 
+Este website utiliza ferramentas da plataforma **Nexus Machine** (Web Business / Astrolábio Mágico Investimentos LDA) para funcionar, medir performance e otimizar a experiência do utilizador. Esta política descreve as cookies efetivamente instaladas pelas ferramentas técnicas da plataforma.
+
 ## 1. O que são Cookies?
-Cookies são pequenos ficheiros de texto armazenados no dispositivo do utilizador durante a navegação.
+Cookies são pequenos ficheiros de texto armazenados no dispositivo do utilizador durante a navegação, utilizados para garantir o funcionamento do site, recordar preferências e recolher estatísticas anónimas.
 
-## 2. Responsável
-**${legalName}**, NIF ${nif} — ${email}
+## 2. Cookies Essenciais (sempre ativas)
 
-## 3. Tipos de Cookies Utilizados
+| Nome | Origem | Finalidade | Duração |
+|------|--------|-----------|---------|
+| sb-access-token | Supabase (Nexus) | Autenticação e sessão do utilizador | Sessão |
+| sb-refresh-token | Supabase (Nexus) | Renovação segura de sessão | 7 dias |
+| nx_consent | Nexus Machine | Memoriza a escolha de consentimento de cookies | 12 meses |
 
-| Tipo | Finalidade | Duração |
-|------|-----------|---------|
-| Essenciais | Funcionamento do site | Sessão |
-| Analíticos | Estatísticas de utilização | 13 meses |
-| Marketing | Publicidade personalizada | 6 meses |
+## 3. Cookies Analíticas (sujeitas a consentimento)
 
-## 4. Gestão de Cookies
-Pode gerir as preferências de cookies através do banner de consentimento ou nas definições do browser.
+| Nome | Origem | Finalidade | Duração |
+|------|--------|-----------|---------|
+| _ga | Google Analytics 4 | Distinguir utilizadores únicos | 13 meses |
+| _ga_* | Google Analytics 4 | Persistência do estado da sessão GA4 | 13 meses |
+| _gid | Google Analytics | Distinguir utilizadores | 24 horas |
 
-## 5. Cookies de Terceiros
-Utilizamos serviços de terceiros que podem instalar cookies:
-- Google Analytics
-- Meta Pixel
+## 4. Cookies de Marketing (sujeitas a consentimento)
 
-## 6. Mais Informações
-Contacte-nos: ${email} | ${phone}
+| Nome | Origem | Finalidade | Duração |
+|------|--------|-----------|---------|
+| _fbp | Meta Pixel | Atribuição de campanhas e remarketing | 3 meses |
+| fr | Facebook | Entrega de anúncios e medição | 3 meses |
+| IDE | Google Ads | Medição de conversões e remarketing | 13 meses |
+
+## 5. Gestão de Cookies
+Pode aceitar, rejeitar ou alterar a sua escolha em qualquer momento através do banner de consentimento apresentado no site, ou nas definições do seu browser. A rejeição das cookies analíticas e de marketing não impede a utilização do site, apenas limita a personalização e a medição.
+
+## 6. Cookies de Terceiros
+Os serviços de terceiros utilizados (Google, Meta, Supabase) podem processar dados fora do EEE ao abrigo das Cláusulas Contratuais Tipo da Comissão Europeia.
+
+## 7. Mais Informações
+Para esclarecimentos sobre esta política de cookies, contacte o responsável pelo tratamento indicado na Política de Privacidade.
 
 ---
-${name} | ${website}`;
+Esta política descreve a configuração técnica padrão das ferramentas Nexus Machine e não pode ser editada pelo cliente, sendo gerida centralmente para garantir conformidade RGPD.`;
+}
+
+function generateTemplate(type: PageType, data: BusinessData): string {
+  if (type === "privacidade") return generatePrivacy(data);
+  if (type === "termos") return generateTerms(data);
+  return generateCookies(data);
 }
 
 export default function LegalPagesTab() {
@@ -159,80 +198,143 @@ export default function LegalPagesTab() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<PageType | null>(null);
   const [activePreview, setActivePreview] = useState<PageType>("privacidade");
+  const [editing, setEditing] = useState<Record<PageType, boolean>>({ privacidade: false, termos: false, cookies: false });
+  const [drafts, setDrafts] = useState<Record<PageType, string | null>>({ privacidade: null, termos: null, cookies: null });
+  const printRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const { data } = await supabase
+      // 1) Try business_profiles (canonical source)
+      const { data: bp } = await supabase
+        .from("business_profiles")
+        .select("legal_name, trade_name, nif, address_line1, postal_code, city, country, email, phone, website")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      // 2) Fallback / merge with projects
+      const { data: pj } = await supabase
         .from("projects")
-        .select("legal_name, business_name, nif, address_line1, postal_code, city, country, name")
+        .select("legal_name, business_name, name, nif, address_line1, postal_code, city, country, email, phone, website")
         .eq("user_id", user.id)
         .order("created_at", { ascending: true })
         .limit(1)
         .maybeSingle();
 
-      if (data) {
-        const d = data as Record<string, unknown>;
-        setBusinessData({
-          legal_name: (d.legal_name as string) || "",
-          business_name: (d.business_name as string) || (d.name as string) || "",
-          nif: (d.nif as string) || "",
-          address_line1: (d.address_line1 as string) || "",
-          postal_code: (d.postal_code as string) || "",
-          city: (d.city as string) || "",
-          country: (d.country as string) || "",
-        });
-      } else {
-        setBusinessData({
-          legal_name: "", business_name: "", nif: "", address_line1: "",
-          postal_code: "", city: "", country: "Portugal",
-        });
+      const b = (bp as Record<string, unknown> | null) || {};
+      const p = (pj as Record<string, unknown> | null) || {};
+
+      const pick = (k: string): string =>
+        (b[k] as string) || (p[k] as string) || "";
+
+      setBusinessData({
+        legal_name: pick("legal_name"),
+        business_name: (b.trade_name as string) || (p.business_name as string) || (p.name as string) || "",
+        nif: pick("nif"),
+        address_line1: pick("address_line1"),
+        postal_code: pick("postal_code"),
+        city: pick("city"),
+        country: pick("country") || "Portugal",
+        email: pick("email") || user.email || "",
+        phone: pick("phone"),
+        website: pick("website"),
+      });
+
+      // Load saved overrides if any
+      const { data: pages } = await supabase
+        .from("compliance_pages")
+        .select("page_type, content")
+        .eq("user_id", user.id);
+
+      if (pages?.length) {
+        const next: Record<PageType, string | null> = { privacidade: null, termos: null, cookies: null };
+        for (const row of pages as Array<{ page_type: string; content: string }>) {
+          if (row.page_type in next) next[row.page_type as PageType] = row.content;
+        }
+        setDrafts(next);
       }
+
       setLoading(false);
     })();
   }, [user]);
 
-  const missingFields = businessData
-    ? ["legal_name", "nif", "email"].filter((f) => !(businessData as Record<string, string>)[f])
-    : [];
+  const missingFields = useMemo(() => {
+    if (!businessData) return [];
+    const map: Record<string, string> = {
+      legal_name: "Nome Legal",
+      nif: "NIF",
+      email: "Email",
+      phone: "Telefone",
+      address_line1: "Morada",
+    };
+    return Object.entries(map)
+      .filter(([k]) => !(businessData as unknown as Record<string, string>)[k])
+      .map(([, label]) => label);
+  }, [businessData]);
+
+  const contentFor = (type: PageType): string => {
+    if (!businessData) return "";
+    if (type === "cookies") return generateCookies(businessData); // always fixed
+    return drafts[type] ?? generateTemplate(type, businessData);
+  };
 
   async function handleSave(type: PageType) {
-    if (!user || !businessData) return;
+    if (!user || !businessData || type === "cookies") return;
     setSaving(type);
+    const content = drafts[type] ?? generateTemplate(type, businessData);
 
-    const content = generateTemplate(type, businessData);
+    const { data: existing } = await supabase
+      .from("compliance_pages")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("page_type", type)
+      .maybeSingle();
 
-    const { error } = await supabase.from("compliance_pages" as string).upsert(
-      {
-        user_id: user.id,
-        page_type: type,
-        content,
-        status: "validated",
-        validated_at: new Date().toISOString(),
-      } as Record<string, unknown>,
-      { onConflict: "user_id,page_type" }
-    );
+    let error: unknown = null;
+    if (existing?.id) {
+      const r = await supabase
+        .from("compliance_pages")
+        .update({ content, status: "validated", validated_at: new Date().toISOString() })
+        .eq("id", existing.id);
+      error = r.error;
+    } else {
+      const r = await supabase
+        .from("compliance_pages")
+        .insert({ user_id: user.id, page_type: type, content, status: "validated", validated_at: new Date().toISOString() });
+      error = r.error;
+    }
 
     if (error) {
-      // If upsert with onConflict fails (no unique constraint), try delete+insert
-      await supabase.from("compliance_pages" as string).delete().eq("user_id", user.id).eq("page_type", type);
-      const { error: insertError } = await supabase.from("compliance_pages" as string).insert({
-        user_id: user.id,
-        page_type: type,
-        content,
-        status: "validated",
-        validated_at: new Date().toISOString(),
-      } as Record<string, unknown>);
-
-      if (insertError) {
-        toast({ variant: "destructive", title: "Erro", description: "Não foi possível guardar a página." });
-      } else {
-        toast({ title: "Página guardada ✅", description: `${PAGE_LABELS[type]} gerada e guardada.` });
-      }
+      toast({ variant: "destructive", title: "Erro", description: "Não foi possível guardar a página." });
     } else {
-      toast({ title: "Página guardada ✅", description: `${PAGE_LABELS[type]} gerada e guardada.` });
+      toast({ title: "Página guardada ✅", description: `${PAGE_LABELS[type]} atualizada.` });
+      setEditing((s) => ({ ...s, [type]: false }));
     }
     setSaving(null);
+  }
+
+  function handleResetToTemplate(type: PageType) {
+    if (!businessData) return;
+    setDrafts((s) => ({ ...s, [type]: generateTemplate(type, businessData) }));
+  }
+
+  function handlePrint(type: PageType) {
+    const content = contentFor(type);
+    const w = window.open("", "_blank", "width=900,height=700");
+    if (!w) return;
+    w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${PAGE_LABELS[type]}</title>
+<style>
+  body{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;max-width:780px;margin:40px auto;padding:0 24px;color:#111;line-height:1.55;}
+  h1{font-size:24px;border-bottom:2px solid #111;padding-bottom:8px;}
+  h2{font-size:16px;margin-top:24px;}
+  table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13px;}
+  th,td{border:1px solid #999;padding:6px 10px;text-align:left;}
+  th{background:#f3f3f3;}
+  hr{margin:24px 0;border:none;border-top:1px solid #ddd;}
+  ul{padding-left:20px;}
+</style></head><body>${markdownToHtml(content)}</body></html>`);
+    w.document.close();
+    setTimeout(() => w.print(), 300);
   }
 
   if (loading) {
@@ -246,9 +348,9 @@ export default function LegalPagesTab() {
           <CardContent className="p-4 flex items-start gap-3">
             <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm font-medium">Dados em falta</p>
+              <p className="text-sm font-medium">Dados em falta nos Dados da Empresa</p>
               <p className="text-xs text-muted-foreground mt-1">
-                Preenche os <strong>Dados da Empresa</strong> (Nome Legal, NIF, Email) para gerar documentos legais completos. Os campos em falta aparecerão como placeholders.
+                Faltam: <strong>{missingFields.join(", ")}</strong>. Preenche em <em>Dados da Empresa</em> para gerar documentos completos. Podes na mesma editar e imprimir abaixo — a responsabilidade legal é da empresa contratante.
               </p>
             </div>
           </CardContent>
@@ -264,44 +366,90 @@ export default function LegalPagesTab() {
           ))}
         </TabsList>
 
-        {(Object.keys(PAGE_LABELS) as PageType[]).map((type) => (
-          <TabsContent key={type} value={type}>
-            <Card className="glass">
-              <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <FileText className="h-5 w-5 text-primary" />
-                    {PAGE_LABELS[type]}
-                  </CardTitle>
-                  <CardDescription>Pré-visualização com os dados da empresa</CardDescription>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant="secondary" className="gap-1">
-                    <Eye className="h-3 w-3" />
-                    Preview
-                  </Badge>
-                  <Button
-                    size="sm"
-                    onClick={() => handleSave(type)}
-                    disabled={saving === type}
-                  >
-                    {saving === type ? (
-                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+        {(Object.keys(PAGE_LABELS) as PageType[]).map((type) => {
+          const isCookies = type === "cookies";
+          const isEditing = editing[type];
+          const content = contentFor(type);
+
+          return (
+            <TabsContent key={type} value={type}>
+              <Card className="glass">
+                <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
+                  <div>
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <FileText className="h-5 w-5 text-primary" />
+                      {PAGE_LABELS[type]}
+                    </CardTitle>
+                    <CardDescription>
+                      {isCookies
+                        ? "Política técnica fixa — gerida pela Nexus Machine para garantir conformidade RGPD."
+                        : "A responsabilidade legal é da empresa contratante. Podes editar livremente."}
+                    </CardDescription>
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {isCookies ? (
+                      <Badge variant="secondary" className="gap-1">
+                        <Lock className="h-3 w-3" /> Não editável
+                      </Badge>
                     ) : (
-                      <Save className="h-4 w-4 mr-1" />
+                      <Badge variant="secondary" className="gap-1">
+                        <Eye className="h-3 w-3" /> {isEditing ? "A editar" : "Preview"}
+                      </Badge>
                     )}
-                    Guardar
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="prose prose-sm dark:prose-invert max-w-none border rounded-lg p-6 bg-background/50 max-h-[500px] overflow-y-auto">
-                  {businessData && renderMarkdown(generateTemplate(type, businessData))}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        ))}
+
+                    {!isCookies && (
+                      <>
+                        {!isEditing ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setDrafts((s) => ({ ...s, [type]: s[type] ?? content }));
+                              setEditing((s) => ({ ...s, [type]: true }));
+                            }}
+                          >
+                            <Pencil className="h-4 w-4 mr-1" /> Editar
+                          </Button>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleResetToTemplate(type)}
+                            title="Repor template original"
+                          >
+                            <RotateCcw className="h-4 w-4 mr-1" /> Repor
+                          </Button>
+                        )}
+                        <Button size="sm" onClick={() => handleSave(type)} disabled={saving === type}>
+                          {saving === type ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Save className="h-4 w-4 mr-1" />}
+                          Guardar
+                        </Button>
+                      </>
+                    )}
+
+                    <Button size="sm" variant="outline" onClick={() => handlePrint(type)}>
+                      <Printer className="h-4 w-4 mr-1" /> Imprimir
+                    </Button>
+                  </div>
+                </CardHeader>
+
+                <CardContent>
+                  {isEditing && !isCookies ? (
+                    <Textarea
+                      value={drafts[type] ?? content}
+                      onChange={(e) => setDrafts((s) => ({ ...s, [type]: e.target.value }))}
+                      className="min-h-[500px] font-mono text-xs"
+                    />
+                  ) : (
+                    <div ref={printRef} className="prose prose-sm dark:prose-invert max-w-none border rounded-lg p-6 bg-background/50 max-h-[500px] overflow-y-auto">
+                      {renderMarkdown(content)}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          );
+        })}
       </Tabs>
     </div>
   );
@@ -317,16 +465,11 @@ function renderMarkdown(md: string) {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
 
-    // Table row
     if (line.startsWith("|")) {
       const cells = line.split("|").filter(Boolean).map((c) => c.trim());
-      if (cells.every((c) => /^[-:]+$/.test(c))) continue; // separator
-      if (!inTable) {
-        inTable = true;
-        tableRows = [];
-      }
+      if (cells.every((c) => /^[-:]+$/.test(c))) continue;
+      if (!inTable) { inTable = true; tableRows = []; }
       tableRows.push(cells);
-      // Check if next line is not a table
       if (i + 1 >= lines.length || !lines[i + 1].startsWith("|")) {
         elements.push(
           <div key={i} className="overflow-x-auto my-4">
@@ -367,7 +510,6 @@ function renderMarkdown(md: string) {
 }
 
 function formatInline(text: string): React.ReactNode {
-  // Bold
   const parts = text.split(/(\*\*[^*]+\*\*)/g);
   return parts.map((part, i) => {
     if (part.startsWith("**") && part.endsWith("**")) {
@@ -375,4 +517,56 @@ function formatInline(text: string): React.ReactNode {
     }
     return part;
   });
+}
+
+/** Lightweight markdown -> HTML for the print window */
+function markdownToHtml(md: string): string {
+  const escape = (s: string) => s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c] as string));
+  const lines = md.split("\n");
+  const out: string[] = [];
+  let tableRows: string[][] = [];
+  let inTable = false;
+  let inList = false;
+
+  const flushList = () => { if (inList) { out.push("</ul>"); inList = false; } };
+  const flushTable = () => {
+    if (!inTable) return;
+    out.push('<table>');
+    tableRows.forEach((row, idx) => {
+      const tag = idx === 0 ? "th" : "td";
+      out.push("<tr>" + row.map((c) => `<${tag}>${escape(c)}</${tag}>`).join("") + "</tr>");
+    });
+    out.push("</table>");
+    inTable = false;
+    tableRows = [];
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (line.startsWith("|")) {
+      const cells = line.split("|").filter(Boolean).map((c) => c.trim());
+      if (cells.every((c) => /^[-:]+$/.test(c))) continue;
+      if (!inTable) { inTable = true; tableRows = []; flushList(); }
+      tableRows.push(cells);
+      if (i + 1 >= lines.length || !lines[i + 1].startsWith("|")) flushTable();
+      continue;
+    }
+    flushTable();
+
+    if (line.startsWith("# ")) { flushList(); out.push(`<h1>${escape(line.slice(2))}</h1>`); }
+    else if (line.startsWith("## ")) { flushList(); out.push(`<h2>${escape(line.slice(3))}</h2>`); }
+    else if (line.startsWith("- ")) {
+      if (!inList) { out.push("<ul>"); inList = true; }
+      out.push(`<li>${inlineHtml(escape(line.slice(2)))}</li>`);
+    }
+    else if (line.startsWith("---")) { flushList(); out.push("<hr/>"); }
+    else if (line.trim()) { flushList(); out.push(`<p>${inlineHtml(escape(line))}</p>`); }
+  }
+  flushList();
+  flushTable();
+  return out.join("\n");
+}
+
+function inlineHtml(s: string): string {
+  return s.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
 }
