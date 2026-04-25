@@ -243,6 +243,8 @@ export default function SEO() {
       const { data, error } = await supabase.functions.invoke("fetch-ga4-traffic", { body: {} });
       if (error) throw error;
       setGaData(data);
+      if (data?.hasProperty) setHasGA4(true);
+      else if (data?.connected && data?.hasProperty === false) setHasGA4(false);
     } catch (e) {
       console.error("GA4 traffic error:", e);
     } finally {
