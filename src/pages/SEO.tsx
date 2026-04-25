@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Search, TrendingUp, AlertCircle, CheckCircle, Globe, Clock, Gauge,
   FileWarning, ArrowRight, BarChart3, MousePointerClick, Eye, Award,
-  Sparkles, Copy, Link as LinkIcon, Loader2,
+  Sparkles, Copy, Link as LinkIcon, Loader2, Users, Activity, Hourglass,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseCustom";
@@ -66,11 +66,28 @@ export default function SEO() {
   const [hasGA4, setHasGA4] = useState<boolean | null>(null);
   const [creatingGA4, setCreatingGA4] = useState(false);
 
+  // GA4 Traffic
+  const [gaLoading, setGaLoading] = useState(false);
+  const [gaData, setGaData] = useState<{
+    hasProperty: boolean;
+    hasData?: boolean;
+    totals?: { sessions: number; users: number; pageviews: number; engagementRate: number };
+    error?: string;
+  } | null>(null);
+
   // Meta tag generator
   const [metaLoading, setMetaLoading] = useState(false);
   const [metaSuggestions, setMetaSuggestions] = useState<MetaSuggestion[] | null>(null);
 
   useEffect(() => { fetchProjectDomain(); }, [user]);
+
+  // Auto-fetch GA4 traffic when connected
+  useEffect(() => {
+    if (scConnected) {
+      handleFetchGA4();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scConnected]);
 
   // Handle OAuth callback flags (auto-verify SC + GA4 detection)
   useEffect(() => {
@@ -217,6 +234,21 @@ export default function SEO() {
       });
     } finally {
       setCreatingGA4(false);
+    }
+  };
+
+  const handleFetchGA4 = async () => {
+    setGaLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("fetch-ga4-traffic", { body: {} });
+      if (error) throw error;
+      setGaData(data);
+      if (data?.hasProperty) setHasGA4(true);
+      else if (data?.connected && data?.hasProperty === false) setHasGA4(false);
+    } catch (e) {
+      console.error("GA4 traffic error:", e);
+    } finally {
+      setGaLoading(false);
     }
   };
 
@@ -586,6 +618,89 @@ export default function SEO() {
                       </CardContent>
                     </Card>
                   </div>
+                )}
+
+                {/* Empty state — no SC data yet */}
+                {scData && !scData.needsSiteUrl && scData.totals && scData.totals.impressions === 0 && (
+                  <Card className="glass border-blue-500/20 bg-blue-500/5">
+                    <CardContent className="pt-6 text-center">
+                      <Hourglass className="h-10 w-10 text-blue-400 mx-auto mb-3" />
+                      <h3 className="font-semibold text-foreground mb-1">O Google está a começar a ler o seu site</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Volte em 24h para ver as primeiras métricas de Search Console!
+                      </p>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* GA4 Traffic Section */}
+                {gaData?.hasProperty && gaData.totals && gaData.hasData && (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 mt-2">
+                      <Activity className="h-5 w-5 text-primary" />
+                      <h3 className="font-semibold text-foreground">Tráfego do Site (Google Analytics)</h3>
+                      <Badge variant="secondary" className="text-xs">Últimos 28 dias</Badge>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                      <Card className="glass">
+                        <CardContent className="pt-6">
+                          <div className="flex items-center gap-3">
+                            <Users className="h-8 w-8 text-purple-400" />
+                            <div>
+                              <p className="text-xs text-muted-foreground">Utilizadores</p>
+                              <p className="text-2xl font-bold">{gaData.totals.users.toLocaleString("pt-PT")}</p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                      <Card className="glass">
+                        <CardContent className="pt-6">
+                          <div className="flex items-center gap-3">
+                            <Activity className="h-8 w-8 text-cyan-400" />
+                            <div>
+                              <p className="text-xs text-muted-foreground">Sessões</p>
+                              <p className="text-2xl font-bold">{gaData.totals.sessions.toLocaleString("pt-PT")}</p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                      <Card className="glass">
+                        <CardContent className="pt-6">
+                          <div className="flex items-center gap-3">
+                            <Eye className="h-8 w-8 text-blue-400" />
+                            <div>
+                              <p className="text-xs text-muted-foreground">Páginas Vistas</p>
+                              <p className="text-2xl font-bold">{gaData.totals.pageviews.toLocaleString("pt-PT")}</p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                      <Card className="glass">
+                        <CardContent className="pt-6">
+                          <div className="flex items-center gap-3">
+                            <TrendingUp className="h-8 w-8 text-green-400" />
+                            <div>
+                              <p className="text-xs text-muted-foreground">Taxa Engagement</p>
+                              <p className="text-2xl font-bold">{(gaData.totals.engagementRate * 100).toFixed(1)}%</p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </div>
+                )}
+
+                {/* GA4 connected but no data yet */}
+                {gaData?.hasProperty && !gaData.hasData && !gaData.error && (
+                  <Card className="glass border-purple-500/20 bg-purple-500/5">
+                    <CardContent className="pt-6 text-center">
+                      <Hourglass className="h-10 w-10 text-purple-400 mx-auto mb-3" />
+                      <h3 className="font-semibold text-foreground mb-1">O Google Analytics ainda está a recolher dados</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Volte em 24h para ver as primeiras métricas de tráfego do seu site!
+                      </p>
+                    </CardContent>
+                  </Card>
                 )}
               </>
             )}
