@@ -247,12 +247,12 @@ export function WhatsAppSetupModal({ open, onOpenChange, projectId, onConnected 
                           Dentro da WhatsApp Account, em <strong>Account Tools → Phone Numbers</strong>, copia o <strong>Phone Number ID</strong> (não é o número de telefone — é um ID numérico ao lado).
                         </p>
                         <a
-                          href="https://developers.facebook.com/apps/"
+                          href="https://business.facebook.com/latest/whatsapp_manager/phone_numbers/"
                           target="_blank"
                           rel="noopener noreferrer"
                           className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
                         >
-                          Abrir Meta for Developers <ExternalLink className="h-3 w-3" />
+                          Abrir WhatsApp Manager → Phone Numbers <ExternalLink className="h-3 w-3" />
                         </a>
                       </div>
                     </div>
