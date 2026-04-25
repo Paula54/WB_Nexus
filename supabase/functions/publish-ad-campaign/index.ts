@@ -7,8 +7,10 @@ const corsHeaders = {
 };
 
 // Modelo de Agência Centralizada
-const AGENCY_MARKUP = 0.15; // 15% sobre o orçamento
-const PRE_AUTH_DAYS = 7;    // pré-autoriza 7 dias
+const AGENCY_MARKUP = 0.15;       // 15% taxa de gestão sobre o orçamento
+const STRIPE_FEE_PCT = 0.014;     // 1.4% Stripe (cartões EU)
+const STRIPE_FEE_FIXED = 0.25;    // 0.25 € fixo Stripe
+const PRE_AUTH_DAYS = 7;          // pré-autoriza 7 dias
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
