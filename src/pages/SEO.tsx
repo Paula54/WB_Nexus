@@ -495,6 +495,32 @@ export default function SEO() {
                   </CardContent>
                 </Card>
 
+                {hasGA4 === false && (
+                  <Card className="glass border-primary/30 bg-primary/5">
+                    <CardContent className="pt-6">
+                      <div className="flex items-start gap-4">
+                        <Sparkles className="h-8 w-8 text-primary shrink-0" />
+                        <div className="space-y-3 flex-1">
+                          <div>
+                            <h3 className="font-semibold text-foreground">Ainda não tens Google Analytics</h3>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              O Nexus pode criar e configurar uma propriedade GA4 para o teu site automaticamente — sem teres de mexer em painéis técnicos.
+                            </p>
+                          </div>
+                          <Button onClick={handleCreateGA4} disabled={creatingGA4}>
+                            {creatingGA4 ? (
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            ) : (
+                              <Sparkles className="h-4 w-4 mr-2" />
+                            )}
+                            IA: Criar e Configurar Google Analytics para mim
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
                 {scData?.needsSiteUrl && scData.sites && (
                   <Card className="glass">
                     <CardHeader>
