@@ -200,11 +200,15 @@ export default function CampaignCreateDialog({
           type: metaErr.type,
           fbtrace_id: metaErr.fbtrace_id,
           hint: publishResult?.hint,
+          requires_payment_setup: publishResult?.requires_payment_setup,
+          payment_setup_url: publishResult?.payment_setup_url,
           raw: publishResult,
         });
         toast({
           variant: "destructive",
-          title: metaErr.error_user_title || "Erro Meta API",
+          title: publishResult?.requires_payment_setup
+            ? "Configura o método de pagamento"
+            : metaErr.error_user_title || "Erro Meta API",
           description: metaErr.error_user_msg || publishResult?.error || "Ver detalhes abaixo.",
         });
         // Keep dialog open so user sees the detailed panel
