@@ -8,8 +8,6 @@ const corsHeaders = {
 
 const PRE_AUTH_DAYS = 7;
 const AGENCY_MARKUP = 0.15;
-const STRIPE_FEE_PCT = 0.014;
-const STRIPE_FEE_FIXED = 0.25;
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
