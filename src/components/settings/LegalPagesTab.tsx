@@ -235,40 +235,34 @@ export default function LegalPagesTab() {
   useEffect(() => {
     if (!user) return;
     (async () => {
-      // 1) Try business_profiles (canonical source)
-      const { data: bp } = await supabase
-        .from("business_profiles")
-        .select("legal_name, trade_name, nif, address_line1, postal_code, city, country, email, phone, website")
-        .eq("user_id", user.id)
-        .maybeSingle();
+      const [businessProfiles, projects, profiles] = await Promise.all([
+        supabase
+          .from("business_profiles")
+          .select("legal_name, trade_name, nif, address_line1, postal_code, city, country, email, phone, website")
+          .eq("user_id", user.id)
+          .order("updated_at", { ascending: false })
+          .limit(5),
+        supabase
+          .from("projects")
+          .select("legal_name, business_name, trade_name, name, nif, address_line1, postal_code, city, country, email, phone, website")
+          .eq("user_id", user.id)
+          .order("updated_at", { ascending: false })
+          .limit(5),
+        supabase
+          .from("profiles")
+          .select("full_name, company_name, contact_email")
+          .eq("user_id", user.id)
+          .order("updated_at", { ascending: false })
+          .limit(1),
+      ]);
 
-      // 2) Fallback / merge with projects
-      const { data: pj } = await supabase
-        .from("projects")
-        .select("legal_name, business_name, name, nif, address_line1, postal_code, city, country, email, phone, website")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: true })
-        .limit(1)
-        .maybeSingle();
+      const sources = [
+        ...((businessProfiles.data || []) as BusinessSource[]),
+        ...((projects.data || []) as BusinessSource[]),
+        ...((profiles.data || []) as BusinessSource[]),
+      ];
 
-      const b = (bp as Record<string, unknown> | null) || {};
-      const p = (pj as Record<string, unknown> | null) || {};
-
-      const pick = (k: string): string =>
-        (b[k] as string) || (p[k] as string) || "";
-
-      setBusinessData({
-        legal_name: pick("legal_name"),
-        business_name: (b.trade_name as string) || (p.business_name as string) || (p.name as string) || "",
-        nif: pick("nif"),
-        address_line1: pick("address_line1"),
-        postal_code: pick("postal_code"),
-        city: pick("city"),
-        country: pick("country") || "Portugal",
-        email: pick("email") || user.email || "",
-        phone: pick("phone"),
-        website: pick("website"),
-      });
+      setBusinessData(normalizeBusinessData(sources, user.email || ""));
 
       // Load saved overrides if any
       const { data: pages } = await supabase
