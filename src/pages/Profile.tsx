@@ -90,22 +90,16 @@ export default function Profile() {
     if (!user) return;
     setSaving(true);
 
-    const { data: existing } = await supabase
-      .from("profiles")
-      .select("id")
-      .eq("user_id", user.id)
-      .order("updated_at", { ascending: false })
-      .limit(1);
-
     const payload = {
+      user_id: user.id,
       full_name: fullName || null,
       company_name: companyName || null,
       contact_email: user.email,
     };
 
-    const { error } = existing?.length
-      ? await supabase.from("profiles").update(payload).eq("user_id", user.id)
-      : await supabase.from("profiles").insert({ user_id: user.id, ...payload });
+    const { error } = await supabase
+      .from("profiles")
+      .upsert(payload, { onConflict: "user_id" });
 
     setSaving(false);
 
