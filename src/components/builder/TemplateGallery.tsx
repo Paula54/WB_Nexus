@@ -240,6 +240,7 @@ export function TemplateGallery({ projectId, pageId, onApplied }: Props) {
           );
         })}
       </div>
+      )}
     </div>
   );
 }
