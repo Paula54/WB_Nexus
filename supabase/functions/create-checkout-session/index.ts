@@ -1,3 +1,4 @@
+// @ts-nocheck - Stripe SDK pulls @types/node which Deno can't resolve
 // Update deploy v1.1
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
