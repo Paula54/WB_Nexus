@@ -140,6 +140,16 @@ export function TemplateGallery({ projectId, pageId, onApplied }: Props) {
     );
   }
 
+  const userSector = profile?.business_sector;
+  const availableSectors = Array.from(
+    new Set(templates.map((t) => t.template_sector).filter(Boolean) as string[]),
+  ).sort();
+
+  const filteredTemplates = templates.filter((t) => {
+    if (sectorFilter === "all") return true;
+    return t.template_sector === sectorFilter;
+  });
+
   return (
     <div className="space-y-4">
       <div className="text-center">
@@ -152,8 +162,45 @@ export function TemplateGallery({ projectId, pageId, onApplied }: Props) {
         </p>
       </div>
 
+      <div className="flex flex-wrap items-center justify-center gap-2">
+        {userSector && SECTOR_LABELS[userSector] && (
+          <Button
+            size="sm"
+            variant={sectorFilter === userSector ? "default" : "outline"}
+            onClick={() => setSectorFilter(userSector)}
+          >
+            <Sparkles className="h-3 w-3 mr-1" />
+            Para o meu negócio
+          </Button>
+        )}
+        <Button
+          size="sm"
+          variant={sectorFilter === "all" ? "default" : "outline"}
+          onClick={() => setSectorFilter("all")}
+        >
+          Todos
+        </Button>
+        {availableSectors.map((sector) => (
+          <Button
+            key={sector}
+            size="sm"
+            variant={sectorFilter === sector ? "default" : "outline"}
+            onClick={() => setSectorFilter(sector)}
+          >
+            {SECTOR_LABELS[sector] || sector}
+          </Button>
+        ))}
+      </div>
+
+      {filteredTemplates.length === 0 ? (
+        <Card className="glass">
+          <CardContent className="py-12 text-center text-muted-foreground text-sm">
+            Sem modelos para este setor. Tenta outro filtro.
+          </CardContent>
+        </Card>
+      ) : (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {templates.map((tpl) => {
+        {filteredTemplates.map((tpl) => {
           const sectorLabel = tpl.template_sector
             ? SECTOR_LABELS[tpl.template_sector] || tpl.template_sector
             : "Genérico";
