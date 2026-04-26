@@ -88,13 +88,41 @@ export function TemplateGallery({ projectId, pageId, onApplied }: Props) {
     );
   }
 
+  const seedTemplates = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("seed-templates");
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success(`Modelos prontos (${data?.created?.length ?? 0} novos)`);
+      // recarregar
+      const { data: refreshed } = await supabase
+        .from("pages")
+        .select("id, title, template_name, template_description, template_sector, content")
+        .eq("is_template", true)
+        .order("template_sector", { ascending: true });
+      setTemplates((refreshed ?? []) as TemplateRow[]);
+    } catch (e: any) {
+      console.error("[TemplateGallery] seed error:", e);
+      toast.error(e?.message || "Erro a preparar modelos");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (templates.length === 0) {
     return (
       <Card className="glass">
-        <CardContent className="py-12 text-center text-muted-foreground">
-          <LayoutTemplate className="h-12 w-12 mx-auto mb-4 opacity-50" />
-          <p>Ainda não existem modelos disponíveis.</p>
-          <p className="text-sm mt-2">Pede ao Concierge para criar um site para o teu setor.</p>
+        <CardContent className="py-12 text-center">
+          <LayoutTemplate className="h-12 w-12 mx-auto mb-4 opacity-50 text-muted-foreground" />
+          <p className="text-muted-foreground">Ainda não existem modelos disponíveis.</p>
+          <p className="text-sm mt-2 mb-6 text-muted-foreground">
+            Carrega abaixo para preparar a galeria inicial.
+          </p>
+          <Button onClick={seedTemplates}>
+            <Sparkles className="h-4 w-4 mr-2" />
+            Preparar Modelos Iniciais
+          </Button>
         </CardContent>
       </Card>
     );
