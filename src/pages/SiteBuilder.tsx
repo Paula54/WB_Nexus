@@ -19,8 +19,11 @@ import {
   Sparkles,
   Loader2,
   Check,
-  FileText
+  FileText,
+  Rocket
 } from "lucide-react";
+import { toast } from "sonner";
+import { supabase } from "@/lib/supabaseCustom";
 import { useSiteBuilder } from "@/hooks/useSiteBuilder";
 import type { WebsiteSection } from "@/types/nexus";
 import {
@@ -57,6 +60,7 @@ export default function SiteBuilder() {
   const [newPageTitle, setNewPageTitle] = useState("");
   const [newPageSlug, setNewPageSlug] = useState("");
   const [addPageOpen, setAddPageOpen] = useState(false);
+  const [publishing, setPublishing] = useState(false);
 
   const currentPage = pages.find((p) => p.id === currentPageId);
 
@@ -99,6 +103,45 @@ export default function SiteBuilder() {
   const handlePageChange = (pageId: string) => {
     setSelectedSection(null);
     loadPageSections(pageId);
+  };
+
+
+  const handlePublish = async () => {
+    if (!currentPage) return;
+    setPublishing(true);
+    try {
+      const { error: updErr } = await supabase
+        .from("pages")
+        .update({ is_published: true })
+        .eq("id", currentPage.id);
+      if (updErr) throw updErr;
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Sem sessão");
+      const { data: proj } = await supabase
+        .from("projects")
+        .select("id")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (!proj) throw new Error("Projeto não encontrado");
+
+      const { error: fnErr } = await supabase.functions.invoke("auto-generate-meta-tags", {
+        body: { pageId: currentPage.id, projectId: proj.id },
+      });
+      if (fnErr) {
+        console.warn("[publish] meta-tags falhou:", fnErr);
+        toast.success("Página publicada (meta tags falharam — tenta novamente)");
+      } else {
+        toast.success("Página publicada e meta tags geradas ✓");
+      }
+    } catch (e) {
+      console.error("[publish] erro:", e);
+      toast.error("Erro ao publicar página");
+    } finally {
+      setPublishing(false);
+    }
   };
 
   const selectedSectionData = sections.find(s => s.id === selectedSection);
@@ -243,6 +286,18 @@ export default function SiteBuilder() {
           >
             <Eye className="h-4 w-4 mr-2" />
             Pré-visualizar
+          </Button>
+          <Button
+            onClick={handlePublish}
+            disabled={publishing || !currentPage}
+            className="bg-primary"
+          >
+            {publishing ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Rocket className="h-4 w-4 mr-2" />
+            )}
+            {currentPage?.is_published ? "Republicar" : "Publicar"}
           </Button>
         </div>
       </div>
