@@ -188,7 +188,8 @@ Deno.serve(async (req) => {
     }
 
     if (!registerRes || !registerRes.ok) {
-      throw new Error(`Erro Hostinger (${registerRes.status}): ${registerText}`);
+      const status = registerRes?.status ?? 0;
+      throw new Error(`Erro Hostinger (${status}): ${registerText}`);
     }
 
     let registerData: any = {};

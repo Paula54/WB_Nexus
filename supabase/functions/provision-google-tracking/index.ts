@@ -29,8 +29,8 @@ async function createServiceAccountToken(scopes: string[]): Promise<string> {
   };
 
   const enc = new TextEncoder();
-  const headerB64 = base64url(enc.encode(JSON.stringify(header)));
-  const payloadB64 = base64url(enc.encode(JSON.stringify(payload)));
+  const headerB64 = base64url(enc.encode(JSON.stringify(header)).buffer as ArrayBuffer);
+  const payloadB64 = base64url(enc.encode(JSON.stringify(payload)).buffer as ArrayBuffer);
   const signingInput = `${headerB64}.${payloadB64}`;
 
   // Import PEM private key
@@ -315,8 +315,9 @@ Deno.serve(async (req) => {
     );
   } catch (error) {
     console.error("provision-google-tracking error:", error);
+    const message = error instanceof Error ? error.message : String(error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: message }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
