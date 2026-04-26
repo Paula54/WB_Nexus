@@ -19,8 +19,11 @@ import {
   Sparkles,
   Loader2,
   Check,
-  FileText
+  FileText,
+  Rocket
 } from "lucide-react";
+import { toast } from "sonner";
+import { supabase } from "@/lib/supabaseCustom";
 import { useSiteBuilder } from "@/hooks/useSiteBuilder";
 import type { WebsiteSection } from "@/types/nexus";
 import {
