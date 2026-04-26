@@ -1,4 +1,5 @@
-import Stripe from "https://esm.sh/stripe@14.21.0?target=deno";
+// @ts-nocheck - Stripe SDK pulls @types/node which Deno can't resolve
+import Stripe from "https://esm.sh/stripe@14.21.0?target=deno&no-check";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
