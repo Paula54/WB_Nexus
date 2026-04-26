@@ -1,0 +1,13 @@
+# Docker e Sistema
+DockerDesktop/
+*.vhdx
+*.iso
+
+# Supabase e Temporários
+supabase/.temp/
+supabase/.branches/
+
+# Node e Dependências
+node_modules/
+.env
+dist/
