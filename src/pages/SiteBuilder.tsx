@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { TemplateGallery } from "@/components/builder/TemplateGallery";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -379,6 +380,26 @@ export default function SiteBuilder() {
           </CardHeader>
           <CardContent className="p-0">
             {renderPreview()}
+          </CardContent>
+        </Card>
+      ) : sections.length === 0 && currentPage ? (
+        <Card className="glass">
+          <CardContent className="py-8">
+            <TemplateGallery
+              projectId={(currentPage as any).project_id}
+              pageId={currentPage.id}
+              onApplied={() => loadPageSections(currentPage.id)}
+            />
+            <div className="mt-8 text-center text-sm text-muted-foreground">
+              Ou{" "}
+              <button
+                className="underline text-primary hover:text-primary/80"
+                onClick={() => addSection('hero')}
+              >
+                começa do zero
+              </button>{" "}
+              adicionando secções manualmente.
+            </div>
           </CardContent>
         </Card>
       ) : (
