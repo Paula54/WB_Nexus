@@ -7,11 +7,11 @@ const corsHeaders = {
 };
 
 async function ensurePrimaryProject(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   userId: string,
   userLabel: string,
   fallbackPlan = "START",
-) {
+): Promise<{ id: string }> {
   const { data: existingProject, error: lookupError } = await supabase
     .from("projects")
     .select("id")
