@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Sparkles, LayoutTemplate, Wand2 } from "lucide-react";
 import { toast } from "sonner";
+import { useProfile } from "@/hooks/useProfile";
 
 interface TemplateRow {
   id: string;
@@ -34,9 +35,20 @@ const SECTOR_LABELS: Record<string, string> = {
 };
 
 export function TemplateGallery({ projectId, pageId, onApplied }: Props) {
+  const { profile } = useProfile();
   const [templates, setTemplates] = useState<TemplateRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [applyingId, setApplyingId] = useState<string | null>(null);
+  const [sectorFilter, setSectorFilter] = useState<string>("mine");
+
+  // Auto-selecionar setor do utilizador quando perfil carrega
+  useEffect(() => {
+    if (profile?.business_sector && SECTOR_LABELS[profile.business_sector]) {
+      setSectorFilter(profile.business_sector);
+    } else {
+      setSectorFilter("all");
+    }
+  }, [profile?.business_sector]);
 
   useEffect(() => {
     let cancelled = false;
