@@ -1,25 +1,47 @@
 import { Helmet } from "react-helmet-async";
+import { useEffect, useState } from "react";
 import { useProjectData } from "@/hooks/useProjectData";
+import { supabase } from "@/lib/supabaseCustom";
 
-const SECTOR_KEYWORDS: Record<string, string> = {
-  cafetaria: "cafetaria, café, pastelaria, menu do dia",
-  restaurante: "restaurante, menu, gastronomia, reservas",
-  imobiliaria: "imobiliária, imóveis, casas, apartamentos",
-  advocacia: "advocacia, advogado, jurídico, consultoria legal",
-  salao_beleza: "salão de beleza, estética, cabeleireiro, manicure",
-  fitness: "fitness, ginásio, treino, personal trainer",
-  loja_roupa: "moda, roupa, loja online, vestuário",
-  clinica: "clínica, saúde, consultas, médico",
-};
+interface PageSEO {
+  title?: string;
+  description?: string;
+}
 
 export function DynamicSEOHead() {
   const { project, profile } = useProjectData();
+  const [pageSeo, setPageSeo] = useState<PageSEO | null>(null);
+
+  // Carrega SEO da home page (slug=home) — gerado pelo botão "Publicar"
+  useEffect(() => {
+    if (!project?.id) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("pages")
+        .select("content")
+        .eq("project_id", project.id)
+        .eq("slug", "home")
+        .eq("is_published", true)
+        .maybeSingle();
+      if (cancelled) return;
+      const content = (data?.content && typeof data.content === "object")
+        ? (data.content as Record<string, unknown>)
+        : {};
+      const seo = (content.seo && typeof content.seo === "object")
+        ? (content.seo as PageSEO)
+        : null;
+      if (seo) setPageSeo(seo);
+    })();
+    return () => { cancelled = true; };
+  }, [project?.id]);
 
   const companyName = profile?.company_name || "Nexus Machine";
   const domain = project?.domain || "";
 
-  const title = `${companyName} — O Teu Negócio Online`;
-  const description = `${companyName}: Descobre o que temos para ti e contacta-nos hoje.`;
+  const title = pageSeo?.title || `${companyName} — O Teu Negócio Online`;
+  const description = pageSeo?.description
+    || `${companyName}: Descobre o que temos para ti e contacta-nos hoje.`;
 
   return (
     <Helmet>
@@ -29,7 +51,6 @@ export function DynamicSEOHead() {
         name="description"
         content={description.length > 160 ? description.slice(0, 157) + "..." : description}
       />
-      
 
       {/* Open Graph / Facebook */}
       <meta property="og:type" content="website" />
