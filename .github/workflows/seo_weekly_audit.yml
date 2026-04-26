@@ -1,0 +1,19 @@
+name: SEO Weekly Audit
+
+on:
+  schedule:
+    # Toda Segunda-feira às 08:00 UTC
+    - cron: '0 8 * * 1'
+  workflow_dispatch:
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger SEO audit edge function
+        run: |
+          curl -X POST "${{ secrets.SUPABASE_URL }}/functions/v1/seo-weekly-audit" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "x-cron-secret: ${{ secrets.INTERNAL_FUNCTION_SECRET }}" \
+            -H "Content-Type: application/json" \
+            --fail-with-body
