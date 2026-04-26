@@ -287,6 +287,18 @@ export default function SiteBuilder() {
             <Eye className="h-4 w-4 mr-2" />
             Pré-visualizar
           </Button>
+          <Button
+            onClick={handlePublish}
+            disabled={publishing || !currentPage}
+            className="bg-primary"
+          >
+            {publishing ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Rocket className="h-4 w-4 mr-2" />
+            )}
+            {currentPage?.is_published ? "Republicar" : "Publicar"}
+          </Button>
         </div>
       </div>
 
