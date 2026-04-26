@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Sparkles, LayoutTemplate, Wand2 } from "lucide-react";
 import { toast } from "sonner";
+import { useProfile } from "@/hooks/useProfile";
 
 interface TemplateRow {
   id: string;
@@ -34,9 +35,20 @@ const SECTOR_LABELS: Record<string, string> = {
 };
 
 export function TemplateGallery({ projectId, pageId, onApplied }: Props) {
+  const { profile } = useProfile();
   const [templates, setTemplates] = useState<TemplateRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [applyingId, setApplyingId] = useState<string | null>(null);
+  const [sectorFilter, setSectorFilter] = useState<string>("mine");
+
+  // Auto-selecionar setor do utilizador quando perfil carrega
+  useEffect(() => {
+    if (profile?.business_sector && SECTOR_LABELS[profile.business_sector]) {
+      setSectorFilter(profile.business_sector);
+    } else {
+      setSectorFilter("all");
+    }
+  }, [profile?.business_sector]);
 
   useEffect(() => {
     let cancelled = false;
@@ -128,6 +140,16 @@ export function TemplateGallery({ projectId, pageId, onApplied }: Props) {
     );
   }
 
+  const userSector = profile?.business_sector;
+  const availableSectors = Array.from(
+    new Set(templates.map((t) => t.template_sector).filter(Boolean) as string[]),
+  ).sort();
+
+  const filteredTemplates = templates.filter((t) => {
+    if (sectorFilter === "all") return true;
+    return t.template_sector === sectorFilter;
+  });
+
   return (
     <div className="space-y-4">
       <div className="text-center">
@@ -140,8 +162,45 @@ export function TemplateGallery({ projectId, pageId, onApplied }: Props) {
         </p>
       </div>
 
+      <div className="flex flex-wrap items-center justify-center gap-2">
+        {userSector && SECTOR_LABELS[userSector] && (
+          <Button
+            size="sm"
+            variant={sectorFilter === userSector ? "default" : "outline"}
+            onClick={() => setSectorFilter(userSector)}
+          >
+            <Sparkles className="h-3 w-3 mr-1" />
+            Para o meu negócio
+          </Button>
+        )}
+        <Button
+          size="sm"
+          variant={sectorFilter === "all" ? "default" : "outline"}
+          onClick={() => setSectorFilter("all")}
+        >
+          Todos
+        </Button>
+        {availableSectors.map((sector) => (
+          <Button
+            key={sector}
+            size="sm"
+            variant={sectorFilter === sector ? "default" : "outline"}
+            onClick={() => setSectorFilter(sector)}
+          >
+            {SECTOR_LABELS[sector] || sector}
+          </Button>
+        ))}
+      </div>
+
+      {filteredTemplates.length === 0 ? (
+        <Card className="glass">
+          <CardContent className="py-12 text-center text-muted-foreground text-sm">
+            Sem modelos para este setor. Tenta outro filtro.
+          </CardContent>
+        </Card>
+      ) : (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {templates.map((tpl) => {
+        {filteredTemplates.map((tpl) => {
           const sectorLabel = tpl.template_sector
             ? SECTOR_LABELS[tpl.template_sector] || tpl.template_sector
             : "Genérico";
@@ -181,6 +240,7 @@ export function TemplateGallery({ projectId, pageId, onApplied }: Props) {
           );
         })}
       </div>
+      )}
     </div>
   );
 }
