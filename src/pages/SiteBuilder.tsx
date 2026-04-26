@@ -382,6 +382,26 @@ export default function SiteBuilder() {
             {renderPreview()}
           </CardContent>
         </Card>
+      ) : sections.length === 0 && currentPage ? (
+        <Card className="glass">
+          <CardContent className="py-8">
+            <TemplateGallery
+              projectId={(currentPage as any).project_id}
+              pageId={currentPage.id}
+              onApplied={() => loadPageSections(currentPage.id)}
+            />
+            <div className="mt-8 text-center text-sm text-muted-foreground">
+              Ou{" "}
+              <button
+                className="underline text-primary hover:text-primary/80"
+                onClick={() => addSection('hero')}
+              >
+                começa do zero
+              </button>{" "}
+              adicionando secções manualmente.
+            </div>
+          </CardContent>
+        </Card>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Section List */}
