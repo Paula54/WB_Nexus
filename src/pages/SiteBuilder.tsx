@@ -105,7 +105,6 @@ export default function SiteBuilder() {
     loadPageSections(pageId);
   };
 
-  const [publishing, setPublishing] = useState(false);
 
   const handlePublish = async () => {
     if (!currentPage) return;
