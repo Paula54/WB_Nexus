@@ -45,11 +45,11 @@ function normalizeError(error: unknown): { message: string; details: Record<stri
 // (removed legacy isSchemaCacheColumnError fallback — schema must be correct)
 
 async function ensurePrimaryProject(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   userId: string,
   userEmail?: string | null,
   fallbackPlan = "START",
-) {
+): Promise<{ id: string; name?: string; selected_plan?: string }> {
   const { data: existingProject, error: lookupError } = await supabase
     .from("projects")
     .select("id, name, selected_plan")
