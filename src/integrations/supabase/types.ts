@@ -881,9 +881,13 @@ export type Database = {
           created_at: string
           id: string
           is_published: boolean
+          is_template: boolean
           project_id: string
           slug: string
           sort_order: number
+          template_description: string | null
+          template_name: string | null
+          template_sector: string | null
           title: string
           updated_at: string
           user_id: string
@@ -893,9 +897,13 @@ export type Database = {
           created_at?: string
           id?: string
           is_published?: boolean
+          is_template?: boolean
           project_id: string
           slug?: string
           sort_order?: number
+          template_description?: string | null
+          template_name?: string | null
+          template_sector?: string | null
           title?: string
           updated_at?: string
           user_id: string
@@ -905,9 +913,13 @@ export type Database = {
           created_at?: string
           id?: string
           is_published?: boolean
+          is_template?: boolean
           project_id?: string
           slug?: string
           sort_order?: number
+          template_description?: string | null
+          template_name?: string | null
+          template_sector?: string | null
           title?: string
           updated_at?: string
           user_id?: string
