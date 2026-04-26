@@ -104,6 +104,46 @@ export default function SiteBuilder() {
     loadPageSections(pageId);
   };
 
+  const [publishing, setPublishing] = useState(false);
+
+  const handlePublish = async () => {
+    if (!currentPage) return;
+    setPublishing(true);
+    try {
+      const { error: updErr } = await supabase
+        .from("pages")
+        .update({ is_published: true })
+        .eq("id", currentPage.id);
+      if (updErr) throw updErr;
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Sem sessão");
+      const { data: proj } = await supabase
+        .from("projects")
+        .select("id")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (!proj) throw new Error("Projeto não encontrado");
+
+      const { error: fnErr } = await supabase.functions.invoke("auto-generate-meta-tags", {
+        body: { pageId: currentPage.id, projectId: proj.id },
+      });
+      if (fnErr) {
+        console.warn("[publish] meta-tags falhou:", fnErr);
+        toast.success("Página publicada (meta tags falharam — tenta novamente)");
+      } else {
+        toast.success("Página publicada e meta tags geradas ✓");
+      }
+    } catch (e) {
+      console.error("[publish] erro:", e);
+      toast.error("Erro ao publicar página");
+    } finally {
+      setPublishing(false);
+    }
+  };
+
   const selectedSectionData = sections.find(s => s.id === selectedSection);
 
   if (loading) {
