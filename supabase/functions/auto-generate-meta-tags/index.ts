@@ -103,7 +103,7 @@ Responde APENAS em JSON válido: {"title": "...", "description": "..."}`;
     const title = String(seo.title || "").slice(0, 60);
     const description = String(seo.description || "").slice(0, 160);
 
-    const newContent = { ...(page.content as object || {}), seo: { title, description } };
+    const newContent = { ...((page.content as object | null) ?? {}), seo: { title, description } };
 
     await supabase
       .from("pages")
