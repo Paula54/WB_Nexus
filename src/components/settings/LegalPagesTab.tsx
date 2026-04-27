@@ -336,7 +336,11 @@ export default function LegalPagesTab() {
     }
 
     if (error) {
-      toast({ variant: "destructive", title: "Erro", description: "Não foi possível guardar a página." });
+      console.error("[LegalPagesTab] Save error:", error);
+      const msg =
+        (error as { message?: string })?.message ||
+        (typeof error === "string" ? error : "Não foi possível guardar a página.");
+      toast({ variant: "destructive", title: "Erro ao guardar", description: msg });
     } else {
       toast({ title: "Página guardada ✅", description: `${PAGE_LABELS[type]} atualizada.` });
       setEditing((s) => ({ ...s, [type]: false }));
