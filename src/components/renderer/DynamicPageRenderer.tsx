@@ -45,6 +45,18 @@ interface PageMeta {
   sort_order: number;
   seo_title?: string;
   seo_description?: string;
+  legal_markdown?: string;
+}
+
+function renderLegalMarkdown(markdown: string) {
+  return markdown.split("\n").map((line, index) => {
+    if (line.startsWith("# ")) return <h1 key={index} className="text-3xl font-bold mb-6">{line.slice(2)}</h1>;
+    if (line.startsWith("## ")) return <h2 key={index} className="text-xl font-semibold mt-8 mb-3">{line.slice(3)}</h2>;
+    if (line.startsWith("- ")) return <li key={index} className="ml-6 list-disc text-muted-foreground">{line.slice(2)}</li>;
+    if (line.startsWith("---")) return <hr key={index} className="my-6 border-border" />;
+    if (!line.trim()) return null;
+    return <p key={index} className="mb-3 text-muted-foreground leading-relaxed">{line.replace(/\*\*/g, "")}</p>;
+  });
 }
 
 interface DynamicPageRendererProps {
@@ -131,6 +143,9 @@ export function DynamicPageRenderer({ slug: slugProp, ownerUserId }: DynamicPage
           sort_order: p.sort_order,
           seo_title: seo?.title,
           seo_description: seo?.description,
+          legal_markdown: typeof (p.content as { legal_markdown?: unknown } | null)?.legal_markdown === "string"
+            ? (p.content as { legal_markdown: string }).legal_markdown
+            : undefined,
         };
       });
 
@@ -253,7 +268,13 @@ export function DynamicPageRenderer({ slug: slugProp, ownerUserId }: DynamicPage
 
       {/* SECÇÕES dinâmicas */}
       <main className="flex-1">
-        {sections.length === 0 ? (
+        {currentPage.legal_markdown ? (
+          <section className="container mx-auto max-w-4xl px-4 py-16">
+            <article className="prose prose-sm dark:prose-invert max-w-none">
+              {renderLegalMarkdown(currentPage.legal_markdown)}
+            </article>
+          </section>
+        ) : sections.length === 0 ? (
           <section className="container mx-auto py-24 text-center">
             <h1 className="text-4xl font-bold mb-4">{branding.site_title}</h1>
             <p className="text-muted-foreground">Esta página ainda não tem secções configuradas.</p>

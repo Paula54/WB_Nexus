@@ -39,7 +39,21 @@ const PAGE_LABELS: Record<PageType, string> = {
   cookies: "Política de Cookies",
 };
 
+const LEGAL_SITE_PAGES: Record<PageType, { slug: string; sortOrder: number }> = {
+  privacidade: { slug: "privacidade", sortOrder: 90 },
+  termos: { slug: "termos", sortOrder: 91 },
+  cookies: { slug: "cookies", sortOrder: 92 },
+};
+
 const cleanValue = (value: unknown): string => (typeof value === "string" ? value.trim() : "");
+
+const asRecord = (value: unknown): Record<string, unknown> =>
+  value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+
+const getLegalMarkdown = (content: unknown): string | null => {
+  const record = asRecord(content);
+  return typeof record.legal_markdown === "string" ? record.legal_markdown : null;
+};
 
 function firstFilled(sources: BusinessSource[], keys: (keyof BusinessSource)[]): string {
   for (const source of sources) {
@@ -260,16 +274,19 @@ export default function LegalPagesTab() {
     const normalized = normalizeBusinessData(sources, user.email || "");
     setBusinessData(normalized);
 
-    // Load saved overrides if any
+    // Load saved legal pages from the SiteBuilder pages table.
+    const legalSlugs = Object.values(LEGAL_SITE_PAGES).map((page) => page.slug);
     const { data: pages } = await supabase
-      .from("compliance_pages")
-      .select("page_type, content")
-      .eq("user_id", user.id);
+      .from("pages")
+      .select("slug, content")
+      .eq("user_id", user.id)
+      .in("slug", legalSlugs);
 
     if (pages?.length) {
       const next: Record<PageType, string | null> = { privacidade: null, termos: null, cookies: null };
-      for (const row of pages as Array<{ page_type: string; content: string }>) {
-        if (row.page_type in next) next[row.page_type as PageType] = row.content;
+      for (const row of pages as Array<{ slug: string; content: unknown }>) {
+        const type = (Object.keys(LEGAL_SITE_PAGES) as PageType[]).find((key) => LEGAL_SITE_PAGES[key].slug === row.slug);
+        if (type) next[type] = getLegalMarkdown(row.content);
       }
       setDrafts(next);
     }
@@ -313,25 +330,54 @@ export default function LegalPagesTab() {
     if (!user || !businessData || type === "cookies") return;
     setSaving(type);
     const content = drafts[type] ?? generateTemplate(type, businessData);
+    const pageConfig = LEGAL_SITE_PAGES[type];
 
-    const { data: existing } = await supabase
-      .from("compliance_pages")
+    const { data: project } = await supabase
+      .from("projects")
       .select("id")
       .eq("user_id", user.id)
-      .eq("page_type", type)
+      .order("created_at", { ascending: false })
+      .limit(1)
       .maybeSingle();
 
-    let error: unknown = null;
+    if (!project?.id) {
+      toast({ variant: "destructive", title: "Erro ao guardar", description: "Não foi encontrado um projeto para associar esta página." });
+      setSaving(null);
+      return;
+    }
+
+    const { data: existing, error: lookupError } = await supabase
+      .from("pages")
+      .select("id, content")
+      .eq("user_id", user.id)
+      .eq("project_id", project.id)
+      .eq("slug", pageConfig.slug)
+      .maybeSingle();
+
+    let error: unknown = lookupError;
     if (existing?.id) {
+      const existingContent = asRecord(existing.content);
       const r = await supabase
-        .from("compliance_pages")
-        .update({ content, status: "validated", validated_at: new Date().toISOString() })
+        .from("pages")
+        .update({
+          title: PAGE_LABELS[type],
+          is_published: true,
+          content: { ...existingContent, legal_markdown: content, legal_updated_at: new Date().toISOString() },
+        })
         .eq("id", existing.id);
       error = r.error;
-    } else {
+    } else if (!error) {
       const r = await supabase
-        .from("compliance_pages")
-        .insert({ user_id: user.id, page_type: type, content, status: "validated", validated_at: new Date().toISOString() });
+        .from("pages")
+        .insert({
+          user_id: user.id,
+          project_id: project.id,
+          title: PAGE_LABELS[type],
+          slug: pageConfig.slug,
+          is_published: true,
+          sort_order: pageConfig.sortOrder,
+          content: { legal_markdown: content, legal_updated_at: new Date().toISOString() },
+        });
       error = r.error;
     }
 
