@@ -39,7 +39,21 @@ const PAGE_LABELS: Record<PageType, string> = {
   cookies: "Política de Cookies",
 };
 
+const LEGAL_SITE_PAGES: Record<PageType, { slug: string; sortOrder: number }> = {
+  privacidade: { slug: "privacidade", sortOrder: 90 },
+  termos: { slug: "termos", sortOrder: 91 },
+  cookies: { slug: "cookies", sortOrder: 92 },
+};
+
 const cleanValue = (value: unknown): string => (typeof value === "string" ? value.trim() : "");
+
+const asRecord = (value: unknown): Record<string, unknown> =>
+  value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+
+const getLegalMarkdown = (content: unknown): string | null => {
+  const record = asRecord(content);
+  return typeof record.legal_markdown === "string" ? record.legal_markdown : null;
+};
 
 function firstFilled(sources: BusinessSource[], keys: (keyof BusinessSource)[]): string {
   for (const source of sources) {
