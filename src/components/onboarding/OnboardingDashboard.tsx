@@ -19,14 +19,8 @@ export function OnboardingDashboard() {
   const [whatsappSetupOpen, setWhatsappSetupOpen] = useState(false);
 
   const handleWhatsAppSetup = () => {
-    if (!project?.id) {
-      window.dispatchEvent(
-        new CustomEvent("nexus-concierge:open", {
-          detail: { prompt: "Ajuda-me a configurar o DNA do negócio antes de ligar o WhatsApp." },
-        })
-      );
-      return;
-    }
+    // Abre sempre o modal de WhatsApp. Se o DNA ainda não estiver configurado,
+    // o card aparece bloqueado (whatsappLocked) e este handler nem é chamado.
     setWhatsappSetupOpen(true);
   };
 
