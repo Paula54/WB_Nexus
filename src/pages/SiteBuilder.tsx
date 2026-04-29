@@ -62,6 +62,7 @@ export default function SiteBuilder() {
   const [newPageTitle, setNewPageTitle] = useState("");
   const [newPageSlug, setNewPageSlug] = useState("");
   const [addPageOpen, setAddPageOpen] = useState(false);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
   const [publishing, setPublishing] = useState(false);
 
   const currentPage = pages.find((p) => p.id === currentPageId);
