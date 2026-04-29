@@ -142,13 +142,13 @@ export function WhatsAppSetupModal({ open, onOpenChange, projectId, onConnected 
           whatsapp_business_id: businessId.trim(),
           whatsapp_phone_number_id: phoneNumberId.trim(),
         } as never)
-        .eq("id", projectId);
+        .eq("id", resolvedProjectId);
       if (projErr) throw projErr;
 
       const { data: existingCred } = await supabase
         .from("project_credentials")
         .select("id, user_id")
-        .eq("project_id", projectId)
+        .eq("project_id", resolvedProjectId)
         .maybeSingle();
 
       const { data: { user } } = await supabase.auth.getUser();
@@ -163,7 +163,7 @@ export function WhatsAppSetupModal({ open, onOpenChange, projectId, onConnected 
           .eq("id", (existingCred as { id: string }).id);
       } else if (user) {
         await supabase.from("project_credentials").insert({
-          project_id: projectId,
+          project_id: resolvedProjectId,
           user_id: user.id,
           whatsapp_business_id: businessId.trim(),
           whatsapp_phone_number_id: phoneNumberId.trim(),
