@@ -21,7 +21,8 @@ import {
   Loader2,
   Check,
   FileText,
-  Rocket
+  Rocket,
+  LayoutTemplate
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabaseCustom";
