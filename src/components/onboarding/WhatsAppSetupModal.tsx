@@ -109,12 +109,28 @@ export function WhatsAppSetupModal({ open, onOpenChange, projectId, onConnected 
   };
 
   const handleSave = async () => {
-    if (!projectId) {
-      toast({ title: "Projeto não encontrado", description: "Configura o DNA primeiro.", variant: "destructive" });
-      return;
-    }
     if (!businessId.trim() || !phoneNumberId.trim()) {
       toast({ title: "Campos obrigatórios", description: "Preenche o WhatsApp Business ID e o Phone Number ID.", variant: "destructive" });
+      return;
+    }
+
+    // Resolve projectId (fallback se prop vier null por race de loading)
+    let resolvedProjectId = projectId;
+    if (!resolvedProjectId) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: proj } = await supabase
+          .from("projects")
+          .select("id")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: true })
+          .limit(1)
+          .maybeSingle();
+        resolvedProjectId = (proj as { id: string } | null)?.id ?? null;
+      }
+    }
+    if (!resolvedProjectId) {
+      toast({ title: "Projeto não encontrado", description: "Configura o DNA primeiro.", variant: "destructive" });
       return;
     }
 
