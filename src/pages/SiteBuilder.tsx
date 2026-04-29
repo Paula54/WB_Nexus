@@ -309,6 +309,35 @@ export default function SiteBuilder() {
         </div>
       </div>
 
+      {/* Templates Gallery Dialog */}
+      <Dialog open={templatesOpen} onOpenChange={setTemplatesOpen}>
+        <DialogContent className="max-w-5xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <LayoutTemplate className="h-5 w-5 text-primary" />
+              Galeria de Modelos
+            </DialogTitle>
+          </DialogHeader>
+          {currentPage ? (
+            <>
+              <p className="text-sm text-muted-foreground -mt-2">
+                Aplicar a um modelo substitui as secções da página atual: <strong>{currentPage.title}</strong>.
+              </p>
+              <TemplateGallery
+                projectId={(currentPage as any).project_id}
+                pageId={currentPage.id}
+                onApplied={() => {
+                  loadPageSections(currentPage.id);
+                  setTemplatesOpen(false);
+                }}
+              />
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground">Seleciona uma página primeiro.</p>
+          )}
+        </DialogContent>
+      </Dialog>
+
       {/* Page Tabs */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1">
         {pages.map((page) => (
