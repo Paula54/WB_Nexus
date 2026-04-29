@@ -64,8 +64,29 @@ export function TemplateGallery({ projectId, pageId, onApplied }: Props) {
       if (error) {
         console.error("[TemplateGallery] load error:", error);
         toast.error("Erro a carregar modelos");
+        setLoading(false);
+        return;
+      }
+
+      // Auto-seed: se não há modelos, cria automaticamente em vez de exigir clique
+      if (!data || data.length === 0) {
+        try {
+          const { data: seedData, error: seedErr } = await supabase.functions.invoke("seed-templates");
+          if (seedErr) throw seedErr;
+          if (seedData?.error) throw new Error(seedData.error);
+
+          const { data: refreshed } = await supabase
+            .from("pages")
+            .select("id, title, template_name, template_description, template_sector, content")
+            .eq("is_template", true)
+            .order("template_sector", { ascending: true });
+          if (!cancelled) setTemplates((refreshed ?? []) as TemplateRow[]);
+        } catch (e: any) {
+          console.error("[TemplateGallery] auto-seed error:", e);
+          if (!cancelled) setTemplates([]);
+        }
       } else {
-        setTemplates((data ?? []) as TemplateRow[]);
+        setTemplates(data as TemplateRow[]);
       }
       setLoading(false);
     })();
