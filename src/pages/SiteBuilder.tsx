@@ -279,6 +279,10 @@ export default function SiteBuilder() {
               <Check className="h-3 w-3" /> Guardado
             </span>
           )}
+          <Button variant="outline" onClick={() => setTemplatesOpen(true)}>
+            <LayoutTemplate className="h-4 w-4 mr-2" />
+            Modelos
+          </Button>
           <Button onClick={() => setViewMode('edit')}>
             <Code className="h-4 w-4 mr-2" />
             Editar
