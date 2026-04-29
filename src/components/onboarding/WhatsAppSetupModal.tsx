@@ -109,12 +109,28 @@ export function WhatsAppSetupModal({ open, onOpenChange, projectId, onConnected 
   };
 
   const handleSave = async () => {
-    if (!projectId) {
-      toast({ title: "Projeto não encontrado", description: "Configura o DNA primeiro.", variant: "destructive" });
-      return;
-    }
     if (!businessId.trim() || !phoneNumberId.trim()) {
       toast({ title: "Campos obrigatórios", description: "Preenche o WhatsApp Business ID e o Phone Number ID.", variant: "destructive" });
+      return;
+    }
+
+    // Resolve projectId (fallback se prop vier null por race de loading)
+    let resolvedProjectId = projectId;
+    if (!resolvedProjectId) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: proj } = await supabase
+          .from("projects")
+          .select("id")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: true })
+          .limit(1)
+          .maybeSingle();
+        resolvedProjectId = (proj as { id: string } | null)?.id ?? null;
+      }
+    }
+    if (!resolvedProjectId) {
+      toast({ title: "Projeto não encontrado", description: "Configura o DNA primeiro.", variant: "destructive" });
       return;
     }
 
@@ -126,13 +142,13 @@ export function WhatsAppSetupModal({ open, onOpenChange, projectId, onConnected 
           whatsapp_business_id: businessId.trim(),
           whatsapp_phone_number_id: phoneNumberId.trim(),
         } as never)
-        .eq("id", projectId);
+        .eq("id", resolvedProjectId);
       if (projErr) throw projErr;
 
       const { data: existingCred } = await supabase
         .from("project_credentials")
         .select("id, user_id")
-        .eq("project_id", projectId)
+        .eq("project_id", resolvedProjectId)
         .maybeSingle();
 
       const { data: { user } } = await supabase.auth.getUser();
@@ -147,7 +163,7 @@ export function WhatsAppSetupModal({ open, onOpenChange, projectId, onConnected 
           .eq("id", (existingCred as { id: string }).id);
       } else if (user) {
         await supabase.from("project_credentials").insert({
-          project_id: projectId,
+          project_id: resolvedProjectId,
           user_id: user.id,
           whatsapp_business_id: businessId.trim(),
           whatsapp_phone_number_id: phoneNumberId.trim(),
