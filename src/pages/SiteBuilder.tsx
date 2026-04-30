@@ -318,23 +318,31 @@ export default function SiteBuilder() {
               Galeria de Modelos
             </DialogTitle>
           </DialogHeader>
-          {currentPage ? (
-            <>
-              <p className="text-sm text-muted-foreground -mt-2">
-                Aplicar a um modelo substitui as secções da página atual: <strong>{currentPage.title}</strong>.
-              </p>
-              <TemplateGallery
-                projectId={(currentPage as any).project_id}
-                pageId={currentPage.id}
-                onApplied={() => {
-                  loadPageSections(currentPage.id);
-                  setTemplatesOpen(false);
-                }}
-              />
-            </>
-          ) : (
-            <p className="text-sm text-muted-foreground">Seleciona uma página primeiro.</p>
-          )}
+          {(() => {
+            const targetPage = currentPage || pages[0];
+            if (!targetPage) {
+              return (
+                <p className="text-sm text-muted-foreground">
+                  Ainda não tens páginas. Cria uma página primeiro com "Nova Página".
+                </p>
+              );
+            }
+            return (
+              <>
+                <p className="text-sm text-muted-foreground -mt-2">
+                  Aplicar um modelo substitui as secções da página: <strong>{targetPage.title}</strong>.
+                </p>
+                <TemplateGallery
+                  projectId={(targetPage as any).project_id}
+                  pageId={targetPage.id}
+                  onApplied={() => {
+                    loadPageSections(targetPage.id);
+                    setTemplatesOpen(false);
+                  }}
+                />
+              </>
+            );
+          })()}
         </DialogContent>
       </Dialog>
 
