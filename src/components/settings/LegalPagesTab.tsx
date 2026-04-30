@@ -39,10 +39,10 @@ const PAGE_LABELS: Record<PageType, string> = {
   cookies: "Política de Cookies",
 };
 
-const LEGAL_SITE_PAGES: Record<PageType, { slug: string; sortOrder: number }> = {
-  privacidade: { slug: "privacidade", sortOrder: 90 },
-  termos: { slug: "termos", sortOrder: 91 },
-  cookies: { slug: "cookies", sortOrder: 92 },
+const LEGAL_COMPLIANCE_PAGE_TYPES: Record<PageType, string> = {
+  privacidade: "privacy_policy",
+  termos: "terms_conditions",
+  cookies: "cookie_policy",
 };
 
 const cleanValue = (value: unknown): string => (typeof value === "string" ? value.trim() : "");
@@ -274,19 +274,19 @@ export default function LegalPagesTab() {
     const normalized = normalizeBusinessData(sources, user.email || "");
     setBusinessData(normalized);
 
-    // Load saved legal pages from the SiteBuilder pages table.
-    const legalSlugs = Object.values(LEGAL_SITE_PAGES).map((page) => page.slug);
+    // Load saved legal pages from the compliance table that exists in production.
+    const legalPageTypes = Object.values(LEGAL_COMPLIANCE_PAGE_TYPES);
     const { data: pages } = await supabase
-      .from("pages")
-      .select("slug, content")
+      .from("compliance_pages")
+      .select("page_type, content")
       .eq("user_id", user.id)
-      .in("slug", legalSlugs);
+      .in("page_type", legalPageTypes);
 
     if (pages?.length) {
       const next: Record<PageType, string | null> = { privacidade: null, termos: null, cookies: null };
-      for (const row of pages as Array<{ slug: string; content: unknown }>) {
-        const type = (Object.keys(LEGAL_SITE_PAGES) as PageType[]).find((key) => LEGAL_SITE_PAGES[key].slug === row.slug);
-        if (type) next[type] = getLegalMarkdown(row.content);
+      for (const row of pages as Array<{ page_type: string; content: unknown }>) {
+        const type = (Object.keys(LEGAL_COMPLIANCE_PAGE_TYPES) as PageType[]).find((key) => LEGAL_COMPLIANCE_PAGE_TYPES[key] === row.page_type);
+        if (type) next[type] = typeof row.content === "string" ? row.content : getLegalMarkdown(row.content);
       }
       setDrafts(next);
     }
@@ -330,7 +330,7 @@ export default function LegalPagesTab() {
     if (!user || !businessData || type === "cookies") return;
     setSaving(type);
     const content = drafts[type] ?? generateTemplate(type, businessData);
-    const pageConfig = LEGAL_SITE_PAGES[type];
+    const pageType = LEGAL_COMPLIANCE_PAGE_TYPES[type];
 
     const { data: project } = await supabase
       .from("projects")
@@ -347,36 +347,37 @@ export default function LegalPagesTab() {
     }
 
     const { data: existing, error: lookupError } = await supabase
-      .from("pages")
-      .select("id, content")
+      .from("compliance_pages")
+      .select("id, custom_fields")
       .eq("user_id", user.id)
       .eq("project_id", project.id)
-      .eq("slug", pageConfig.slug)
+      .eq("page_type", pageType)
       .maybeSingle();
 
     let error: unknown = lookupError;
     if (existing?.id) {
-      const existingContent = asRecord(existing.content);
+      const existingFields = asRecord(existing.custom_fields);
       const r = await supabase
-        .from("pages")
+        .from("compliance_pages")
         .update({
-          title: PAGE_LABELS[type],
-          is_published: true,
-          content: { ...existingContent, legal_markdown: content, legal_updated_at: new Date().toISOString() },
+          status: "validated",
+          content,
+          custom_fields: { ...existingFields, title: PAGE_LABELS[type], legal_updated_at: new Date().toISOString() },
+          validated_at: new Date().toISOString(),
         })
         .eq("id", existing.id);
       error = r.error;
     } else if (!error) {
       const r = await supabase
-        .from("pages")
+        .from("compliance_pages")
         .insert({
           user_id: user.id,
           project_id: project.id,
-          title: PAGE_LABELS[type],
-          slug: pageConfig.slug,
-          is_published: true,
-          sort_order: pageConfig.sortOrder,
-          content: { legal_markdown: content, legal_updated_at: new Date().toISOString() },
+          page_type: pageType,
+          status: "validated",
+          content,
+          custom_fields: { title: PAGE_LABELS[type], legal_updated_at: new Date().toISOString() },
+          validated_at: new Date().toISOString(),
         });
       error = r.error;
     }
