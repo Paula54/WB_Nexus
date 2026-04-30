@@ -348,7 +348,7 @@ export default function LegalPagesTab() {
 
     const { data: existing, error: lookupError } = await supabase
       .from("compliance_pages")
-      .select("id, content")
+      .select("id, custom_fields")
       .eq("user_id", user.id)
       .eq("project_id", project.id)
       .eq("page_type", pageType)
@@ -356,13 +356,13 @@ export default function LegalPagesTab() {
 
     let error: unknown = lookupError;
     if (existing?.id) {
-      const existingContent = asRecord(existing.content);
+      const existingFields = asRecord(existing.custom_fields);
       const r = await supabase
         .from("compliance_pages")
         .update({
           status: "validated",
           content,
-          custom_fields: { ...existingContent, title: PAGE_LABELS[type], legal_updated_at: new Date().toISOString() },
+          custom_fields: { ...existingFields, title: PAGE_LABELS[type], legal_updated_at: new Date().toISOString() },
           validated_at: new Date().toISOString(),
         })
         .eq("id", existing.id);
