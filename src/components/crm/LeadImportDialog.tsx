@@ -44,7 +44,23 @@ export function LeadImportDialog({ open, onOpenChange, onImported }: Props) {
   const [rows, setRows] = useState<Record<string, unknown>[]>([]);
   const [mapping, setMapping] = useState<Record<string, string>>({});
   const [progress, setProgress] = useState(0);
-  const [summary, setSummary] = useState({ success: 0, errors: 0, errorList: [] as string[] });
+  const [summary, setSummary] = useState({
+    success: 0,
+    errors: 0,
+    errorList: [] as string[],
+    invalidEmails: 0,
+    invalidPhones: 0,
+    skippedNoName: 0,
+    sampleInvalid: [] as string[],
+  });
+
+  // RFC-5322 simplificado
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+  // E.164 ou nacional: dígitos, espaços, +, -, (), mínimo 7 dígitos
+  const isValidPhone = (v: string) => {
+    const digits = v.replace(/\D/g, "");
+    return digits.length >= 7 && digits.length <= 15 && /^[+\d\s().-]+$/.test(v);
+  };
 
   const reset = () => {
     setStep("upload");
