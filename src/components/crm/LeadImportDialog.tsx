@@ -44,7 +44,23 @@ export function LeadImportDialog({ open, onOpenChange, onImported }: Props) {
   const [rows, setRows] = useState<Record<string, unknown>[]>([]);
   const [mapping, setMapping] = useState<Record<string, string>>({});
   const [progress, setProgress] = useState(0);
-  const [summary, setSummary] = useState({ success: 0, errors: 0, errorList: [] as string[] });
+  const [summary, setSummary] = useState({
+    success: 0,
+    errors: 0,
+    errorList: [] as string[],
+    invalidEmails: 0,
+    invalidPhones: 0,
+    skippedNoName: 0,
+    sampleInvalid: [] as string[],
+  });
+
+  // RFC-5322 simplificado
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+  // E.164 ou nacional: dígitos, espaços, +, -, (), mínimo 7 dígitos
+  const isValidPhone = (v: string) => {
+    const digits = v.replace(/\D/g, "");
+    return digits.length >= 7 && digits.length <= 15 && /^[+\d\s().-]+$/.test(v);
+  };
 
   const reset = () => {
     setStep("upload");
@@ -52,7 +68,7 @@ export function LeadImportDialog({ open, onOpenChange, onImported }: Props) {
     setRows([]);
     setMapping({});
     setProgress(0);
-    setSummary({ success: 0, errors: 0, errorList: [] });
+    setSummary({ success: 0, errors: 0, errorList: [], invalidEmails: 0, invalidPhones: 0, skippedNoName: 0, sampleInvalid: [] });
   };
 
   const handleClose = (next: boolean) => {
@@ -122,8 +138,27 @@ export function LeadImportDialog({ open, onOpenChange, onImported }: Props) {
     // Validar nome obrigatório
     const nameMapped = Object.values(mapping).includes("name");
     if (!nameMapped) {
-      toast({ variant: "destructive", title: "Mapeamento incompleto", description: "Mapeia uma coluna ao campo Nome." });
+      toast({
+        variant: "destructive",
+        title: "Mapeamento incompleto",
+        description: "Mapeia pelo menos uma coluna ao campo Nome para continuar.",
+      });
       return;
+    }
+
+    // Apenas um mapeamento por campo standard (exceto custom/ignore)
+    const seen = new Set<string>();
+    for (const v of Object.values(mapping)) {
+      if (v === CUSTOM || v === IGNORE) continue;
+      if (seen.has(v)) {
+        toast({
+          variant: "destructive",
+          title: "Mapeamento duplicado",
+          description: `O campo "${v}" está associado a mais que uma coluna.`,
+        });
+        return;
+      }
+      seen.add(v);
     }
 
     setStep("importing");
@@ -131,14 +166,21 @@ export function LeadImportDialog({ open, onOpenChange, onImported }: Props) {
 
     let success = 0;
     let errors = 0;
+    let invalidEmails = 0;
+    let invalidPhones = 0;
+    let skippedNoName = 0;
     const errorList: string[] = [];
+    const sampleInvalid: string[] = [];
     const total = rows.length;
     const BATCH = 50;
 
     for (let i = 0; i < total; i += BATCH) {
       const slice = rows.slice(i, i + BATCH);
-      const records = slice.map((row) => {
-        const lead: Record<string, unknown> = { user_id: user.id, custom_fields: {} as Record<string, unknown> };
+      const records: Record<string, unknown>[] = [];
+
+      slice.forEach((row, idx) => {
+        const lineNum = i + idx + 2; // +2 = header + 1-based
+        const lead: Record<string, unknown> = { user_id: user.id };
         const customFields: Record<string, unknown> = {};
 
         for (const [col, target] of Object.entries(mapping)) {
@@ -159,17 +201,39 @@ export function LeadImportDialog({ open, onOpenChange, onImported }: Props) {
           } else if (target === "priority") {
             const p = value.toLowerCase();
             lead.priority = ["low", "medium", "high"].includes(p) ? p : "medium";
+          } else if (target === "email") {
+            if (!EMAIL_RE.test(value)) {
+              invalidEmails++;
+              if (sampleInvalid.length < 5) sampleInvalid.push(`Linha ${lineNum}: email "${value}" inválido (ignorado)`);
+              continue;
+            }
+            lead.email = value.toLowerCase();
+          } else if (target === "phone") {
+            if (!isValidPhone(value)) {
+              invalidPhones++;
+              if (sampleInvalid.length < 5) sampleInvalid.push(`Linha ${lineNum}: telefone "${value}" inválido (ignorado)`);
+              continue;
+            }
+            lead.phone = value;
           } else {
             lead[target] = value;
           }
         }
 
         lead.custom_fields = customFields;
-        return lead;
-      }).filter((l) => l.name);
+
+        const nameVal = typeof lead.name === "string" ? lead.name.trim() : "";
+        if (!nameVal) {
+          skippedNoName++;
+          if (sampleInvalid.length < 5) sampleInvalid.push(`Linha ${lineNum}: nome em falta (linha ignorada)`);
+          return;
+        }
+        lead.name = nameVal;
+        records.push(lead);
+      });
 
       if (records.length === 0) {
-        errors += slice.length;
+        setProgress(Math.round(((i + slice.length) / total) * 100));
         continue;
       }
 
@@ -188,7 +252,7 @@ export function LeadImportDialog({ open, onOpenChange, onImported }: Props) {
       setProgress(Math.round(((i + slice.length) / total) * 100));
     }
 
-    setSummary({ success, errors, errorList });
+    setSummary({ success, errors, errorList, invalidEmails, invalidPhones, skippedNoName, sampleInvalid });
     setStep("summary");
     if (success > 0) onImported();
   };
@@ -244,9 +308,17 @@ export function LeadImportDialog({ open, onOpenChange, onImported }: Props) {
                 </div>
               ))}
             </div>
+            {!Object.values(mapping).includes("name") && (
+              <div className="flex items-start gap-2 p-3 rounded-md bg-red-500/10 border border-red-500/20 text-xs text-red-400">
+                <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                <span>O campo <strong>Nome</strong> é obrigatório. Associa-o a uma das colunas para poder importar.</span>
+              </div>
+            )}
             <div className="flex justify-end gap-2 pt-2">
               <Button variant="outline" onClick={reset}>Voltar</Button>
-              <Button onClick={runImport}>Importar {rows.length} leads</Button>
+              <Button onClick={runImport} disabled={!Object.values(mapping).includes("name")}>
+                Importar {rows.length} leads
+              </Button>
             </div>
           </div>
         )}
@@ -270,10 +342,35 @@ export function LeadImportDialog({ open, onOpenChange, onImported }: Props) {
               <div className="flex items-start gap-3 p-4 rounded-lg bg-red-500/10 border border-red-500/20">
                 <AlertCircle className="h-6 w-6 text-red-500 shrink-0" />
                 <div className="space-y-1">
-                  <p className="font-semibold">{summary.errors} erros</p>
+                  <p className="font-semibold">{summary.errors} erros de gravação</p>
                   {summary.errorList.map((e, i) => (
                     <p key={i} className="text-xs text-muted-foreground">{e}</p>
                   ))}
+                </div>
+              </div>
+            )}
+            {(summary.invalidEmails > 0 || summary.invalidPhones > 0 || summary.skippedNoName > 0) && (
+              <div className="flex items-start gap-3 p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+                <AlertCircle className="h-6 w-6 text-yellow-500 shrink-0" />
+                <div className="space-y-1 text-sm">
+                  <p className="font-semibold">Avisos de validação</p>
+                  {summary.skippedNoName > 0 && (
+                    <p className="text-xs text-muted-foreground">{summary.skippedNoName} linha(s) ignorada(s) por falta de nome</p>
+                  )}
+                  {summary.invalidEmails > 0 && (
+                    <p className="text-xs text-muted-foreground">{summary.invalidEmails} email(s) inválido(s) ignorado(s)</p>
+                  )}
+                  {summary.invalidPhones > 0 && (
+                    <p className="text-xs text-muted-foreground">{summary.invalidPhones} telefone(s) inválido(s) ignorado(s)</p>
+                  )}
+                  {summary.sampleInvalid.length > 0 && (
+                    <div className="pt-2 space-y-0.5">
+                      <p className="text-xs font-medium">Exemplos:</p>
+                      {summary.sampleInvalid.map((s, i) => (
+                        <p key={i} className="text-[11px] text-muted-foreground">• {s}</p>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
