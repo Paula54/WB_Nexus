@@ -405,5 +405,6 @@ export function useSiteBuilder() {
     loadPageSections,
     addPage,
     deletePage,
+    projectId,
   };
 }

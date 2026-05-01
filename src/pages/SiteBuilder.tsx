@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { TemplateGallery } from "@/components/builder/TemplateGallery";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -38,6 +38,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { AIImageField } from "@/components/builder/AIImageField";
+import { BrandColorPicker, DEFAULT_BRAND_COLORS, type BrandColors } from "@/components/builder/BrandColorPicker";
 
 const sectionTypes = [
   { type: 'hero', label: 'Hero', icon: Layout },
@@ -59,6 +60,7 @@ export default function SiteBuilder() {
     loadPageSections,
     addPage,
     deletePage,
+    projectId,
   } = useSiteBuilder();
   const [selectedSection, setSelectedSection] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'edit' | 'preview'>('edit');
@@ -67,6 +69,21 @@ export default function SiteBuilder() {
   const [addPageOpen, setAddPageOpen] = useState(false);
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [brandColors, setBrandColors] = useState<BrandColors>(DEFAULT_BRAND_COLORS);
+
+  // Load brand colors from project
+  useEffect(() => {
+    if (!projectId) return;
+    (async () => {
+      const { data } = await supabase
+        .from("projects")
+        .select("brand_colors")
+        .eq("id", projectId)
+        .maybeSingle();
+      const bc = (data as any)?.brand_colors;
+      if (bc && bc.primary) setBrandColors(bc as BrandColors);
+    })();
+  }, [projectId]);
 
   const currentPage = pages.find((p) => p.id === currentPageId);
 
@@ -181,7 +198,7 @@ export default function SiteBuilder() {
                 style={{ 
                   backgroundImage: section.content.backgroundImage 
                     ? `linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url(${section.content.backgroundImage})` 
-                    : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    : `linear-gradient(135deg, ${brandColors.primary} 0%, ${brandColors.secondary} 100%)`,
                   backgroundSize: 'cover',
                   backgroundPosition: 'center'
                 }}
@@ -192,7 +209,10 @@ export default function SiteBuilder() {
                     <p className="text-xl mb-6 opacity-90">{section.content.subtitle}</p>
                   )}
                   {section.content.buttonText && (
-                    <button className="bg-white text-gray-900 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100">
+                    <button
+                      className="px-6 py-3 rounded-lg font-semibold hover:opacity-90 transition-opacity"
+                      style={{ background: brandColors.accent, color: '#fff' }}
+                    >
                       {section.content.buttonText}
                     </button>
                   )}
@@ -202,11 +222,13 @@ export default function SiteBuilder() {
 
             {section.type === 'features' && (
               <div className="p-12 bg-gray-50">
-                <h2 className="text-3xl font-bold text-center mb-8">{section.content.title}</h2>
+                <h2 className="text-3xl font-bold text-center mb-8" style={{ color: brandColors.primary }}>
+                  {section.content.title}
+                </h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {section.content.items?.map((item, i) => (
-                    <div key={i} className="bg-white p-6 rounded-lg shadow-sm text-center">
-                      <h3 className="font-semibold text-lg mb-2">{item.title}</h3>
+                    <div key={i} className="bg-white p-6 rounded-lg shadow-sm text-center border-t-4" style={{ borderTopColor: brandColors.accent }}>
+                      <h3 className="font-semibold text-lg mb-2" style={{ color: brandColors.secondary }}>{item.title}</h3>
                       <p className="text-gray-600">{item.desc}</p>
                     </div>
                   ))}
@@ -216,12 +238,14 @@ export default function SiteBuilder() {
 
             {section.type === 'testimonials' && (
               <div className="p-12 bg-white">
-                <h2 className="text-3xl font-bold text-center mb-8">{section.content.title}</h2>
+                <h2 className="text-3xl font-bold text-center mb-8" style={{ color: brandColors.primary }}>
+                  {section.content.title}
+                </h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {section.content.items?.map((item, i) => (
-                    <div key={i} className="bg-gray-50 p-6 rounded-lg">
+                    <div key={i} className="bg-gray-50 p-6 rounded-lg border-l-4" style={{ borderLeftColor: brandColors.accent }}>
                       <p className="text-gray-600 italic mb-4">"{item.desc}"</p>
-                      <p className="font-semibold">{item.title}</p>
+                      <p className="font-semibold" style={{ color: brandColors.secondary }}>{item.title}</p>
                     </div>
                   ))}
                 </div>
@@ -229,13 +253,19 @@ export default function SiteBuilder() {
             )}
 
             {section.type === 'cta' && (
-              <div className="p-12 bg-gradient-to-r from-primary to-blue-600 text-white text-center">
+              <div
+                className="p-12 text-white text-center"
+                style={{ background: `linear-gradient(90deg, ${brandColors.primary}, ${brandColors.secondary})` }}
+              >
                 <h2 className="text-3xl font-bold mb-4">{section.content.title}</h2>
                 {section.content.subtitle && (
                   <p className="text-xl mb-6 opacity-90">{section.content.subtitle}</p>
                 )}
                 {section.content.buttonText && (
-                  <button className="bg-white text-gray-900 px-8 py-3 rounded-lg font-semibold">
+                  <button
+                    className="px-8 py-3 rounded-lg font-semibold hover:opacity-90 transition-opacity"
+                    style={{ background: brandColors.accent, color: '#fff' }}
+                  >
                     {section.content.buttonText}
                   </button>
                 )}
@@ -244,12 +274,17 @@ export default function SiteBuilder() {
 
             {section.type === 'contact' && (
               <div className="p-12 bg-gray-50">
-                <h2 className="text-3xl font-bold text-center mb-8">{section.content.title}</h2>
+                <h2 className="text-3xl font-bold text-center mb-8" style={{ color: brandColors.primary }}>
+                  {section.content.title}
+                </h2>
                 <div className="max-w-md mx-auto space-y-4">
                   <input type="text" placeholder="Nome" className="w-full p-3 border rounded-lg" />
                   <input type="email" placeholder="Email" className="w-full p-3 border rounded-lg" />
                   <textarea placeholder="Mensagem" rows={4} className="w-full p-3 border rounded-lg" />
-                  <button className="w-full bg-primary text-white py-3 rounded-lg font-semibold">
+                  <button
+                    className="w-full text-white py-3 rounded-lg font-semibold hover:opacity-90 transition-opacity"
+                    style={{ background: brandColors.primary }}
+                  >
                     {section.content.buttonText || 'Enviar'}
                   </button>
                 </div>
@@ -358,6 +393,15 @@ export default function SiteBuilder() {
           })()}
         </DialogContent>
       </Dialog>
+
+      {/* Brand Colors */}
+      {projectId && (
+        <BrandColorPicker
+          projectId={projectId}
+          value={brandColors}
+          onChange={setBrandColors}
+        />
+      )}
 
       {/* Page Tabs */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1">
