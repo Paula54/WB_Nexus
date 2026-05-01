@@ -6,14 +6,14 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Globe, 
-  Plus, 
-  Eye, 
-  Code, 
-  Layout, 
-  Star, 
-  MessageSquare, 
+import {
+  Globe,
+  Plus,
+  Eye,
+  Code,
+  Layout,
+  Star,
+  MessageSquare,
   Phone,
   Trash2,
   GripVertical,
@@ -22,7 +22,9 @@ import {
   Check,
   FileText,
   Rocket,
-  LayoutTemplate
+  LayoutTemplate,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabaseCustom";
@@ -35,6 +37,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { AIImageField } from "@/components/builder/AIImageField";
 
 const sectionTypes = [
   { type: 'hero', label: 'Hero', icon: Layout },
