@@ -60,6 +60,7 @@ export default function SiteBuilder() {
     loadPageSections,
     addPage,
     deletePage,
+    projectId,
   } = useSiteBuilder();
   const [selectedSection, setSelectedSection] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'edit' | 'preview'>('edit');
@@ -68,6 +69,21 @@ export default function SiteBuilder() {
   const [addPageOpen, setAddPageOpen] = useState(false);
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [brandColors, setBrandColors] = useState<BrandColors>(DEFAULT_BRAND_COLORS);
+
+  // Load brand colors from project
+  useEffect(() => {
+    if (!projectId) return;
+    (async () => {
+      const { data } = await supabase
+        .from("projects")
+        .select("brand_colors")
+        .eq("id", projectId)
+        .maybeSingle();
+      const bc = (data as any)?.brand_colors;
+      if (bc && bc.primary) setBrandColors(bc as BrandColors);
+    })();
+  }, [projectId]);
 
   const currentPage = pages.find((p) => p.id === currentPageId);
 
