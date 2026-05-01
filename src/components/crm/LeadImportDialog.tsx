@@ -252,7 +252,7 @@ export function LeadImportDialog({ open, onOpenChange, onImported }: Props) {
       setProgress(Math.round(((i + slice.length) / total) * 100));
     }
 
-    setSummary({ success, errors, errorList });
+    setSummary({ success, errors, errorList, invalidEmails, invalidPhones, skippedNoName, sampleInvalid });
     setStep("summary");
     if (success > 0) onImported();
   };
