@@ -71,8 +71,8 @@ export default function Register() {
     const RETRY_DELAY = 2000;
 
     async function callEdgeFunction(): Promise<{ data: any; error: Error | null }> {
-      const prodUrl = 'https://hqyuxponbobmuletqshq.supabase.co';
-      const prodAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhxeXV4cG9uYm9ibXVsZXRxc2hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE0MjM4MTUsImV4cCI6MjA4Njk5OTgxNX0.PR0gfHWMQnFjqnf2TiHSudmJ0k6fnlf8x16AK94jWN4';
+      const prodUrl = import.meta.env.VITE_SUPABASE_URL as string;
+      const prodAnonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
       const response = await fetch(`${prodUrl}/functions/v1/generate-stripe-session`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "apikey": prodAnonKey },
