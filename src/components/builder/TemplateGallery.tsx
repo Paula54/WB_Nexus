@@ -41,14 +41,17 @@ export function TemplateGallery({ projectId, pageId, onApplied }: Props) {
   const [applyingId, setApplyingId] = useState<string | null>(null);
   const [sectorFilter, setSectorFilter] = useState<string>("mine");
 
-  // Auto-selecionar setor do utilizador quando perfil carrega
+  // Por defeito mostra todos. Só pré-seleciona setor do utilizador se EXISTIREM modelos para esse setor.
   useEffect(() => {
-    if (profile?.business_sector && SECTOR_LABELS[profile.business_sector]) {
+    if (!profile?.business_sector) return;
+    if (templates.length === 0) return;
+    const hasSectorMatch = templates.some((t) => t.template_sector === profile.business_sector);
+    if (hasSectorMatch && SECTOR_LABELS[profile.business_sector]) {
       setSectorFilter(profile.business_sector);
     } else {
       setSectorFilter("all");
     }
-  }, [profile?.business_sector]);
+  }, [profile?.business_sector, templates]);
 
   useEffect(() => {
     let cancelled = false;
