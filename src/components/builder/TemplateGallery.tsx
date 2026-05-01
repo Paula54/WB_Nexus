@@ -39,7 +39,7 @@ export function TemplateGallery({ projectId, pageId, onApplied }: Props) {
   const [templates, setTemplates] = useState<TemplateRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [applyingId, setApplyingId] = useState<string | null>(null);
-  const [sectorFilter, setSectorFilter] = useState<string>("mine");
+  const [sectorFilter, setSectorFilter] = useState<string>("all");
 
   // Por defeito mostra todos. Só pré-seleciona setor do utilizador se EXISTIREM modelos para esse setor.
   useEffect(() => {
