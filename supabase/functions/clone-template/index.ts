@@ -185,10 +185,59 @@ serve(async (req) => {
       city: bp?.city || project?.city || null,
     };
 
-    // 5) Personalizar via Gemini (com fallback se falhar)
+    // 5) Personalizar texto via Gemini (com fallback se falhar)
     let personalized = tplSections as TemplateSection[];
     if (GEMINI_API_KEY) {
       personalized = await personalizeWithAI(personalized, business, GEMINI_API_KEY);
+    }
+
+    // 5.1) Gerar imagem hero automática via Lovable AI (best-effort, sem custar créditos extras)
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (LOVABLE_API_KEY) {
+      try {
+        const heroIdx = personalized.findIndex((s) => s.type === "hero");
+        if (heroIdx >= 0) {
+          const heroPrompt = `Professional cinematic photograph for a ${business.sector || "business"} website hero. Subject: ${business.name || "modern business"} in ${business.city || "Portugal"}. ${business.description || ""}. Sharp focus, natural lighting, modern composition, no text, no watermark, 16:9.`;
+          const imgRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+            body: JSON.stringify({
+              model: "google/gemini-2.5-flash-image",
+              messages: [{ role: "user", content: heroPrompt }],
+              modalities: ["image", "text"],
+            }),
+          });
+          if (imgRes.ok) {
+            const j = await imgRes.json();
+            const dataUrl: string | undefined = j?.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+            const m = dataUrl?.match(/^data:(image\/[a-zA-Z+]+);base64,(.+)$/);
+            if (m) {
+              const mime = m[1];
+              const ext = mime.split("/")[1].replace("+xml", "");
+              const bin = atob(m[2]);
+              const bytes = new Uint8Array(bin.length);
+              for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+              const path = `${user.id}/hero-auto-${crypto.randomUUID()}.${ext}`;
+              const { error: upErr } = await admin.storage
+                .from("site-images")
+                .upload(path, bytes, { contentType: mime, upsert: false });
+              if (!upErr) {
+                const { data: pub } = admin.storage.from("site-images").getPublicUrl(path);
+                personalized[heroIdx] = {
+                  ...personalized[heroIdx],
+                  content: { ...personalized[heroIdx].content, backgroundImage: pub.publicUrl },
+                };
+              } else {
+                console.warn("[clone-template] hero image upload failed:", upErr);
+              }
+            }
+          } else {
+            console.warn("[clone-template] hero image generation failed:", imgRes.status);
+          }
+        }
+      } catch (e) {
+        console.warn("[clone-template] hero image fallback:", e);
+      }
     }
 
     // 6) Garantir landing_page_id (legacy fk)
