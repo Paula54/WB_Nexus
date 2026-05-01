@@ -51,16 +51,20 @@ export function LeadImportDialog({ open, onOpenChange, onImported }: Props) {
     invalidEmails: 0,
     invalidPhones: 0,
     skippedNoName: 0,
+    duplicatesInFile: 0,
+    duplicatesInDb: 0,
     sampleInvalid: [] as string[],
+    sampleDuplicates: [] as string[],
   });
 
   // RFC-5322 simplificado
   const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-  // E.164 ou nacional: dígitos, espaços, +, -, (), mínimo 7 dígitos
   const isValidPhone = (v: string) => {
     const digits = v.replace(/\D/g, "");
     return digits.length >= 7 && digits.length <= 15 && /^[+\d\s().-]+$/.test(v);
   };
+  const normPhone = (v: string) => v.replace(/\D/g, "");
+  const normEmail = (v: string) => v.trim().toLowerCase();
 
   const reset = () => {
     setStep("upload");
