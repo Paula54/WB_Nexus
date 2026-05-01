@@ -273,7 +273,7 @@ export default function SiteBuilder() {
                 className="p-12 text-white text-center"
                 style={{ background: `linear-gradient(90deg, ${brandColors.primary}, ${brandColors.secondary})` }}
               >
-                <h2 className="text-3xl font-bold mb-4">{section.content.title}</h2>
+                <h2 className="text-3xl font-bold mb-4" style={{ fontFamily: headingFont }}>{section.content.title}</h2>
                 {section.content.subtitle && (
                   <p className="text-xl mb-6 opacity-90">{section.content.subtitle}</p>
                 )}
@@ -416,6 +416,15 @@ export default function SiteBuilder() {
           projectId={projectId}
           value={brandColors}
           onChange={setBrandColors}
+        />
+      )}
+
+      {/* Brand Fonts */}
+      {projectId && (
+        <BrandFontPicker
+          projectId={projectId}
+          value={brandFonts}
+          onChange={setBrandFonts}
         />
       )}
 
