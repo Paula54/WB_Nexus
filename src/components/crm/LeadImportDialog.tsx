@@ -72,7 +72,7 @@ export function LeadImportDialog({ open, onOpenChange, onImported }: Props) {
     setRows([]);
     setMapping({});
     setProgress(0);
-    setSummary({ success: 0, errors: 0, errorList: [], invalidEmails: 0, invalidPhones: 0, skippedNoName: 0, sampleInvalid: [] });
+    setSummary({ success: 0, errors: 0, errorList: [], invalidEmails: 0, invalidPhones: 0, skippedNoName: 0, duplicatesInFile: 0, duplicatesInDb: 0, sampleInvalid: [], sampleDuplicates: [] });
   };
 
   const handleClose = (next: boolean) => {
