@@ -394,6 +394,15 @@ export default function SiteBuilder() {
         </DialogContent>
       </Dialog>
 
+      {/* Brand Colors */}
+      {projectId && (
+        <BrandColorPicker
+          projectId={projectId}
+          value={brandColors}
+          onChange={setBrandColors}
+        />
+      )}
+
       {/* Page Tabs */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1">
         {pages.map((page) => (
