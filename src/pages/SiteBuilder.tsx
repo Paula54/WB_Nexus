@@ -39,6 +39,7 @@ import {
 } from "@/components/ui/dialog";
 import { AIImageField } from "@/components/builder/AIImageField";
 import { BrandColorPicker, DEFAULT_BRAND_COLORS, type BrandColors } from "@/components/builder/BrandColorPicker";
+import { BrandFontPicker, DEFAULT_BRAND_FONTS, loadGoogleFont, type BrandFonts } from "@/components/builder/BrandFontPicker";
 
 const sectionTypes = [
   { type: 'hero', label: 'Hero', icon: Layout },
@@ -70,18 +71,28 @@ export default function SiteBuilder() {
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [brandColors, setBrandColors] = useState<BrandColors>(DEFAULT_BRAND_COLORS);
+  const [brandFonts, setBrandFonts] = useState<BrandFonts>(DEFAULT_BRAND_FONTS);
 
-  // Load brand colors from project
+  // Load brand colors + fonts from project
   useEffect(() => {
     if (!projectId) return;
     (async () => {
       const { data } = await supabase
         .from("projects")
-        .select("brand_colors")
+        .select("brand_colors, brand_fonts")
         .eq("id", projectId)
         .maybeSingle();
       const bc = (data as any)?.brand_colors;
       if (bc && bc.primary) setBrandColors(bc as BrandColors);
+      const bf = (data as any)?.brand_fonts;
+      if (bf && bf.heading) {
+        setBrandFonts(bf as BrandFonts);
+        loadGoogleFont(bf.heading);
+        loadGoogleFont(bf.body);
+      } else {
+        loadGoogleFont(DEFAULT_BRAND_FONTS.heading);
+        loadGoogleFont(DEFAULT_BRAND_FONTS.body);
+      }
     })();
   }, [projectId]);
 
@@ -188,8 +199,13 @@ export default function SiteBuilder() {
   }
 
   const renderPreview = () => {
+    const headingFont = `'${brandFonts.heading}', sans-serif`;
+    const bodyFont = `'${brandFonts.body}', sans-serif`;
     return (
-      <div className="bg-white text-gray-900 min-h-[600px] rounded-lg overflow-hidden">
+      <div
+        className="bg-white text-gray-900 min-h-[600px] rounded-lg overflow-hidden"
+        style={{ fontFamily: bodyFont }}
+      >
         {sections.map((section) => (
           <div key={section.id} className="border-b border-gray-200 last:border-b-0">
             {section.type === 'hero' && (
@@ -204,7 +220,7 @@ export default function SiteBuilder() {
                 }}
               >
                 <div className="text-white">
-                  <h1 className="text-4xl font-bold mb-4">{section.content.title}</h1>
+                  <h1 className="text-4xl font-bold mb-4" style={{ fontFamily: headingFont }}>{section.content.title}</h1>
                   {section.content.subtitle && (
                     <p className="text-xl mb-6 opacity-90">{section.content.subtitle}</p>
                   )}
