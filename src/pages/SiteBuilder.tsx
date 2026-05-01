@@ -97,6 +97,16 @@ export default function SiteBuilder() {
     if (selectedSection === id) setSelectedSection(null);
   };
 
+  const moveSection = (id: string, direction: -1 | 1) => {
+    const idx = sections.findIndex(s => s.id === id);
+    if (idx < 0) return;
+    const newIdx = idx + direction;
+    if (newIdx < 0 || newIdx >= sections.length) return;
+    const next = [...sections];
+    [next[idx], next[newIdx]] = [next[newIdx], next[idx]];
+    updateSections(next);
+  };
+
   const handleAddPage = async () => {
     if (!newPageTitle.trim()) return;
     const slug = newPageSlug.trim() || newPageTitle.trim().toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
