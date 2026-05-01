@@ -476,27 +476,50 @@ export default function SiteBuilder() {
                       key={section.id}
                       onClick={() => setSelectedSection(section.id)}
                       className={`p-3 rounded-lg border cursor-pointer transition-all flex items-center justify-between group ${
-                        selectedSection === section.id 
-                          ? 'border-primary bg-primary/10' 
+                        selectedSection === section.id
+                          ? 'border-primary bg-primary/10'
                           : 'border-border hover:border-primary/50'
                       }`}
                     >
-                      <div className="flex items-center gap-3">
-                        <GripVertical className="h-4 w-4 text-muted-foreground" />
-                        <Icon className="h-4 w-4 text-primary" />
-                        <div>
-                          <p className="font-medium text-sm">{section.content.title}</p>
+                      <div className="flex items-center gap-3 min-w-0">
+                        <GripVertical className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <Icon className="h-4 w-4 text-primary shrink-0" />
+                        <div className="min-w-0">
+                          <p className="font-medium text-sm truncate">{section.content.title}</p>
                           <p className="text-xs text-muted-foreground">{typeInfo?.label}</p>
                         </div>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="opacity-0 group-hover:opacity-100"
-                        onClick={(e) => { e.stopPropagation(); deleteSection(section.id); }}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
+                      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          title="Mover para cima"
+                          onClick={(e) => { e.stopPropagation(); moveSection(section.id, -1); }}
+                          disabled={sections.indexOf(section) === 0}
+                        >
+                          <ArrowUp className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          title="Mover para baixo"
+                          onClick={(e) => { e.stopPropagation(); moveSection(section.id, 1); }}
+                          disabled={sections.indexOf(section) === sections.length - 1}
+                        >
+                          <ArrowDown className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          title="Eliminar"
+                          onClick={(e) => { e.stopPropagation(); deleteSection(section.id); }}
+                        >
+                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                        </Button>
+                      </div>
                     </div>
                   );
                 })}
