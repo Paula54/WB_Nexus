@@ -568,14 +568,12 @@ export default function SiteBuilder() {
                   )}
 
                   {selectedSectionData.type === 'hero' && (
-                    <div className="space-y-2">
-                      <Label>URL da Imagem de Fundo</Label>
-                      <Input
-                        value={selectedSectionData.content.backgroundImage || ''}
-                        onChange={(e) => updateSection(selectedSectionData.id, { backgroundImage: e.target.value })}
-                        placeholder="https://..."
-                      />
-                    </div>
+                    <AIImageField
+                      value={selectedSectionData.content.backgroundImage || ''}
+                      onChange={(url) => updateSection(selectedSectionData.id, { backgroundImage: url })}
+                      context="hero"
+                      label="Imagem de Fundo"
+                    />
                   )}
 
                   {selectedSectionData.type === 'custom_html' && (
