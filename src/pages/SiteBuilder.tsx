@@ -38,6 +38,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { AIImageField } from "@/components/builder/AIImageField";
+import { BrandColorPicker, DEFAULT_BRAND_COLORS, type BrandColors } from "@/components/builder/BrandColorPicker";
+import { useEffect } from "react";
 
 const sectionTypes = [
   { type: 'hero', label: 'Hero', icon: Layout },
