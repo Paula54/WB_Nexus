@@ -435,6 +435,28 @@ export function LeadImportDialog({ open, onOpenChange, onImported }: Props) {
                 </div>
               </div>
             )}
+            {(summary.duplicatesInFile > 0 || summary.duplicatesInDb > 0) && (
+              <div className="flex items-start gap-3 p-4 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                <AlertCircle className="h-6 w-6 text-blue-400 shrink-0" />
+                <div className="space-y-1 text-sm">
+                  <p className="font-semibold">Duplicados ignorados</p>
+                  {summary.duplicatesInDb > 0 && (
+                    <p className="text-xs text-muted-foreground">{summary.duplicatesInDb} já existiam na base de dados (email/telefone)</p>
+                  )}
+                  {summary.duplicatesInFile > 0 && (
+                    <p className="text-xs text-muted-foreground">{summary.duplicatesInFile} repetido(s) dentro do próprio ficheiro</p>
+                  )}
+                  {summary.sampleDuplicates.length > 0 && (
+                    <div className="pt-2 space-y-0.5">
+                      <p className="text-xs font-medium">Exemplos:</p>
+                      {summary.sampleDuplicates.map((s, i) => (
+                        <p key={i} className="text-[11px] text-muted-foreground">• {s}</p>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
             <div className="flex justify-end">
               <Button onClick={() => handleClose(false)}>Fechar</Button>
             </div>
