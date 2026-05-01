@@ -1,0 +1,1 @@
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS brand_fonts jsonb DEFAULT '{"heading":"Inter","body":"Inter"}'::jsonb;
