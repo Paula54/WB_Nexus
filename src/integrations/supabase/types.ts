@@ -1099,6 +1099,7 @@ export type Database = {
           address_line1: string | null
           address_line2: string | null
           brand_colors: Json
+          brand_fonts: Json | null
           business_name: string | null
           business_sector: string | null
           city: string | null
@@ -1142,6 +1143,7 @@ export type Database = {
           address_line1?: string | null
           address_line2?: string | null
           brand_colors?: Json
+          brand_fonts?: Json | null
           business_name?: string | null
           business_sector?: string | null
           city?: string | null
@@ -1185,6 +1187,7 @@ export type Database = {
           address_line1?: string | null
           address_line2?: string | null
           brand_colors?: Json
+          brand_fonts?: Json | null
           business_name?: string | null
           business_sector?: string | null
           city?: string | null
