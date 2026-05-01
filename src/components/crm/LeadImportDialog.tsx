@@ -138,8 +138,27 @@ export function LeadImportDialog({ open, onOpenChange, onImported }: Props) {
     // Validar nome obrigatório
     const nameMapped = Object.values(mapping).includes("name");
     if (!nameMapped) {
-      toast({ variant: "destructive", title: "Mapeamento incompleto", description: "Mapeia uma coluna ao campo Nome." });
+      toast({
+        variant: "destructive",
+        title: "Mapeamento incompleto",
+        description: "Mapeia pelo menos uma coluna ao campo Nome para continuar.",
+      });
       return;
+    }
+
+    // Apenas um mapeamento por campo standard (exceto custom/ignore)
+    const seen = new Set<string>();
+    for (const v of Object.values(mapping)) {
+      if (v === CUSTOM || v === IGNORE) continue;
+      if (seen.has(v)) {
+        toast({
+          variant: "destructive",
+          title: "Mapeamento duplicado",
+          description: `O campo "${v}" está associado a mais que uma coluna.`,
+        });
+        return;
+      }
+      seen.add(v);
     }
 
     setStep("importing");
@@ -147,14 +166,21 @@ export function LeadImportDialog({ open, onOpenChange, onImported }: Props) {
 
     let success = 0;
     let errors = 0;
+    let invalidEmails = 0;
+    let invalidPhones = 0;
+    let skippedNoName = 0;
     const errorList: string[] = [];
+    const sampleInvalid: string[] = [];
     const total = rows.length;
     const BATCH = 50;
 
     for (let i = 0; i < total; i += BATCH) {
       const slice = rows.slice(i, i + BATCH);
-      const records = slice.map((row) => {
-        const lead: Record<string, unknown> = { user_id: user.id, custom_fields: {} as Record<string, unknown> };
+      const records: Record<string, unknown>[] = [];
+
+      slice.forEach((row, idx) => {
+        const lineNum = i + idx + 2; // +2 = header + 1-based
+        const lead: Record<string, unknown> = { user_id: user.id };
         const customFields: Record<string, unknown> = {};
 
         for (const [col, target] of Object.entries(mapping)) {
@@ -175,17 +201,39 @@ export function LeadImportDialog({ open, onOpenChange, onImported }: Props) {
           } else if (target === "priority") {
             const p = value.toLowerCase();
             lead.priority = ["low", "medium", "high"].includes(p) ? p : "medium";
+          } else if (target === "email") {
+            if (!EMAIL_RE.test(value)) {
+              invalidEmails++;
+              if (sampleInvalid.length < 5) sampleInvalid.push(`Linha ${lineNum}: email "${value}" inválido (ignorado)`);
+              continue;
+            }
+            lead.email = value.toLowerCase();
+          } else if (target === "phone") {
+            if (!isValidPhone(value)) {
+              invalidPhones++;
+              if (sampleInvalid.length < 5) sampleInvalid.push(`Linha ${lineNum}: telefone "${value}" inválido (ignorado)`);
+              continue;
+            }
+            lead.phone = value;
           } else {
             lead[target] = value;
           }
         }
 
         lead.custom_fields = customFields;
-        return lead;
-      }).filter((l) => l.name);
+
+        const nameVal = typeof lead.name === "string" ? lead.name.trim() : "";
+        if (!nameVal) {
+          skippedNoName++;
+          if (sampleInvalid.length < 5) sampleInvalid.push(`Linha ${lineNum}: nome em falta (linha ignorada)`);
+          return;
+        }
+        lead.name = nameVal;
+        records.push(lead);
+      });
 
       if (records.length === 0) {
-        errors += slice.length;
+        setProgress(Math.round(((i + slice.length) / total) * 100));
         continue;
       }
 
