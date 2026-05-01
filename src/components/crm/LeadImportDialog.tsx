@@ -342,10 +342,35 @@ export function LeadImportDialog({ open, onOpenChange, onImported }: Props) {
               <div className="flex items-start gap-3 p-4 rounded-lg bg-red-500/10 border border-red-500/20">
                 <AlertCircle className="h-6 w-6 text-red-500 shrink-0" />
                 <div className="space-y-1">
-                  <p className="font-semibold">{summary.errors} erros</p>
+                  <p className="font-semibold">{summary.errors} erros de gravação</p>
                   {summary.errorList.map((e, i) => (
                     <p key={i} className="text-xs text-muted-foreground">{e}</p>
                   ))}
+                </div>
+              </div>
+            )}
+            {(summary.invalidEmails > 0 || summary.invalidPhones > 0 || summary.skippedNoName > 0) && (
+              <div className="flex items-start gap-3 p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+                <AlertCircle className="h-6 w-6 text-yellow-500 shrink-0" />
+                <div className="space-y-1 text-sm">
+                  <p className="font-semibold">Avisos de validação</p>
+                  {summary.skippedNoName > 0 && (
+                    <p className="text-xs text-muted-foreground">{summary.skippedNoName} linha(s) ignorada(s) por falta de nome</p>
+                  )}
+                  {summary.invalidEmails > 0 && (
+                    <p className="text-xs text-muted-foreground">{summary.invalidEmails} email(s) inválido(s) ignorado(s)</p>
+                  )}
+                  {summary.invalidPhones > 0 && (
+                    <p className="text-xs text-muted-foreground">{summary.invalidPhones} telefone(s) inválido(s) ignorado(s)</p>
+                  )}
+                  {summary.sampleInvalid.length > 0 && (
+                    <div className="pt-2 space-y-0.5">
+                      <p className="text-xs font-medium">Exemplos:</p>
+                      {summary.sampleInvalid.map((s, i) => (
+                        <p key={i} className="text-[11px] text-muted-foreground">• {s}</p>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
