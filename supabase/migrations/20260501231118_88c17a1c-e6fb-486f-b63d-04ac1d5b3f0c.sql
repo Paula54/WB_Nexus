@@ -1,0 +1,1 @@
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS brand_colors jsonb NOT NULL DEFAULT '{"primary":"#667eea","secondary":"#764ba2","accent":"#f59e0b"}'::jsonb;
