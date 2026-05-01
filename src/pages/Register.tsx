@@ -71,8 +71,9 @@ export default function Register() {
     const RETRY_DELAY = 2000;
 
     async function callEdgeFunction(): Promise<{ data: any; error: Error | null }> {
-      const prodUrl = import.meta.env.VITE_SUPABASE_URL as string;
-      const prodAnonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
+      const { supabaseUrl, supabaseAnonKey } = await import('@/lib/supabaseCustom');
+      const prodUrl = supabaseUrl;
+      const prodAnonKey = supabaseAnonKey;
       const response = await fetch(`${prodUrl}/functions/v1/generate-stripe-session`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "apikey": prodAnonKey },
