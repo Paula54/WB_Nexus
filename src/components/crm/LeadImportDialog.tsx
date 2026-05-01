@@ -308,9 +308,17 @@ export function LeadImportDialog({ open, onOpenChange, onImported }: Props) {
                 </div>
               ))}
             </div>
+            {!Object.values(mapping).includes("name") && (
+              <div className="flex items-start gap-2 p-3 rounded-md bg-red-500/10 border border-red-500/20 text-xs text-red-400">
+                <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                <span>O campo <strong>Nome</strong> é obrigatório. Associa-o a uma das colunas para poder importar.</span>
+              </div>
+            )}
             <div className="flex justify-end gap-2 pt-2">
               <Button variant="outline" onClick={reset}>Voltar</Button>
-              <Button onClick={runImport}>Importar {rows.length} leads</Button>
+              <Button onClick={runImport} disabled={!Object.values(mapping).includes("name")}>
+                Importar {rows.length} leads
+              </Button>
             </div>
           </div>
         )}
