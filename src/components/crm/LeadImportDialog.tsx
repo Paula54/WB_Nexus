@@ -168,13 +168,36 @@ export function LeadImportDialog({ open, onOpenChange, onImported }: Props) {
     setStep("importing");
     setProgress(0);
 
+    // Pré-carregar emails/telefones existentes do utilizador para deteção contra a BD
+    const existingEmails = new Set<string>();
+    const existingPhones = new Set<string>();
+    try {
+      const { data: existing } = await supabase
+        .from("leads")
+        .select("email, phone")
+        .eq("user_id", user.id);
+      (existing || []).forEach((l: { email: string | null; phone: string | null }) => {
+        if (l.email) existingEmails.add(normEmail(l.email));
+        if (l.phone) existingPhones.add(normPhone(l.phone));
+      });
+    } catch (e) {
+      console.warn("[Import] Falha ao pré-carregar leads existentes:", e);
+    }
+
+    // Conjuntos para deteção dentro do próprio ficheiro
+    const fileEmails = new Set<string>();
+    const filePhones = new Set<string>();
+
     let success = 0;
     let errors = 0;
     let invalidEmails = 0;
     let invalidPhones = 0;
     let skippedNoName = 0;
+    let duplicatesInFile = 0;
+    let duplicatesInDb = 0;
     const errorList: string[] = [];
     const sampleInvalid: string[] = [];
+    const sampleDuplicates: string[] = [];
     const total = rows.length;
     const BATCH = 50;
 
@@ -183,7 +206,7 @@ export function LeadImportDialog({ open, onOpenChange, onImported }: Props) {
       const records: Record<string, unknown>[] = [];
 
       slice.forEach((row, idx) => {
-        const lineNum = i + idx + 2; // +2 = header + 1-based
+        const lineNum = i + idx + 2;
         const lead: Record<string, unknown> = { user_id: user.id };
         const customFields: Record<string, unknown> = {};
 
@@ -211,7 +234,7 @@ export function LeadImportDialog({ open, onOpenChange, onImported }: Props) {
               if (sampleInvalid.length < 5) sampleInvalid.push(`Linha ${lineNum}: email "${value}" inválido (ignorado)`);
               continue;
             }
-            lead.email = value.toLowerCase();
+            lead.email = normEmail(value);
           } else if (target === "phone") {
             if (!isValidPhone(value)) {
               invalidPhones++;
@@ -233,6 +256,35 @@ export function LeadImportDialog({ open, onOpenChange, onImported }: Props) {
           return;
         }
         lead.name = nameVal;
+
+        // Deteção de duplicados (email e/ou telefone)
+        const emailKey = typeof lead.email === "string" ? lead.email : "";
+        const phoneKey = typeof lead.phone === "string" ? normPhone(lead.phone) : "";
+
+        if (emailKey && existingEmails.has(emailKey)) {
+          duplicatesInDb++;
+          if (sampleDuplicates.length < 5) sampleDuplicates.push(`Linha ${lineNum}: email "${emailKey}" já existe na base de dados`);
+          return;
+        }
+        if (phoneKey && existingPhones.has(phoneKey)) {
+          duplicatesInDb++;
+          if (sampleDuplicates.length < 5) sampleDuplicates.push(`Linha ${lineNum}: telefone "${lead.phone}" já existe na base de dados`);
+          return;
+        }
+        if (emailKey && fileEmails.has(emailKey)) {
+          duplicatesInFile++;
+          if (sampleDuplicates.length < 5) sampleDuplicates.push(`Linha ${lineNum}: email "${emailKey}" repetido no ficheiro`);
+          return;
+        }
+        if (phoneKey && filePhones.has(phoneKey)) {
+          duplicatesInFile++;
+          if (sampleDuplicates.length < 5) sampleDuplicates.push(`Linha ${lineNum}: telefone "${lead.phone}" repetido no ficheiro`);
+          return;
+        }
+
+        if (emailKey) fileEmails.add(emailKey);
+        if (phoneKey) filePhones.add(phoneKey);
+
         records.push(lead);
       });
 
@@ -256,7 +308,12 @@ export function LeadImportDialog({ open, onOpenChange, onImported }: Props) {
       setProgress(Math.round(((i + slice.length) / total) * 100));
     }
 
-    setSummary({ success, errors, errorList, invalidEmails, invalidPhones, skippedNoName, sampleInvalid });
+    setSummary({
+      success, errors, errorList,
+      invalidEmails, invalidPhones, skippedNoName,
+      duplicatesInFile, duplicatesInDb,
+      sampleInvalid, sampleDuplicates,
+    });
     setStep("summary");
     if (success > 0) onImported();
   };
