@@ -1,6 +1,4 @@
 
-
-
 SET statement_timeout = 0;
 SET lock_timeout = 0;
 SET idle_in_transaction_session_timeout = 0;
@@ -16,10 +14,6 @@ SET row_security = off;
 CREATE EXTENSION IF NOT EXISTS "pg_net" WITH SCHEMA "extensions";
 
 
-
-
-
-
 CREATE SCHEMA IF NOT EXISTS "private";
 
 
@@ -29,34 +23,16 @@ ALTER SCHEMA "private" OWNER TO "postgres";
 COMMENT ON SCHEMA "public" IS 'standard public schema';
 
 
-
 CREATE EXTENSION IF NOT EXISTS "pg_stat_statements" WITH SCHEMA "extensions";
-
-
-
-
 
 
 CREATE EXTENSION IF NOT EXISTS "pgcrypto" WITH SCHEMA "extensions";
 
 
-
-
-
-
 CREATE EXTENSION IF NOT EXISTS "supabase_vault" WITH SCHEMA "vault";
 
 
-
-
-
-
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA "extensions";
-
-
-
-
-
 
 CREATE TYPE "public"."app_role" AS ENUM (
     'admin',
@@ -2548,7 +2524,6 @@ GRANT ALL ON TABLE "public"."concierge_messages" TO "authenticated";
 GRANT ALL ON TABLE "public"."concierge_messages" TO "service_role";
 
 
-
 GRANT ALL ON TABLE "public"."contact_messages" TO "anon";
 GRANT ALL ON TABLE "public"."contact_messages" TO "authenticated";
 GRANT ALL ON TABLE "public"."contact_messages" TO "service_role";
@@ -2558,7 +2533,6 @@ GRANT ALL ON TABLE "public"."contact_messages" TO "service_role";
 GRANT ALL ON TABLE "public"."contact_requests" TO "anon";
 GRANT ALL ON TABLE "public"."contact_requests" TO "authenticated";
 GRANT ALL ON TABLE "public"."contact_requests" TO "service_role";
-
 
 
 GRANT ALL ON TABLE "public"."conversation_messages" TO "anon";
@@ -2584,11 +2558,9 @@ GRANT ALL ON TABLE "public"."email_campaigns" TO "authenticated";
 GRANT ALL ON TABLE "public"."email_campaigns" TO "service_role";
 
 
-
 GRANT ALL ON TABLE "public"."google_ads_accounts" TO "anon";
 GRANT ALL ON TABLE "public"."google_ads_accounts" TO "authenticated";
 GRANT ALL ON TABLE "public"."google_ads_accounts" TO "service_role";
-
 
 
 GRANT ALL ON TABLE "public"."google_analytics_connections" TO "anon";
@@ -2602,11 +2574,9 @@ GRANT ALL ON TABLE "public"."invoices" TO "authenticated";
 GRANT ALL ON TABLE "public"."invoices" TO "service_role";
 
 
-
 GRANT ALL ON TABLE "public"."landing_pages" TO "anon";
 GRANT ALL ON TABLE "public"."landing_pages" TO "authenticated";
 GRANT ALL ON TABLE "public"."landing_pages" TO "service_role";
-
 
 
 GRANT ALL ON TABLE "public"."leads" TO "anon";
@@ -2626,11 +2596,9 @@ GRANT ALL ON TABLE "public"."legal_consents" TO "authenticated";
 GRANT ALL ON TABLE "public"."legal_consents" TO "service_role";
 
 
-
 GRANT ALL ON TABLE "public"."legal_contents" TO "anon";
 GRANT ALL ON TABLE "public"."legal_contents" TO "authenticated";
 GRANT ALL ON TABLE "public"."legal_contents" TO "service_role";
-
 
 
 GRANT ALL ON TABLE "public"."meta_connections" TO "anon";
@@ -2638,11 +2606,9 @@ GRANT ALL ON TABLE "public"."meta_connections" TO "authenticated";
 GRANT ALL ON TABLE "public"."meta_connections" TO "service_role";
 
 
-
 GRANT ALL ON TABLE "public"."newsletter_subscribers" TO "anon";
 GRANT ALL ON TABLE "public"."newsletter_subscribers" TO "authenticated";
 GRANT ALL ON TABLE "public"."newsletter_subscribers" TO "service_role";
-
 
 
 GRANT ALL ON TABLE "public"."notes_reminders" TO "anon";
@@ -2656,11 +2622,9 @@ GRANT ALL ON TABLE "public"."nx_company_profiles" TO "authenticated";
 GRANT ALL ON TABLE "public"."nx_company_profiles" TO "service_role";
 
 
-
 GRANT ALL ON TABLE "public"."nx_usage_credits" TO "anon";
 GRANT ALL ON TABLE "public"."nx_usage_credits" TO "authenticated";
 GRANT ALL ON TABLE "public"."nx_usage_credits" TO "service_role";
-
 
 
 GRANT ALL ON TABLE "public"."page_sections" TO "anon";
@@ -2686,11 +2650,9 @@ GRANT ALL ON TABLE "public"."prices" TO "authenticated";
 GRANT ALL ON TABLE "public"."prices" TO "service_role";
 
 
-
 GRANT ALL ON TABLE "public"."products" TO "anon";
 GRANT ALL ON TABLE "public"."products" TO "authenticated";
 GRANT ALL ON TABLE "public"."products" TO "service_role";
-
 
 
 GRANT ALL ON TABLE "public"."profiles" TO "anon";
@@ -2704,11 +2666,9 @@ GRANT ALL ON TABLE "public"."project_credentials" TO "authenticated";
 GRANT ALL ON TABLE "public"."project_credentials" TO "service_role";
 
 
-
 GRANT ALL ON TABLE "public"."projects" TO "anon";
 GRANT ALL ON TABLE "public"."projects" TO "authenticated";
 GRANT ALL ON TABLE "public"."projects" TO "service_role";
-
 
 
 GRANT ALL ON TABLE "public"."social_posts" TO "anon";
@@ -2734,7 +2694,6 @@ GRANT ALL ON TABLE "public"."tasks" TO "authenticated";
 GRANT ALL ON TABLE "public"."tasks" TO "service_role";
 
 
-
 GRANT ALL ON TABLE "public"."user_assets" TO "anon";
 GRANT ALL ON TABLE "public"."user_assets" TO "authenticated";
 GRANT ALL ON TABLE "public"."user_assets" TO "service_role";
@@ -2746,11 +2705,9 @@ GRANT ALL ON TABLE "public"."user_roles" TO "authenticated";
 GRANT ALL ON TABLE "public"."user_roles" TO "service_role";
 
 
-
 GRANT ALL ON TABLE "public"."user_templates" TO "anon";
 GRANT ALL ON TABLE "public"."user_templates" TO "authenticated";
 GRANT ALL ON TABLE "public"."user_templates" TO "service_role";
-
 
 
 GRANT ALL ON TABLE "public"."wallet_transactions" TO "anon";
@@ -2764,21 +2721,10 @@ GRANT ALL ON TABLE "public"."whatsapp_accounts" TO "authenticated";
 GRANT ALL ON TABLE "public"."whatsapp_accounts" TO "service_role";
 
 
-
-
-
-
-
-
-
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON SEQUENCES TO "postgres";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON SEQUENCES TO "anon";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON SEQUENCES TO "authenticated";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON SEQUENCES TO "service_role";
-
-
-
-
 
 
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON FUNCTIONS TO "postgres";
@@ -2788,50 +2734,13 @@ ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON FUN
 
 
 
-
-
-
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "postgres";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "anon";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "authenticated";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "service_role";
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 drop policy "contact_insert_anyone" on "public"."contact_requests";
-
 
   create policy "contact_insert_anyone"
   on "public"."contact_requests"
@@ -2847,16 +2756,12 @@ CREATE TRIGGER on_auth_user_created_credits AFTER INSERT ON auth.users FOR EACH 
 
 CREATE TRIGGER on_auth_user_created_role AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION public.handle_new_user_role();
 
-CREATE TRIGGER send_whatsapp_reply AFTER INSERT ON realtime.messages_2026_04_05 FOR EACH ROW EXECUTE FUNCTION supabase_functions.http_request('https://google.pt', 'POST', '{"Content-type":"application/json"}', '{}', '5000');
-
-
   create policy "Enable insert for authenticated users only"
   on "storage"."buckets"
   as permissive
   for insert
   to authenticated
 with check (true);
-
 
 
   create policy "Auth Delete Documents"
@@ -2866,8 +2771,6 @@ with check (true);
   to authenticated
 using (((bucket_id = 'documents'::text) AND ((storage.foldername(name))[1] = (auth.uid())::text)));
 
-
-
   create policy "Auth Insert Documents"
   on "storage"."objects"
   as permissive
@@ -2875,16 +2778,12 @@ using (((bucket_id = 'documents'::text) AND ((storage.foldername(name))[1] = (au
   to authenticated
 with check (((bucket_id = 'documents'::text) AND ((storage.foldername(name))[1] = (auth.uid())::text)));
 
-
-
   create policy "Auth Insert Others"
   on "storage"."objects"
   as permissive
   for insert
   to authenticated
 with check (((bucket_id = 'others'::text) AND ((storage.foldername(name))[1] = (auth.uid())::text)));
-
-
 
   create policy "Auth Insert Products"
   on "storage"."objects"
