@@ -29,7 +29,7 @@ export default function MainLayout() {
   const showConsentModal = !consentLoading && hasConsented === false;
   // No Site Builder o Concierge é o ConciergeWizard embebido — esconder o widget global
   // para evitar dois assistentes a competir pela atenção do utilizador.
-  const hideGlobalConcierge = location.pathname.startsWith("/site-builder");
+  const hideGlobalConcierge = location.pathname.startsWith("/builder");
 
   return (
     <SidebarProvider>
