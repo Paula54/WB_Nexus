@@ -435,22 +435,20 @@ export default function SiteBuilder() {
         </DialogContent>
       </Dialog>
 
-      {/* Brand Colors */}
+      {/* Brand identity (cores + tipografia) */}
       {projectId && (
-        <BrandColorPicker
-          projectId={projectId}
-          value={brandColors}
-          onChange={setBrandColors}
-        />
-      )}
-
-      {/* Brand Fonts */}
-      {projectId && (
-        <BrandFontPicker
-          projectId={projectId}
-          value={brandFonts}
-          onChange={setBrandFonts}
-        />
+        <div id="brand-section" className="space-y-6 scroll-mt-4">
+          <BrandColorPicker
+            projectId={projectId}
+            value={brandColors}
+            onChange={setBrandColors}
+          />
+          <BrandFontPicker
+            projectId={projectId}
+            value={brandFonts}
+            onChange={setBrandFonts}
+          />
+        </div>
       )}
 
       {/* Page Tabs */}
