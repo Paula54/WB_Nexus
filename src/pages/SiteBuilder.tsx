@@ -40,6 +40,9 @@ import {
 import { AIImageField } from "@/components/builder/AIImageField";
 import { BrandColorPicker, DEFAULT_BRAND_COLORS, type BrandColors } from "@/components/builder/BrandColorPicker";
 import { BrandFontPicker, DEFAULT_BRAND_FONTS, loadGoogleFont, type BrandFonts } from "@/components/builder/BrandFontPicker";
+import { PublishFlow } from "@/components/builder/PublishFlow";
+import { Link } from "react-router-dom";
+import { ShieldCheck } from "lucide-react";
 
 const sectionTypes = [
   { type: 'hero', label: 'Hero', icon: Layout },
@@ -347,31 +350,53 @@ export default function SiteBuilder() {
             <LayoutTemplate className="h-4 w-4 mr-2" />
             Modelos
           </Button>
-          <Button onClick={() => setViewMode('edit')}>
+          <Button
+            variant={viewMode === 'edit' ? 'default' : 'outline'}
+            onClick={() => setViewMode('edit')}
+          >
             <Code className="h-4 w-4 mr-2" />
             Editar
           </Button>
-          <Button 
+          <Button
             variant={viewMode === 'preview' ? 'default' : 'outline'}
             onClick={() => setViewMode('preview')}
           >
             <Eye className="h-4 w-4 mr-2" />
             Pré-visualizar
           </Button>
-          <Button
-            onClick={handlePublish}
-            disabled={publishing || !currentPage}
-            className="bg-primary"
-          >
-            {publishing ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <Rocket className="h-4 w-4 mr-2" />
-            )}
-            {currentPage?.is_published ? "Republicar" : "Publicar"}
-          </Button>
         </div>
       </div>
+
+      {/* Fluxo de Publicação */}
+      {currentPage && (
+        <PublishFlow
+          pageSlug={currentPage.slug}
+          isPublished={currentPage.is_published}
+          publishing={publishing}
+          onPublish={handlePublish}
+          onPreview={() => setViewMode('preview')}
+        />
+      )}
+
+      {/* Aviso de conformidade legal automática */}
+      <Card className="glass border-emerald-500/20 bg-emerald-500/5">
+        <CardContent className="p-4 flex items-start gap-3">
+          <ShieldCheck className="h-5 w-5 text-emerald-500 shrink-0 mt-0.5" />
+          <div className="flex-1 text-sm">
+            <p className="font-medium">Páginas legais geradas automaticamente</p>
+            <p className="text-muted-foreground text-xs mt-0.5">
+              A Política de Privacidade, Cookies e Termos & Condições usam os dados da{" "}
+              <Link to="/settings" className="text-primary underline">
+                Configuração da Empresa
+              </Link>
+              . Sempre que atualizares lá, são regeneradas — não tens de repetir nada.
+            </p>
+          </div>
+          <Button variant="outline" size="sm" asChild>
+            <Link to="/settings?tab=legal">Ver páginas legais</Link>
+          </Button>
+        </CardContent>
+      </Card>
 
       {/* Templates Gallery Dialog */}
       <Dialog open={templatesOpen} onOpenChange={setTemplatesOpen}>
