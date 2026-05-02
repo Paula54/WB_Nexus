@@ -141,6 +141,33 @@ export function DynamicPageRenderer({ slug: slugProp, ownerUserId }: DynamicPage
         legal_name: bp?.legal_name || project.legal_name || null,
       };
 
+      const legalKey = LEGAL_SLUGS[targetSlug];
+      if (legalKey) {
+        const legalData = normalizeLegalBusinessData(
+          [
+            (bp || {}) as Record<string, unknown>,
+            (project || {}) as Record<string, unknown>,
+          ],
+          composedBranding.email || undefined,
+        );
+        const generatedLegalPage: PageMeta = {
+          id: `legal-${legalKey}`,
+          title: LEGAL_PAGE_LABELS[legalKey],
+          slug: targetSlug,
+          is_published: true,
+          sort_order: 999,
+          legal_markdown: generateLegalTemplate(legalKey, legalData),
+        };
+        if (!cancelled) {
+          setBranding(composedBranding);
+          setPages([]);
+          setCurrentPage(generatedLegalPage);
+          setSections([]);
+          setLoading(false);
+        }
+        return;
+      }
+
       // 3. Pages (menu dinâmico — multi-página Growth/OS)
       const { data: pagesRows } = await supabase
         .from("pages")
