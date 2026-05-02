@@ -42,6 +42,8 @@ import { BrandColorPicker, DEFAULT_BRAND_COLORS, type BrandColors } from "@/comp
 import { BrandFontPicker, DEFAULT_BRAND_FONTS, loadGoogleFont, type BrandFonts } from "@/components/builder/BrandFontPicker";
 import { PublishFlow } from "@/components/builder/PublishFlow";
 import { ConciergeWizard } from "@/components/builder/ConciergeWizard";
+import { AIWriteSectionButton } from "@/components/builder/AIWriteSectionButton";
+import { useAutoSeedLegalPages } from "@/hooks/useAutoSeedLegalPages";
 import { Link } from "react-router-dom";
 
 const sectionTypes = [
@@ -75,8 +77,12 @@ export default function SiteBuilder() {
   const [publishing, setPublishing] = useState(false);
   const [brandColors, setBrandColors] = useState<BrandColors>(DEFAULT_BRAND_COLORS);
   const [brandFonts, setBrandFonts] = useState<BrandFonts>(DEFAULT_BRAND_FONTS);
+  const [brandInherited, setBrandInherited] = useState(false);
 
-  // Load brand colors + fonts from project
+  // Auto-criar páginas legais (Privacidade, Termos, Cookies) com os dados do Perfil da Empresa
+  useAutoSeedLegalPages(projectId);
+
+  // Carregar marca do projeto (herdada do Perfil da Empresa) — sem forçar o utilizador a re-escolher
   useEffect(() => {
     if (!projectId) return;
     (async () => {
@@ -86,16 +92,22 @@ export default function SiteBuilder() {
         .eq("id", projectId)
         .maybeSingle();
       const bc = (data as any)?.brand_colors;
-      if (bc && bc.primary) setBrandColors(bc as BrandColors);
       const bf = (data as any)?.brand_fonts;
+      let inherited = false;
+      if (bc && bc.primary) {
+        setBrandColors(bc as BrandColors);
+        inherited = true;
+      }
       if (bf && bf.heading) {
         setBrandFonts(bf as BrandFonts);
         loadGoogleFont(bf.heading);
         loadGoogleFont(bf.body);
+        inherited = true;
       } else {
         loadGoogleFont(DEFAULT_BRAND_FONTS.heading);
         loadGoogleFont(DEFAULT_BRAND_FONTS.body);
       }
+      setBrandInherited(inherited);
     })();
   }, [projectId]);
 
@@ -435,9 +447,21 @@ export default function SiteBuilder() {
         </DialogContent>
       </Dialog>
 
-      {/* Brand identity (cores + tipografia) */}
+      {/* Brand identity (cores + tipografia) — herdadas do Perfil da Empresa */}
       {projectId && (
         <div id="brand-section" className="space-y-6 scroll-mt-4">
+          {brandInherited && (
+            <div className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-3 py-2 text-xs text-emerald-500">
+              <Check className="h-3.5 w-3.5" />
+              <span>
+                Marca <strong>herdada</strong> do{" "}
+                <Link to="/settings" className="underline hover:text-emerald-400">
+                  Perfil da Empresa
+                </Link>
+                . Edita abaixo apenas se quiseres ajustar para este site.
+              </span>
+            </div>
+          )}
           <BrandColorPicker
             projectId={projectId}
             value={brandColors}
@@ -648,10 +672,22 @@ export default function SiteBuilder() {
             {selectedSectionData ? (
               <Card className="glass">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Badge variant="outline">{selectedSectionData.type}</Badge>
-                    Editar Secção
-                  </CardTitle>
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <CardTitle className="flex items-center gap-2">
+                      <Badge variant="outline">{selectedSectionData.type}</Badge>
+                      Editar Secção
+                    </CardTitle>
+                    {selectedSectionData.type !== "custom_html" && (
+                      <AIWriteSectionButton
+                        section={selectedSectionData}
+                        onApply={(content) => updateSection(selectedSectionData.id, content)}
+                      />
+                    )}
+                  </div>
+                  <CardDescription className="text-xs">
+                    Clica em <span className="text-primary font-medium">Escrever com IA</span> para
+                    o Concierge preencher esta secção com os dados da tua empresa.
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
