@@ -447,9 +447,21 @@ export default function SiteBuilder() {
         </DialogContent>
       </Dialog>
 
-      {/* Brand identity (cores + tipografia) */}
+      {/* Brand identity (cores + tipografia) — herdadas do Perfil da Empresa */}
       {projectId && (
         <div id="brand-section" className="space-y-6 scroll-mt-4">
+          {brandInherited && (
+            <div className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-3 py-2 text-xs text-emerald-500">
+              <Check className="h-3.5 w-3.5" />
+              <span>
+                Marca <strong>herdada</strong> do{" "}
+                <Link to="/settings" className="underline hover:text-emerald-400">
+                  Perfil da Empresa
+                </Link>
+                . Edita abaixo apenas se quiseres ajustar para este site.
+              </span>
+            </div>
+          )}
           <BrandColorPicker
             projectId={projectId}
             value={brandColors}
