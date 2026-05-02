@@ -28,7 +28,7 @@ export function useAutoSeedLegalPages(projectId: string | null) {
         const wantedTypes = Object.values(LEGAL_PAGE_TYPE_MAP);
         const { data: existing } = await supabase
           .from("compliance_pages")
-          .select("page_type")
+          .select("id, page_type, status, custom_fields")
           .eq("user_id", user.id)
           .eq("project_id", projectId)
           .in("page_type", wantedTypes);
@@ -37,8 +37,6 @@ export function useAutoSeedLegalPages(projectId: string | null) {
         const missing = (Object.keys(LEGAL_PAGE_TYPE_MAP) as LegalPageKey[]).filter(
           (key) => !existingSet.has(LEGAL_PAGE_TYPE_MAP[key]),
         );
-        if (missing.length === 0) return;
-
         // 2) Carregar dados do negócio
         const [bp, proj, prof] = await Promise.all([
           supabase.from("business_profiles").select("*").eq("user_id", user.id).maybeSingle(),
@@ -54,6 +52,33 @@ export function useAutoSeedLegalPages(projectId: string | null) {
           ],
           user.email || "",
         );
+
+        // Atualiza apenas páginas auto-geradas/pendentes, para refletirem dados reais atuais
+        // da empresa sem tocar em conteúdo que o utilizador já validou manualmente.
+        await Promise.all(
+          ((existing || []) as any[])
+            .filter((row) => row.status === "pending" || row.custom_fields?.auto_seeded)
+            .map((row) => {
+              const key = (Object.keys(LEGAL_PAGE_TYPE_MAP) as LegalPageKey[]).find(
+                (k) => LEGAL_PAGE_TYPE_MAP[k] === row.page_type,
+              );
+              if (!key) return Promise.resolve();
+              return supabase
+                .from("compliance_pages")
+                .update({
+                  content: generateLegalTemplate(key, data),
+                  custom_fields: {
+                    ...(row.custom_fields || {}),
+                    title: LEGAL_PAGE_LABELS[key],
+                    auto_seeded: true,
+                    refreshed_at: new Date().toISOString(),
+                  },
+                })
+                .eq("id", row.id);
+            }),
+        );
+
+        if (missing.length === 0) return;
 
         // 3) Inserir só as que faltam, com status 'pending' para o utilizador rever depois
         const rows = missing.map((key) => ({
