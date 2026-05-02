@@ -446,19 +446,24 @@ export default function SiteBuilder() {
       <ConciergeWizard
         projectId={projectId}
         hasSections={sections.length > 0}
-        hasCustomBrand={
-          brandColors.primary !== DEFAULT_BRAND_COLORS.primary ||
-          brandFonts.heading !== DEFAULT_BRAND_FONTS.heading
-        }
+        hasCustomBrand={brandReady}
         isPublished={!!currentPage?.is_published}
         onJumpToTemplates={() => setTemplatesOpen(true)}
-        onJumpToBrand={() => {
-          document.getElementById("brand-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
-        }}
+        onJumpToBrand={() => undefined}
         onJumpToPublish={() => {
           document.getElementById("publish-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
         }}
       />
+
+      {brandInherited && (
+        <div className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-3 py-2 text-xs text-emerald-500">
+          <Check className="h-3.5 w-3.5" />
+          <span>
+            Marca e dados aplicados automaticamente{businessData?.name ? ` para ${businessData.name}` : ""}.
+            {autoRewriting ? " O Concierge está a substituir textos genéricos por conteúdo do setor." : ""}
+          </span>
+        </div>
+      )}
 
       {/* Fluxo de Publicação */}
       {currentPage && (
@@ -509,34 +514,6 @@ export default function SiteBuilder() {
           })()}
         </DialogContent>
       </Dialog>
-
-      {/* Brand identity (cores + tipografia) — herdadas do Perfil da Empresa */}
-      {projectId && (
-        <div id="brand-section" className="space-y-6 scroll-mt-4">
-          {brandInherited && (
-            <div className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-3 py-2 text-xs text-emerald-500">
-              <Check className="h-3.5 w-3.5" />
-              <span>
-                Marca <strong>herdada</strong> do{" "}
-                <Link to="/settings" className="underline hover:text-emerald-400">
-                  Perfil da Empresa
-                </Link>
-                . Edita abaixo apenas se quiseres ajustar para este site.
-              </span>
-            </div>
-          )}
-          <BrandColorPicker
-            projectId={projectId}
-            value={brandColors}
-            onChange={setBrandColors}
-          />
-          <BrandFontPicker
-            projectId={projectId}
-            value={brandFonts}
-            onChange={setBrandFonts}
-          />
-        </div>
-      )}
 
       {/* Page Tabs */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1">
