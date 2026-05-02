@@ -62,12 +62,16 @@ export function useLegalConsent() {
       return { error: { message: "Sessão não encontrada. Tenta recarregar a página." } };
     }
     
-    const { error, data } = await supabase.from("legal_consents").insert(consentPayload).select();
+    const { error, data } = await supabase
+      .from("legal_consents")
+      .upsert(consentPayload, { onConflict: "user_id", ignoreDuplicates: true })
+      .select();
 
     console.log("[LegalConsent] Insert result:", { error, data });
 
-    if (!error) {
+    if (!error || error?.code === "23505") {
       setHasConsented(true);
+      return { error: null };
     }
 
     return { error };
