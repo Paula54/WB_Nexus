@@ -82,34 +82,67 @@ export default function SiteBuilder() {
   // Auto-criar páginas legais (Privacidade, Termos, Cookies) com os dados do Perfil da Empresa
   useAutoSeedLegalPages(projectId);
 
-  // Carregar marca do projeto (herdada do Perfil da Empresa) — sem forçar o utilizador a re-escolher
+  // Carregar marca do projeto. Se ainda não foi customizada, herda automaticamente
+  // do Perfil da Empresa (business_profiles + projects.logo_url) e persiste no projeto
+  // para que toda a app veja as mesmas cores/fontes — sem o utilizador escolher de novo.
   useEffect(() => {
     if (!projectId) return;
     (async () => {
-      const { data } = await supabase
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: proj } = await supabase
         .from("projects")
-        .select("brand_colors, brand_fonts")
+        .select("brand_colors, brand_fonts, logo_url")
         .eq("id", projectId)
         .maybeSingle();
-      const bc = (data as any)?.brand_colors;
-      const bf = (data as any)?.brand_fonts;
+
+      const bc = (proj as any)?.brand_colors as BrandColors | null;
+      const bf = (proj as any)?.brand_fonts as BrandFonts | null;
+
+      // Detetar se as cores são apenas o default genérico do Supabase
+      const isDefaultColors =
+        !bc ||
+        (bc.primary?.toLowerCase() === DEFAULT_BRAND_COLORS.primary.toLowerCase() &&
+          bc.secondary?.toLowerCase() === DEFAULT_BRAND_COLORS.secondary.toLowerCase() &&
+          bc.accent?.toLowerCase() === DEFAULT_BRAND_COLORS.accent.toLowerCase());
+
+      const isDefaultFonts =
+        !bf ||
+        (bf.heading === DEFAULT_BRAND_FONTS.heading && bf.body === DEFAULT_BRAND_FONTS.body);
+
+      let finalColors: BrandColors = bc && !isDefaultColors ? bc : DEFAULT_BRAND_COLORS;
+      let finalFonts: BrandFonts = bf && !isDefaultFonts ? bf : DEFAULT_BRAND_FONTS;
       let inherited = false;
-      if (bc && bc.primary) {
-        setBrandColors(bc as BrandColors);
-        inherited = true;
+
+      // Se ainda não foi customizado, tenta herdar do Perfil da Empresa.
+      // business_profiles não tem brand_colors/brand_fonts no schema atual,
+      // por isso a herança aqui é via metadata de marca disponível (logo, nome).
+      // Quando o utilizador define cores/fontes no BrandColorPicker/BrandFontPicker,
+      // ficam persistidas em projects.brand_colors / projects.brand_fonts e
+      // são automaticamente lidas em todas as próximas sessões do builder.
+      if (isDefaultColors || isDefaultFonts) {
+        const { data: bp } = await supabase
+          .from("business_profiles")
+          .select("logo_url, trade_name, legal_name")
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        // Se houver logo no Perfil mas o projeto ainda não tem, herdar
+        if (bp?.logo_url && !(proj as any)?.logo_url) {
+          await supabase.from("projects").update({ logo_url: bp.logo_url }).eq("id", projectId);
+          inherited = true;
+        }
       }
-      if (bf && bf.heading) {
-        setBrandFonts(bf as BrandFonts);
-        loadGoogleFont(bf.heading);
-        loadGoogleFont(bf.body);
-        inherited = true;
-      } else {
-        loadGoogleFont(DEFAULT_BRAND_FONTS.heading);
-        loadGoogleFont(DEFAULT_BRAND_FONTS.body);
-      }
+
+      setBrandColors(finalColors);
+      setBrandFonts(finalFonts);
+      loadGoogleFont(finalFonts.heading);
+      loadGoogleFont(finalFonts.body);
       setBrandInherited(inherited);
     })();
   }, [projectId]);
+
 
   const currentPage = pages.find((p) => p.id === currentPageId);
 
