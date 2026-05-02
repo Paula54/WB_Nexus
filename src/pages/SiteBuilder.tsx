@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { TemplateGallery } from "@/components/builder/TemplateGallery";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -38,13 +38,19 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { AIImageField } from "@/components/builder/AIImageField";
-import { BrandColorPicker, DEFAULT_BRAND_COLORS, type BrandColors } from "@/components/builder/BrandColorPicker";
-import { BrandFontPicker, DEFAULT_BRAND_FONTS, loadGoogleFont, type BrandFonts } from "@/components/builder/BrandFontPicker";
+import { type BrandColors } from "@/components/builder/BrandColorPicker";
+import { loadGoogleFont, type BrandFonts } from "@/components/builder/BrandFontPicker";
 import { PublishFlow } from "@/components/builder/PublishFlow";
 import { ConciergeWizard } from "@/components/builder/ConciergeWizard";
 import { AIWriteSectionButton } from "@/components/builder/AIWriteSectionButton";
 import { useAutoSeedLegalPages } from "@/hooks/useAutoSeedLegalPages";
-import { Link } from "react-router-dom";
+import {
+  buildBusinessFallbackSection,
+  getSectorBrandDefaults,
+  normalizeBusinessSector,
+  sectionNeedsBusinessRewrite,
+  type BuilderBusinessData,
+} from "@/lib/builderDefaults";
 
 const sectionTypes = [
   { type: 'hero', label: 'Hero', icon: Layout },
@@ -75,9 +81,14 @@ export default function SiteBuilder() {
   const [addPageOpen, setAddPageOpen] = useState(false);
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [publishing, setPublishing] = useState(false);
-  const [brandColors, setBrandColors] = useState<BrandColors>(DEFAULT_BRAND_COLORS);
-  const [brandFonts, setBrandFonts] = useState<BrandFonts>(DEFAULT_BRAND_FONTS);
+  const defaultBrand = getSectorBrandDefaults(null);
+  const [brandColors, setBrandColors] = useState<BrandColors>(defaultBrand.colors);
+  const [brandFonts, setBrandFonts] = useState<BrandFonts>(defaultBrand.fonts);
   const [brandInherited, setBrandInherited] = useState(false);
+  const [brandReady, setBrandReady] = useState(false);
+  const [businessData, setBusinessData] = useState<BuilderBusinessData | null>(null);
+  const [autoRewriting, setAutoRewriting] = useState(false);
+  const autoRewriteRef = useRef<string | null>(null);
 
   // Auto-criar páginas legais (Privacidade, Termos, Cookies) com os dados do Perfil da Empresa
   useAutoSeedLegalPages(projectId);
