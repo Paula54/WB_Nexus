@@ -213,6 +213,7 @@ export function TemplateGallery({ projectId, pageId, onApplied }: Props) {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       toast.success("Modelo aplicado e personalizado ✨");
+      setPreviewTpl(null);
       onApplied();
     } catch (e: any) {
       console.error("[TemplateGallery] apply error:", e);
