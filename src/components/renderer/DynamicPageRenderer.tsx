@@ -344,6 +344,13 @@ export function DynamicPageRenderer({ slug: slugProp, ownerUserId }: DynamicPage
                   </Link>
                 </li>
               ))}
+              {(["privacidade", "termos", "cookies"] as const).map((slug) => (
+                <li key={slug}>
+                  <Link to={`/site/${slug}`} className="text-xs text-muted-foreground hover:text-primary">
+                    {LEGAL_PAGE_LABELS[LEGAL_SLUGS[slug]]}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
           <div>
