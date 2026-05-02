@@ -333,6 +333,22 @@ export default function BusinessProfileTab() {
         }}
       />
 
+      {/* Identidade Visual — herdada pelo Site Builder */}
+      {projectId && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <BrandColorPicker
+            projectId={projectId}
+            value={brandColors}
+            onChange={setBrandColors}
+          />
+          <BrandFontPicker
+            projectId={projectId}
+            value={brandFonts}
+            onChange={setBrandFonts}
+          />
+        </div>
+      )}
+
       {/* DNA do Negócio */}
       <Card className="glass border-primary/20">
         <CardHeader>
