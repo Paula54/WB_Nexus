@@ -9,7 +9,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import type { WebsiteSection } from "@/types/nexus";
 import {
   LEGAL_PAGE_LABELS,
-  LEGAL_PAGE_TYPE_MAP,
   type LegalPageKey,
   generateLegalTemplate,
   normalizeLegalBusinessData,
@@ -109,7 +108,7 @@ export function DynamicPageRenderer({ slug: slugProp, ownerUserId }: DynamicPage
       const { data: project } = await supabase
         .from("projects")
         .select(
-          "id, name, logo_url, email, phone, facebook_url, instagram_url, linkedin_url, legal_name, trade_name, business_name"
+          "id, name, logo_url, email, phone, website, nif, address_line1, postal_code, city, country, facebook_url, instagram_url, linkedin_url, legal_name, trade_name, business_name"
         )
         .eq("user_id", effectiveUserId!)
         .order("created_at", { ascending: true })
@@ -124,7 +123,7 @@ export function DynamicPageRenderer({ slug: slugProp, ownerUserId }: DynamicPage
       // 2. Business Profile (identidade fiscal complementar)
       const { data: bp } = await supabase
         .from("business_profiles")
-        .select("legal_name, trade_name, logo_url, email, phone, facebook_url, instagram_url, linkedin_url")
+        .select("legal_name, trade_name, logo_url, email, phone, website, nif, address_line1, postal_code, city, country, facebook_url, instagram_url, linkedin_url")
         .eq("user_id", effectiveUserId!)
         .maybeSingle();
 
