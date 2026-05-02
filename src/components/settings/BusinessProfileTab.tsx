@@ -8,6 +8,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import AssetPickerModal from "@/components/media/AssetPickerModal";
 import { Building2, MapPin, Save, Loader2, AlertTriangle, Phone, Upload, Trash2, Image, FolderOpen } from "lucide-react";
+import { BrandColorPicker, DEFAULT_BRAND_COLORS, type BrandColors } from "@/components/builder/BrandColorPicker";
+import { BrandFontPicker, DEFAULT_BRAND_FONTS, type BrandFonts } from "@/components/builder/BrandFontPicker";
 
 interface BusinessProfile {
   business_name: string;
@@ -72,6 +74,8 @@ export default function BusinessProfileTab() {
   const [loading, setLoading] = useState(true);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showPicker, setShowPicker] = useState(false);
+  const [brandColors, setBrandColors] = useState<BrandColors>(DEFAULT_BRAND_COLORS);
+  const [brandFonts, setBrandFonts] = useState<BrandFonts>(DEFAULT_BRAND_FONTS);
 
   useEffect(() => {
     if (!user) return;
@@ -96,7 +100,7 @@ export default function BusinessProfileTab() {
 
       const { data } = await supabase
         .from("projects")
-        .select([...ALL_FIELDS, "logo_url"].join(", "))
+        .select([...ALL_FIELDS, "logo_url", "brand_colors", "brand_fonts"].join(", "))
         .eq("id", id)
         .maybeSingle();
       if (data) {
@@ -107,6 +111,8 @@ export default function BusinessProfileTab() {
         }
         setProfile(restored);
         if (d.logo_url) setLogoUrl(String(d.logo_url));
+        if (d.brand_colors) setBrandColors({ ...DEFAULT_BRAND_COLORS, ...(d.brand_colors as Partial<BrandColors>) });
+        if (d.brand_fonts) setBrandFonts({ ...DEFAULT_BRAND_FONTS, ...(d.brand_fonts as Partial<BrandFonts>) });
       }
       setLoading(false);
     })();
@@ -326,6 +332,22 @@ export default function BusinessProfileTab() {
           toast({ title: "Logótipo atualizado ✅" });
         }}
       />
+
+      {/* Identidade Visual — herdada pelo Site Builder */}
+      {projectId && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <BrandColorPicker
+            projectId={projectId}
+            value={brandColors}
+            onChange={setBrandColors}
+          />
+          <BrandFontPicker
+            projectId={projectId}
+            value={brandFonts}
+            onChange={setBrandFonts}
+          />
+        </div>
+      )}
 
       {/* DNA do Negócio */}
       <Card className="glass border-primary/20">
