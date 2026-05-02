@@ -47,6 +47,7 @@ serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const section: SectionPayload | undefined = body?.section;
+    const suppliedBusiness = body?.business && typeof body.business === "object" ? body.business : null;
     if (!section || typeof section.type !== "string") {
       return new Response(JSON.stringify({ error: "Parâmetros inválidos" }), {
         status: 400,
@@ -84,17 +85,10 @@ serve(async (req) => {
     ]);
 
     const business = {
-      name:
-        bp?.trade_name ||
-        (project as any)?.business_name ||
-        (project as any)?.trade_name ||
-        project?.name ||
-        profile?.company_name ||
-        "o negócio",
-      sector:
-        (project as any)?.business_sector || (profile as any)?.business_sector || "geral",
-      description: (project as any)?.description || "",
-      city: (bp as any)?.city || (project as any)?.city || "Portugal",
+      name: suppliedBusiness?.name || bp?.trade_name || (project as any)?.business_name || (project as any)?.trade_name || project?.name || profile?.company_name || "o negócio",
+      sector: suppliedBusiness?.sector || suppliedBusiness?.normalizedSector || (project as any)?.business_sector || (profile as any)?.business_sector || "geral",
+      description: suppliedBusiness?.description || (project as any)?.description || "",
+      city: suppliedBusiness?.city || (bp as any)?.city || (project as any)?.city || "Portugal",
     };
 
     const prompt = `És um copywriter sénior em PT-PT. Reescreve esta secção de website para o negócio abaixo, eliminando placeholders genéricos e usando linguagem clara, persuasiva e específica do setor.
@@ -112,6 +106,7 @@ Regras:
 - Mantém EXATAMENTE a mesma estrutura JSON (mesmos campos: title, subtitle, buttonText, items)
 - Se houver items, mantém a mesma quantidade
 - Português de Portugal, tom profissional mas humano
+- Se o setor for imobiliário/real estate/property, NUNCA menciones beleza, salão, manicure, spa, cabelo ou estética; usa linguagem de venda/compra/mediação de imóveis
 - Sem emojis, sem aspas, sem markdown
 - Devolve APENAS o JSON do campo "content"`;
 

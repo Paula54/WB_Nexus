@@ -33,10 +33,10 @@ const STEPS: { key: ConciergeStep; label: string; icon: any; advice: string }[] 
   },
   {
     key: "brand",
-    label: "Identidade da Marca",
+    label: "Marca Herdada",
     icon: Palette,
     advice:
-      "Define cores e tipografia que reflitam o teu manual de marca. Aplico-as automaticamente em todas as páginas.",
+      "Leio silenciosamente o Perfil da Empresa e aplico logótipo, paleta e tipografia sem pedir configurações repetidas.",
   },
   {
     key: "content",
@@ -74,7 +74,7 @@ interface Props {
   hasCustomBrand: boolean;
   isPublished: boolean;
   onJumpToTemplates: () => void;
-  onJumpToBrand: () => void;
+  onJumpToBrand?: () => void;
   onJumpToPublish: () => void;
 }
 
@@ -156,9 +156,8 @@ export function ConciergeWizard({
       brand: [
         {
           done: checks.brand,
-          label: "Cores e tipografia personalizadas",
-          hint: "Sem cores definidas? Uso a paleta padrão Nexus.",
-          cta: { label: "Personalizar marca", onClick: onJumpToBrand },
+          label: "Marca carregada do Perfil da Empresa",
+          hint: "Cores, fonte e logótipo são aplicados automaticamente. Não é uma etapa manual.",
         },
       ],
       content: [

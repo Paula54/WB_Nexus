@@ -50,12 +50,12 @@ export function AIImageField({ value, onChange, context = "hero", label = "Image
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const { data } = await supabase
-        .from("profiles")
-        .select("business_sector")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (data?.business_sector) setBusinessSector(data.business_sector);
+      const [project, profile] = await Promise.all([
+        supabase.from("projects").select("business_sector").eq("user_id", user.id).order("created_at", { ascending: true }).limit(1).maybeSingle(),
+        supabase.from("profiles").select("business_sector").eq("user_id", user.id).maybeSingle(),
+      ]);
+      const sector = (project.data as any)?.business_sector || profile.data?.business_sector;
+      if (sector) setBusinessSector(sector);
     })();
   }, [user]);
 

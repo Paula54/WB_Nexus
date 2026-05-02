@@ -12,8 +12,8 @@ import {
 } from "@/components/ui/select";
 import { Loader2, Sparkles, LayoutTemplate, Eye } from "lucide-react";
 import { toast } from "sonner";
-import { useProfile } from "@/hooks/useProfile";
 import { TemplatePreviewModal } from "./TemplatePreviewModal";
+import { normalizeBusinessSector } from "@/lib/builderDefaults";
 
 interface TemplateRow {
   id: string;
@@ -136,12 +136,12 @@ function TemplatePreview({ tpl }: { tpl: TemplateRow }) {
 }
 
 export function TemplateGallery({ projectId, pageId, onApplied }: Props) {
-  const { profile } = useProfile();
   const [templates, setTemplates] = useState<TemplateRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [applyingId, setApplyingId] = useState<string | null>(null);
   const [sectorFilter, setSectorFilter] = useState<string>("all");
   const [previewTpl, setPreviewTpl] = useState<TemplateRow | null>(null);
+  const [businessSector, setBusinessSector] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -186,12 +186,22 @@ export function TemplateGallery({ projectId, pageId, onApplied }: Props) {
     };
   }, []);
 
-  // Pré-selecionar o setor do utilizador, se houver match
+  // Pré-selecionar e bloquear o setor real do projeto para evitar modelos errados.
   useEffect(() => {
-    if (!profile?.business_sector || templates.length === 0) return;
-    const hasMatch = templates.some((t) => t.template_sector === profile.business_sector);
-    if (hasMatch) setSectorFilter(profile.business_sector);
-  }, [profile?.business_sector, templates]);
+    if (!projectId) return;
+    (async () => {
+      const { data } = await supabase
+        .from("projects")
+        .select("business_sector")
+        .eq("id", projectId)
+        .maybeSingle();
+      const normalized = normalizeBusinessSector((data as any)?.business_sector);
+      if (normalized) {
+        setBusinessSector(normalized);
+        setSectorFilter(normalized);
+      }
+    })();
+  }, [projectId]);
 
   const availableSectors = useMemo(
     () =>
@@ -199,10 +209,10 @@ export function TemplateGallery({ projectId, pageId, onApplied }: Props) {
     [templates]
   );
 
-  const filteredTemplates = useMemo(
-    () => templates.filter((t) => sectorFilter === "all" || t.template_sector === sectorFilter),
-    [templates, sectorFilter]
-  );
+  const filteredTemplates = useMemo(() => {
+    const enforcedSector = businessSector || (sectorFilter === "all" ? null : sectorFilter);
+    return templates.filter((t) => !enforcedSector || normalizeBusinessSector(t.template_sector) === enforcedSector);
+  }, [templates, sectorFilter, businessSector]);
 
   const applyTemplate = async (templateId: string) => {
     setApplyingId(templateId);
@@ -278,14 +288,14 @@ export function TemplateGallery({ projectId, pageId, onApplied }: Props) {
           Modelos Inteligentes
         </h2>
         <p className="text-muted-foreground text-sm mt-1">
-          Escolhe o tipo de negócio e seleciona um modelo. A IA personaliza-o automaticamente.
+          Mostro apenas modelos compatíveis com o setor do teu Perfil da Empresa.
         </p>
       </div>
 
       {/* Selector visual de setor */}
       <div className="flex flex-col sm:flex-row items-center justify-center gap-2 max-w-md mx-auto">
         <label className="text-sm text-muted-foreground shrink-0">Tipo de negócio:</label>
-        <Select value={sectorFilter} onValueChange={setSectorFilter}>
+        <Select value={sectorFilter} onValueChange={setSectorFilter} disabled={!!businessSector}>
           <SelectTrigger className="w-full">
             <SelectValue>
               {sectorFilter === "all" ? (
@@ -301,9 +311,11 @@ export function TemplateGallery({ projectId, pageId, onApplied }: Props) {
             </SelectValue>
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">
-              <span className="flex items-center gap-2">🗂️ Todos os setores</span>
-            </SelectItem>
+            {!businessSector && (
+              <SelectItem value="all">
+                <span className="flex items-center gap-2">🗂️ Todos os setores</span>
+              </SelectItem>
+            )}
             {availableSectors.map((s) => {
               const m = getSectorMeta(s);
               return (
@@ -321,7 +333,7 @@ export function TemplateGallery({ projectId, pageId, onApplied }: Props) {
       {filteredTemplates.length === 0 ? (
         <Card className="glass">
           <CardContent className="py-12 text-center text-muted-foreground text-sm">
-            Sem modelos para este setor. Tenta outro.
+            Sem modelos compatíveis com o setor definido no Perfil da Empresa.
           </CardContent>
         </Card>
       ) : (

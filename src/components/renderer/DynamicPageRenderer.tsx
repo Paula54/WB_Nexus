@@ -7,6 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import type { WebsiteSection } from "@/types/nexus";
+import {
+  LEGAL_PAGE_LABELS,
+  type LegalPageKey,
+  generateLegalTemplate,
+  normalizeLegalBusinessData,
+} from "@/lib/legalTemplates";
 
 /**
  * DynamicPageRenderer
@@ -47,6 +53,14 @@ interface PageMeta {
   seo_description?: string;
   legal_markdown?: string;
 }
+
+const LEGAL_SLUGS: Record<string, LegalPageKey> = {
+  privacidade: "privacidade",
+  privacy: "privacidade",
+  termos: "termos",
+  terms: "termos",
+  cookies: "cookies",
+};
 
 function renderLegalMarkdown(markdown: string) {
   return markdown.split("\n").map((line, index) => {
@@ -94,7 +108,7 @@ export function DynamicPageRenderer({ slug: slugProp, ownerUserId }: DynamicPage
       const { data: project } = await supabase
         .from("projects")
         .select(
-          "id, name, logo_url, email, phone, facebook_url, instagram_url, linkedin_url, legal_name, trade_name, business_name"
+          "id, name, logo_url, email, phone, website, nif, address_line1, postal_code, city, country, facebook_url, instagram_url, linkedin_url, legal_name, trade_name, business_name"
         )
         .eq("user_id", effectiveUserId!)
         .order("created_at", { ascending: true })
@@ -109,7 +123,7 @@ export function DynamicPageRenderer({ slug: slugProp, ownerUserId }: DynamicPage
       // 2. Business Profile (identidade fiscal complementar)
       const { data: bp } = await supabase
         .from("business_profiles")
-        .select("legal_name, trade_name, logo_url, email, phone, facebook_url, instagram_url, linkedin_url")
+        .select("legal_name, trade_name, logo_url, email, phone, website, nif, address_line1, postal_code, city, country, facebook_url, instagram_url, linkedin_url")
         .eq("user_id", effectiveUserId!)
         .maybeSingle();
 
@@ -125,6 +139,33 @@ export function DynamicPageRenderer({ slug: slugProp, ownerUserId }: DynamicPage
         linkedin_url: bp?.linkedin_url || project.linkedin_url || null,
         legal_name: bp?.legal_name || project.legal_name || null,
       };
+
+      const legalKey = LEGAL_SLUGS[targetSlug];
+      if (legalKey) {
+        const legalData = normalizeLegalBusinessData(
+          [
+            (bp || {}) as Record<string, unknown>,
+            (project || {}) as Record<string, unknown>,
+          ],
+          composedBranding.email || undefined,
+        );
+        const generatedLegalPage: PageMeta = {
+          id: `legal-${legalKey}`,
+          title: LEGAL_PAGE_LABELS[legalKey],
+          slug: targetSlug,
+          is_published: true,
+          sort_order: 999,
+          legal_markdown: generateLegalTemplate(legalKey, legalData),
+        };
+        if (!cancelled) {
+          setBranding(composedBranding);
+          setPages([]);
+          setCurrentPage(generatedLegalPage);
+          setSections([]);
+          setLoading(false);
+        }
+        return;
+      }
 
       // 3. Pages (menu dinâmico — multi-página Growth/OS)
       const { data: pagesRows } = await supabase
@@ -300,6 +341,13 @@ export function DynamicPageRenderer({ slug: slugProp, ownerUserId }: DynamicPage
                 <li key={p.id}>
                   <Link to={`/site/${p.slug}`} className="text-xs text-muted-foreground hover:text-primary">
                     {p.title}
+                  </Link>
+                </li>
+              ))}
+              {(["privacidade", "termos", "cookies"] as const).map((slug) => (
+                <li key={slug}>
+                  <Link to={`/site/${slug}`} className="text-xs text-muted-foreground hover:text-primary">
+                    {LEGAL_PAGE_LABELS[LEGAL_SLUGS[slug]]}
                   </Link>
                 </li>
               ))}

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { TemplateGallery } from "@/components/builder/TemplateGallery";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -38,13 +38,19 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { AIImageField } from "@/components/builder/AIImageField";
-import { BrandColorPicker, DEFAULT_BRAND_COLORS, type BrandColors } from "@/components/builder/BrandColorPicker";
-import { BrandFontPicker, DEFAULT_BRAND_FONTS, loadGoogleFont, type BrandFonts } from "@/components/builder/BrandFontPicker";
+import { type BrandColors } from "@/components/builder/BrandColorPicker";
+import { loadGoogleFont, type BrandFonts } from "@/components/builder/BrandFontPicker";
 import { PublishFlow } from "@/components/builder/PublishFlow";
 import { ConciergeWizard } from "@/components/builder/ConciergeWizard";
 import { AIWriteSectionButton } from "@/components/builder/AIWriteSectionButton";
 import { useAutoSeedLegalPages } from "@/hooks/useAutoSeedLegalPages";
-import { Link } from "react-router-dom";
+import {
+  buildBusinessFallbackSection,
+  getSectorBrandDefaults,
+  normalizeBusinessSector,
+  sectionNeedsBusinessRewrite,
+  type BuilderBusinessData,
+} from "@/lib/builderDefaults";
 
 const sectionTypes = [
   { type: 'hero', label: 'Hero', icon: Layout },
@@ -75,73 +81,97 @@ export default function SiteBuilder() {
   const [addPageOpen, setAddPageOpen] = useState(false);
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [publishing, setPublishing] = useState(false);
-  const [brandColors, setBrandColors] = useState<BrandColors>(DEFAULT_BRAND_COLORS);
-  const [brandFonts, setBrandFonts] = useState<BrandFonts>(DEFAULT_BRAND_FONTS);
+  const defaultBrand = getSectorBrandDefaults(null);
+  const [brandColors, setBrandColors] = useState<BrandColors>(defaultBrand.colors);
+  const [brandFonts, setBrandFonts] = useState<BrandFonts>(defaultBrand.fonts);
   const [brandInherited, setBrandInherited] = useState(false);
+  const [brandReady, setBrandReady] = useState(false);
+  const [businessData, setBusinessData] = useState<BuilderBusinessData | null>(null);
+  const [autoRewriting, setAutoRewriting] = useState(false);
+  const autoRewriteRef = useRef<string | null>(null);
 
   // Auto-criar páginas legais (Privacidade, Termos, Cookies) com os dados do Perfil da Empresa
   useAutoSeedLegalPages(projectId);
 
-  // Carregar marca do projeto. Se ainda não foi customizada, herda automaticamente
-  // do Perfil da Empresa (business_profiles + projects.logo_url) e persiste no projeto
-  // para que toda a app veja as mesmas cores/fontes — sem o utilizador escolher de novo.
+  // Herança obrigatória e silenciosa: o Builder lê o Perfil/Empresa e aplica marca,
+  // logótipo, setor e dados reais sem pedir cores ou fontes ao utilizador.
   useEffect(() => {
     if (!projectId) return;
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data: proj } = await supabase
-        .from("projects")
-        .select("brand_colors, brand_fonts, logo_url")
-        .eq("id", projectId)
-        .maybeSingle();
+      const [{ data: proj }, { data: bp }, { data: prof }] = await Promise.all([
+        supabase.from("projects").select("name, brand_colors, brand_fonts, logo_url, business_name, trade_name, legal_name, business_sector, description, city, email, phone, website").eq("id", projectId).maybeSingle(),
+        supabase.from("business_profiles").select("trade_name, legal_name, logo_url, city, email, phone, website").eq("user_id", user.id).maybeSingle(),
+        supabase.from("profiles").select("company_name, business_sector, ai_custom_instructions, contact_email").eq("user_id", user.id).maybeSingle(),
+      ]);
 
+      const business: BuilderBusinessData = {
+        name: (bp as any)?.trade_name || (proj as any)?.trade_name || (proj as any)?.business_name || (prof as any)?.company_name || (proj as any)?.name || "Cascais Property",
+        legalName: (bp as any)?.legal_name || (proj as any)?.legal_name || undefined,
+        sector: (proj as any)?.business_sector || (prof as any)?.business_sector || undefined,
+        description: (proj as any)?.description || (prof as any)?.ai_custom_instructions || undefined,
+        city: (bp as any)?.city || (proj as any)?.city || undefined,
+        logoUrl: (bp as any)?.logo_url || (proj as any)?.logo_url || undefined,
+        email: (bp as any)?.email || (proj as any)?.email || (prof as any)?.contact_email || user.email || undefined,
+        phone: (bp as any)?.phone || (proj as any)?.phone || undefined,
+        website: (bp as any)?.website || (proj as any)?.website || undefined,
+      };
+      business.normalizedSector = normalizeBusinessSector(business.sector) || undefined;
+      setBusinessData(business);
+
+      const defaults = getSectorBrandDefaults(business.normalizedSector || business.sector);
       const bc = (proj as any)?.brand_colors as BrandColors | null;
       const bf = (proj as any)?.brand_fonts as BrandFonts | null;
+      const finalColors: BrandColors = bc?.primary ? bc : defaults.colors;
+      const finalFonts: BrandFonts = bf?.heading ? bf : defaults.fonts;
 
-      // Detetar se as cores são apenas o default genérico do Supabase
-      const isDefaultColors =
-        !bc ||
-        (bc.primary?.toLowerCase() === DEFAULT_BRAND_COLORS.primary.toLowerCase() &&
-          bc.secondary?.toLowerCase() === DEFAULT_BRAND_COLORS.secondary.toLowerCase() &&
-          bc.accent?.toLowerCase() === DEFAULT_BRAND_COLORS.accent.toLowerCase());
-
-      const isDefaultFonts =
-        !bf ||
-        (bf.heading === DEFAULT_BRAND_FONTS.heading && bf.body === DEFAULT_BRAND_FONTS.body);
-
-      let finalColors: BrandColors = bc && !isDefaultColors ? bc : DEFAULT_BRAND_COLORS;
-      let finalFonts: BrandFonts = bf && !isDefaultFonts ? bf : DEFAULT_BRAND_FONTS;
-      let inherited = false;
-
-      // Se ainda não foi customizado, tenta herdar do Perfil da Empresa.
-      // business_profiles não tem brand_colors/brand_fonts no schema atual,
-      // por isso a herança aqui é via metadata de marca disponível (logo, nome).
-      // Quando o utilizador define cores/fontes no BrandColorPicker/BrandFontPicker,
-      // ficam persistidas em projects.brand_colors / projects.brand_fonts e
-      // são automaticamente lidas em todas as próximas sessões do builder.
-      if (isDefaultColors || isDefaultFonts) {
-        const { data: bp } = await supabase
-          .from("business_profiles")
-          .select("logo_url, trade_name, legal_name")
-          .eq("user_id", user.id)
-          .maybeSingle();
-
-        // Se houver logo no Perfil mas o projeto ainda não tem, herdar
-        if (bp?.logo_url && !(proj as any)?.logo_url) {
-          await supabase.from("projects").update({ logo_url: bp.logo_url }).eq("id", projectId);
-          inherited = true;
-        }
+      const patch: Record<string, unknown> = {};
+      if (!bc?.primary) patch.brand_colors = finalColors;
+      if (!bf?.heading) patch.brand_fonts = finalFonts;
+      if (business.logoUrl && !(proj as any)?.logo_url) patch.logo_url = business.logoUrl;
+      if (business.name && !(proj as any)?.business_name) patch.business_name = business.name;
+      if (business.sector && !(proj as any)?.business_sector) patch.business_sector = business.sector;
+      if (Object.keys(patch).length > 0) {
+        await supabase.from("projects").update(patch as any).eq("id", projectId);
       }
 
       setBrandColors(finalColors);
       setBrandFonts(finalFonts);
       loadGoogleFont(finalFonts.heading);
       loadGoogleFont(finalFonts.body);
-      setBrandInherited(inherited);
+      setBrandInherited(true);
+      setBrandReady(true);
     })();
   }, [projectId]);
+
+  useEffect(() => {
+    if (!projectId || !businessData || sections.length === 0) return;
+    const signature = `${projectId}:${sections.map((s) => `${s.id}:${s.content.title}`).join("|")}`;
+    if (autoRewriteRef.current === signature) return;
+    const targets = sections.filter((s) => sectionNeedsBusinessRewrite(s, businessData.normalizedSector || businessData.sector));
+    if (targets.length === 0) return;
+    autoRewriteRef.current = signature;
+
+    (async () => {
+      setAutoRewriting(true);
+      const rewritten = await Promise.all(sections.map(async (section) => {
+        if (!targets.some((target) => target.id === section.id)) return section;
+        try {
+          const { data, error } = await supabase.functions.invoke("generate-section-content", {
+            body: { section: { type: section.type, content: section.content }, business: businessData },
+          });
+          if (error || data?.error || !data?.content) throw error || new Error(data?.error || "AI fallback");
+          return { ...section, content: { ...section.content, ...data.content } };
+        } catch {
+          return { ...section, content: buildBusinessFallbackSection(section, businessData) };
+        }
+      }));
+      updateSections(rewritten);
+      setAutoRewriting(false);
+    })();
+  }, [projectId, businessData, sections, updateSections]);
 
 
   const currentPage = pages.find((p) => p.id === currentPageId);
@@ -416,19 +446,24 @@ export default function SiteBuilder() {
       <ConciergeWizard
         projectId={projectId}
         hasSections={sections.length > 0}
-        hasCustomBrand={
-          brandColors.primary !== DEFAULT_BRAND_COLORS.primary ||
-          brandFonts.heading !== DEFAULT_BRAND_FONTS.heading
-        }
+        hasCustomBrand={brandReady}
         isPublished={!!currentPage?.is_published}
         onJumpToTemplates={() => setTemplatesOpen(true)}
-        onJumpToBrand={() => {
-          document.getElementById("brand-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
-        }}
+        onJumpToBrand={() => undefined}
         onJumpToPublish={() => {
           document.getElementById("publish-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
         }}
       />
+
+      {brandInherited && (
+        <div className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-3 py-2 text-xs text-emerald-500">
+          <Check className="h-3.5 w-3.5" />
+          <span>
+            Marca e dados aplicados automaticamente{businessData?.name ? ` para ${businessData.name}` : ""}.
+            {autoRewriting ? " O Concierge está a substituir textos genéricos por conteúdo do setor." : ""}
+          </span>
+        </div>
+      )}
 
       {/* Fluxo de Publicação */}
       {currentPage && (
@@ -479,34 +514,6 @@ export default function SiteBuilder() {
           })()}
         </DialogContent>
       </Dialog>
-
-      {/* Brand identity (cores + tipografia) — herdadas do Perfil da Empresa */}
-      {projectId && (
-        <div id="brand-section" className="space-y-6 scroll-mt-4">
-          {brandInherited && (
-            <div className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-3 py-2 text-xs text-emerald-500">
-              <Check className="h-3.5 w-3.5" />
-              <span>
-                Marca <strong>herdada</strong> do{" "}
-                <Link to="/settings" className="underline hover:text-emerald-400">
-                  Perfil da Empresa
-                </Link>
-                . Edita abaixo apenas se quiseres ajustar para este site.
-              </span>
-            </div>
-          )}
-          <BrandColorPicker
-            projectId={projectId}
-            value={brandColors}
-            onChange={setBrandColors}
-          />
-          <BrandFontPicker
-            projectId={projectId}
-            value={brandFonts}
-            onChange={setBrandFonts}
-          />
-        </div>
-      )}
 
       {/* Page Tabs */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1">
