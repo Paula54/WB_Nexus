@@ -74,6 +74,8 @@ export default function BusinessProfileTab() {
   const [loading, setLoading] = useState(true);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showPicker, setShowPicker] = useState(false);
+  const [brandColors, setBrandColors] = useState<BrandColors>(DEFAULT_BRAND_COLORS);
+  const [brandFonts, setBrandFonts] = useState<BrandFonts>(DEFAULT_BRAND_FONTS);
 
   useEffect(() => {
     if (!user) return;
