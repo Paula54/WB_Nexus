@@ -12,8 +12,8 @@ import {
 } from "@/components/ui/select";
 import { Loader2, Sparkles, LayoutTemplate, Eye } from "lucide-react";
 import { toast } from "sonner";
-import { useProfile } from "@/hooks/useProfile";
 import { TemplatePreviewModal } from "./TemplatePreviewModal";
+import { normalizeBusinessSector } from "@/lib/builderDefaults";
 
 interface TemplateRow {
   id: string;
@@ -136,12 +136,12 @@ function TemplatePreview({ tpl }: { tpl: TemplateRow }) {
 }
 
 export function TemplateGallery({ projectId, pageId, onApplied }: Props) {
-  const { profile } = useProfile();
   const [templates, setTemplates] = useState<TemplateRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [applyingId, setApplyingId] = useState<string | null>(null);
   const [sectorFilter, setSectorFilter] = useState<string>("all");
   const [previewTpl, setPreviewTpl] = useState<TemplateRow | null>(null);
+  const [businessSector, setBusinessSector] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -186,12 +186,22 @@ export function TemplateGallery({ projectId, pageId, onApplied }: Props) {
     };
   }, []);
 
-  // Pré-selecionar o setor do utilizador, se houver match
+  // Pré-selecionar e bloquear o setor real do projeto para evitar modelos errados.
   useEffect(() => {
-    if (!profile?.business_sector || templates.length === 0) return;
-    const hasMatch = templates.some((t) => t.template_sector === profile.business_sector);
-    if (hasMatch) setSectorFilter(profile.business_sector);
-  }, [profile?.business_sector, templates]);
+    if (!projectId) return;
+    (async () => {
+      const { data } = await supabase
+        .from("projects")
+        .select("business_sector")
+        .eq("id", projectId)
+        .maybeSingle();
+      const normalized = normalizeBusinessSector((data as any)?.business_sector);
+      if (normalized) {
+        setBusinessSector(normalized);
+        setSectorFilter(normalized);
+      }
+    })();
+  }, [projectId]);
 
   const availableSectors = useMemo(
     () =>
