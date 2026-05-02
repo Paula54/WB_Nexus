@@ -141,6 +141,7 @@ export function TemplateGallery({ projectId, pageId, onApplied }: Props) {
   const [loading, setLoading] = useState(true);
   const [applyingId, setApplyingId] = useState<string | null>(null);
   const [sectorFilter, setSectorFilter] = useState<string>("all");
+  const [previewTpl, setPreviewTpl] = useState<TemplateRow | null>(null);
 
   useEffect(() => {
     let cancelled = false;
