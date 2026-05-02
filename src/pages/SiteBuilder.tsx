@@ -115,35 +115,23 @@ export default function SiteBuilder() {
       let finalFonts: BrandFonts = bf && !isDefaultFonts ? bf : DEFAULT_BRAND_FONTS;
       let inherited = false;
 
-      // Se ainda não foi customizado, tenta herdar do Perfil da Empresa
+      // Se ainda não foi customizado, tenta herdar do Perfil da Empresa.
+      // business_profiles não tem brand_colors/brand_fonts no schema atual,
+      // por isso a herança aqui é via metadata de marca disponível (logo, nome).
+      // Quando o utilizador define cores/fontes no BrandColorPicker/BrandFontPicker,
+      // ficam persistidas em projects.brand_colors / projects.brand_fonts e
+      // são automaticamente lidas em todas as próximas sessões do builder.
       if (isDefaultColors || isDefaultFonts) {
         const { data: bp } = await supabase
           .from("business_profiles")
-          .select("brand_colors, brand_fonts, logo_url, trade_name")
+          .select("logo_url, trade_name, legal_name")
           .eq("user_id", user.id)
           .maybeSingle();
 
-        const bpColors = (bp as any)?.brand_colors as BrandColors | null;
-        const bpFonts = (bp as any)?.brand_fonts as BrandFonts | null;
-
-        if (isDefaultColors && bpColors?.primary) {
-          finalColors = bpColors;
+        // Se houver logo no Perfil mas o projeto ainda não tem, herdar
+        if (bp?.logo_url && !(proj as any)?.logo_url) {
+          await supabase.from("projects").update({ logo_url: bp.logo_url }).eq("id", projectId);
           inherited = true;
-        }
-        if (isDefaultFonts && bpFonts?.heading) {
-          finalFonts = bpFonts;
-          inherited = true;
-        }
-
-        // Persistir no projeto para alinhar toda a app — silenciosamente
-        if (inherited) {
-          await supabase
-            .from("projects")
-            .update({
-              brand_colors: finalColors as any,
-              brand_fonts: finalFonts as any,
-            })
-            .eq("id", projectId);
         }
       }
 
