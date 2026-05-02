@@ -367,36 +367,36 @@ export default function SiteBuilder() {
         </div>
       </div>
 
+      {/* Concierge Wizard — Guia o utilizador passo-a-passo */}
+      <ConciergeWizard
+        projectId={projectId}
+        hasSections={sections.length > 0}
+        hasCustomBrand={
+          brandColors.primary !== DEFAULT_BRAND_COLORS.primary ||
+          brandFonts.heading !== DEFAULT_BRAND_FONTS.heading
+        }
+        isPublished={!!currentPage?.is_published}
+        onJumpToTemplates={() => setTemplatesOpen(true)}
+        onJumpToBrand={() => {
+          document.getElementById("brand-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }}
+        onJumpToPublish={() => {
+          document.getElementById("publish-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }}
+      />
+
       {/* Fluxo de Publicação */}
       {currentPage && (
-        <PublishFlow
-          pageSlug={currentPage.slug}
-          isPublished={currentPage.is_published}
-          publishing={publishing}
-          onPublish={handlePublish}
-          onPreview={() => setViewMode('preview')}
-        />
+        <div id="publish-section">
+          <PublishFlow
+            pageSlug={currentPage.slug}
+            isPublished={currentPage.is_published}
+            publishing={publishing}
+            onPublish={handlePublish}
+            onPreview={() => setViewMode('preview')}
+          />
+        </div>
       )}
-
-      {/* Aviso de conformidade legal automática */}
-      <Card className="glass border-emerald-500/20 bg-emerald-500/5">
-        <CardContent className="p-4 flex items-start gap-3">
-          <ShieldCheck className="h-5 w-5 text-emerald-500 shrink-0 mt-0.5" />
-          <div className="flex-1 text-sm">
-            <p className="font-medium">Páginas legais geradas automaticamente</p>
-            <p className="text-muted-foreground text-xs mt-0.5">
-              A Política de Privacidade, Cookies e Termos & Condições usam os dados da{" "}
-              <Link to="/settings" className="text-primary underline">
-                Configuração da Empresa
-              </Link>
-              . Sempre que atualizares lá, são regeneradas — não tens de repetir nada.
-            </p>
-          </div>
-          <Button variant="outline" size="sm" asChild>
-            <Link to="/settings?tab=legal">Ver páginas legais</Link>
-          </Button>
-        </CardContent>
-      </Card>
 
       {/* Templates Gallery Dialog */}
       <Dialog open={templatesOpen} onOpenChange={setTemplatesOpen}>
