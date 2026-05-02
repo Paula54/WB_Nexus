@@ -10,9 +10,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Sparkles, LayoutTemplate, Wand2, Check } from "lucide-react";
+import { Loader2, Sparkles, LayoutTemplate, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { useProfile } from "@/hooks/useProfile";
+import { TemplatePreviewModal } from "./TemplatePreviewModal";
 
 interface TemplateRow {
   id: string;
