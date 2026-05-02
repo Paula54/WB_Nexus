@@ -328,11 +328,11 @@ export function TemplateGallery({ projectId, pageId, onApplied }: Props) {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredTemplates.map((tpl) => {
             const meta = getSectorMeta(tpl.template_sector);
-            const isApplying = applyingId === tpl.id;
             return (
               <Card
                 key={tpl.id}
-                className="glass overflow-hidden hover:border-primary/60 hover:shadow-lg transition-all group"
+                className="glass overflow-hidden hover:border-primary/60 hover:shadow-lg transition-all group cursor-pointer"
+                onClick={() => setPreviewTpl(tpl)}
               >
                 <div className="p-3">
                   <TemplatePreview tpl={tpl} />
@@ -355,20 +355,14 @@ export function TemplateGallery({ projectId, pageId, onApplied }: Props) {
                   <Button
                     className="w-full"
                     size="sm"
-                    onClick={() => applyTemplate(tpl.id)}
-                    disabled={applyingId !== null}
+                    variant="outline"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setPreviewTpl(tpl);
+                    }}
                   >
-                    {isApplying ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        A personalizar…
-                      </>
-                    ) : (
-                      <>
-                        <Wand2 className="h-4 w-4 mr-2" />
-                        Usar este modelo
-                      </>
-                    )}
+                    <Eye className="h-4 w-4 mr-2" />
+                    Pré-visualizar
                   </Button>
                 </CardContent>
               </Card>
@@ -376,6 +370,14 @@ export function TemplateGallery({ projectId, pageId, onApplied }: Props) {
           })}
         </div>
       )}
+
+      <TemplatePreviewModal
+        open={!!previewTpl}
+        onOpenChange={(o) => !o && setPreviewTpl(null)}
+        template={previewTpl}
+        applying={applyingId !== null}
+        onApply={() => previewTpl && applyTemplate(previewTpl.id)}
+      />
     </div>
   );
 }
