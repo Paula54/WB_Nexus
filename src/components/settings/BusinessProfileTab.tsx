@@ -8,6 +8,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import AssetPickerModal from "@/components/media/AssetPickerModal";
 import { Building2, MapPin, Save, Loader2, AlertTriangle, Phone, Upload, Trash2, Image, FolderOpen } from "lucide-react";
+import { BrandColorPicker, DEFAULT_BRAND_COLORS, type BrandColors } from "@/components/builder/BrandColorPicker";
+import { BrandFontPicker, DEFAULT_BRAND_FONTS, type BrandFonts } from "@/components/builder/BrandFontPicker";
 
 interface BusinessProfile {
   business_name: string;
