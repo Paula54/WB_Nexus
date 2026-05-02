@@ -9,31 +9,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
 import { useSubscription } from "@/hooks/useSubscription";
 import { toast } from "@/hooks/use-toast";
-import { User, Camera, Save, Loader2, Building2, Mail, Lock, CreditCard, ArrowRight, AlertCircle, History, Palette } from "lucide-react";
+import { User, Camera, Save, Loader2, Building2, Mail, Lock, CreditCard, ArrowRight, AlertCircle, History } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ProfileHistoryTab from "@/components/profile/ProfileHistoryTab";
-import { BrandColorPicker, DEFAULT_BRAND_COLORS, type BrandColors } from "@/components/builder/BrandColorPicker";
-import { BrandFontPicker, DEFAULT_BRAND_FONTS, type BrandFonts } from "@/components/builder/BrandFontPicker";
-
-async function getOrCreatePrimaryProjectBranding(userId: string, fallbackName: string) {
-  const { data: existing } = await supabase
-    .from("projects")
-    .select("id, brand_colors, brand_fonts")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .maybeSingle();
-
-  if (existing?.id) return existing;
-
-  const { data: created } = await supabase
-    .from("projects")
-    .insert({ user_id: userId, name: fallbackName || "Meu Negócio" } as Record<string, unknown>)
-    .select("id, brand_colors, brand_fonts")
-    .maybeSingle();
-
-  return created;
-}
 
 export default function Profile() {
   const { user } = useAuth();
@@ -48,10 +26,6 @@ export default function Profile() {
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [portalLoading, setPortalLoading] = useState(false);
-  const [projectId, setProjectId] = useState<string | null>(null);
-  const [brandColors, setBrandColors] = useState<BrandColors>(DEFAULT_BRAND_COLORS);
-  const [brandFonts, setBrandFonts] = useState<BrandFonts>(DEFAULT_BRAND_FONTS);
-  const [visualIdentityLoading, setVisualIdentityLoading] = useState(false);
 
   const openBillingPortal = async () => {
     setPortalLoading(true);
@@ -77,23 +51,6 @@ export default function Profile() {
       setAvatarUrl((prev) => prev || profile.avatar_url);
     }
   }, [profile]);
-
-  useEffect(() => {
-    if (!user) return;
-    let mounted = true;
-    (async () => {
-      setVisualIdentityLoading(true);
-      const branding = await getOrCreatePrimaryProjectBranding(user.id, profile?.company_name || companyName || "Meu Negócio");
-      if (!mounted) return;
-      if (branding?.id) {
-        setProjectId(branding.id);
-        if (branding.brand_colors) setBrandColors({ ...DEFAULT_BRAND_COLORS, ...(branding.brand_colors as Partial<BrandColors>) });
-        if (branding.brand_fonts) setBrandFonts({ ...DEFAULT_BRAND_FONTS, ...(branding.brand_fonts as Partial<BrandFonts>) });
-      }
-      setVisualIdentityLoading(false);
-    })();
-    return () => { mounted = false; };
-  }, [user, profile?.company_name, companyName]);
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -182,10 +139,6 @@ export default function Profile() {
       <Tabs defaultValue="perfil" className="w-full">
         <TabsList>
           <TabsTrigger value="perfil">Perfil</TabsTrigger>
-          <TabsTrigger value="identidade" className="gap-2">
-            <Palette className="h-4 w-4" />
-            Identidade Visual
-          </TabsTrigger>
           <TabsTrigger value="historico" className="gap-2">
             <History className="h-4 w-4" />
             Histórico
@@ -339,30 +292,6 @@ export default function Profile() {
                   {portalLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
                   Gerir Faturas e Assinatura
                 </Button>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-
-        <TabsContent value="identidade" className="space-y-6 mt-6">
-          {visualIdentityLoading ? (
-            <div className="h-48 animate-pulse rounded-lg bg-muted" />
-          ) : projectId ? (
-            <>
-              <Card className="border-primary/30 bg-primary/5">
-                <CardContent className="pt-6">
-                  <p className="text-sm text-muted-foreground">
-                    Estas cores e fontes são guardadas no Perfil e herdadas automaticamente pelo Site Builder.
-                  </p>
-                </CardContent>
-              </Card>
-              <BrandColorPicker projectId={projectId} value={brandColors} onChange={setBrandColors} />
-              <BrandFontPicker projectId={projectId} value={brandFonts} onChange={setBrandFonts} />
-            </>
-          ) : (
-            <Card>
-              <CardContent className="pt-6 text-sm text-muted-foreground">
-                Não foi possível carregar o projeto principal para configurar a identidade visual.
               </CardContent>
             </Card>
           )}
