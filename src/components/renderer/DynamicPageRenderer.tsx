@@ -7,6 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import type { WebsiteSection } from "@/types/nexus";
+import {
+  LEGAL_PAGE_LABELS,
+  LEGAL_PAGE_TYPE_MAP,
+  type LegalPageKey,
+  generateLegalTemplate,
+  normalizeLegalBusinessData,
+} from "@/lib/legalTemplates";
 
 /**
  * DynamicPageRenderer
@@ -47,6 +54,14 @@ interface PageMeta {
   seo_description?: string;
   legal_markdown?: string;
 }
+
+const LEGAL_SLUGS: Record<string, LegalPageKey> = {
+  privacidade: "privacidade",
+  privacy: "privacidade",
+  termos: "termos",
+  terms: "termos",
+  cookies: "cookies",
+};
 
 function renderLegalMarkdown(markdown: string) {
   return markdown.split("\n").map((line, index) => {
