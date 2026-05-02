@@ -672,10 +672,22 @@ export default function SiteBuilder() {
             {selectedSectionData ? (
               <Card className="glass">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Badge variant="outline">{selectedSectionData.type}</Badge>
-                    Editar Secção
-                  </CardTitle>
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <CardTitle className="flex items-center gap-2">
+                      <Badge variant="outline">{selectedSectionData.type}</Badge>
+                      Editar Secção
+                    </CardTitle>
+                    {selectedSectionData.type !== "custom_html" && (
+                      <AIWriteSectionButton
+                        section={selectedSectionData}
+                        onApply={(content) => updateSection(selectedSectionData.id, content)}
+                      />
+                    )}
+                  </div>
+                  <CardDescription className="text-xs">
+                    Clica em <span className="text-primary font-medium">Escrever com IA</span> para
+                    o Concierge preencher esta secção com os dados da tua empresa.
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
