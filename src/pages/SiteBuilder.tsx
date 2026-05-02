@@ -40,6 +40,9 @@ import {
 import { AIImageField } from "@/components/builder/AIImageField";
 import { BrandColorPicker, DEFAULT_BRAND_COLORS, type BrandColors } from "@/components/builder/BrandColorPicker";
 import { BrandFontPicker, DEFAULT_BRAND_FONTS, loadGoogleFont, type BrandFonts } from "@/components/builder/BrandFontPicker";
+import { PublishFlow } from "@/components/builder/PublishFlow";
+import { Link } from "react-router-dom";
+import { ShieldCheck } from "lucide-react";
 
 const sectionTypes = [
   { type: 'hero', label: 'Hero', icon: Layout },
