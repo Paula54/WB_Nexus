@@ -62,10 +62,28 @@ export function useLegalConsent() {
       return { error: { message: "Sessão não encontrada. Tenta recarregar a página." } };
     }
     
-    const { error, data } = await supabase
+    // Check existing first to avoid relying on a unique constraint
+    const { data: existing } = await supabase
       .from("legal_consents")
-      .upsert(consentPayload, { onConflict: "user_id", ignoreDuplicates: true })
-      .select();
+      .select("id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    let error: any = null;
+    let data: any = null;
+
+    if (existing) {
+      ({ error, data } = await supabase
+        .from("legal_consents")
+        .update(consentPayload)
+        .eq("user_id", user.id)
+        .select());
+    } else {
+      ({ error, data } = await supabase
+        .from("legal_consents")
+        .insert(consentPayload)
+        .select());
+    }
 
     console.log("[LegalConsent] Insert result:", { error, data });
 
