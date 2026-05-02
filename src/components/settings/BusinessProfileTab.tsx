@@ -100,7 +100,7 @@ export default function BusinessProfileTab() {
 
       const { data } = await supabase
         .from("projects")
-        .select([...ALL_FIELDS, "logo_url"].join(", "))
+        .select([...ALL_FIELDS, "logo_url", "brand_colors", "brand_fonts"].join(", "))
         .eq("id", id)
         .maybeSingle();
       if (data) {
@@ -111,6 +111,8 @@ export default function BusinessProfileTab() {
         }
         setProfile(restored);
         if (d.logo_url) setLogoUrl(String(d.logo_url));
+        if (d.brand_colors) setBrandColors({ ...DEFAULT_BRAND_COLORS, ...(d.brand_colors as Partial<BrandColors>) });
+        if (d.brand_fonts) setBrandFonts({ ...DEFAULT_BRAND_FONTS, ...(d.brand_fonts as Partial<BrandFonts>) });
       }
       setLoading(false);
     })();
