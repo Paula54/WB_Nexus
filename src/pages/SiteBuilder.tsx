@@ -42,6 +42,8 @@ import { BrandColorPicker, DEFAULT_BRAND_COLORS, type BrandColors } from "@/comp
 import { BrandFontPicker, DEFAULT_BRAND_FONTS, loadGoogleFont, type BrandFonts } from "@/components/builder/BrandFontPicker";
 import { PublishFlow } from "@/components/builder/PublishFlow";
 import { ConciergeWizard } from "@/components/builder/ConciergeWizard";
+import { AIWriteSectionButton } from "@/components/builder/AIWriteSectionButton";
+import { useAutoSeedLegalPages } from "@/hooks/useAutoSeedLegalPages";
 import { Link } from "react-router-dom";
 
 const sectionTypes = [
@@ -75,8 +77,12 @@ export default function SiteBuilder() {
   const [publishing, setPublishing] = useState(false);
   const [brandColors, setBrandColors] = useState<BrandColors>(DEFAULT_BRAND_COLORS);
   const [brandFonts, setBrandFonts] = useState<BrandFonts>(DEFAULT_BRAND_FONTS);
+  const [brandInherited, setBrandInherited] = useState(false);
 
-  // Load brand colors + fonts from project
+  // Auto-criar páginas legais (Privacidade, Termos, Cookies) com os dados do Perfil da Empresa
+  useAutoSeedLegalPages(projectId);
+
+  // Carregar marca do projeto (herdada do Perfil da Empresa) — sem forçar o utilizador a re-escolher
   useEffect(() => {
     if (!projectId) return;
     (async () => {
@@ -86,16 +92,22 @@ export default function SiteBuilder() {
         .eq("id", projectId)
         .maybeSingle();
       const bc = (data as any)?.brand_colors;
-      if (bc && bc.primary) setBrandColors(bc as BrandColors);
       const bf = (data as any)?.brand_fonts;
+      let inherited = false;
+      if (bc && bc.primary) {
+        setBrandColors(bc as BrandColors);
+        inherited = true;
+      }
       if (bf && bf.heading) {
         setBrandFonts(bf as BrandFonts);
         loadGoogleFont(bf.heading);
         loadGoogleFont(bf.body);
+        inherited = true;
       } else {
         loadGoogleFont(DEFAULT_BRAND_FONTS.heading);
         loadGoogleFont(DEFAULT_BRAND_FONTS.body);
       }
+      setBrandInherited(inherited);
     })();
   }, [projectId]);
 
