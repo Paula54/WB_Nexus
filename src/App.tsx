@@ -39,6 +39,7 @@ import Blog from "@/pages/Blog";
 import SessionLanding from "@/pages/SessionLanding";
 import BusinessSetup from "@/pages/BusinessSetup";
 import Success from "@/pages/Success";
+import DynamicPageRenderer from "@/components/renderer/DynamicPageRenderer";
 
 // Legal Pages
 import DynamicLegalPage from "@/pages/legal/DynamicLegalPage";
@@ -153,6 +154,8 @@ function AppRoutes() {
         <Route path="blog" element={<Blog />} />
         <Route path="admin" element={<Admin />} />
       </Route>
+      <Route path="/site" element={<ProtectedRoute><DynamicPageRenderer slug="home" /></ProtectedRoute>} />
+      <Route path="/site/:slug" element={<ProtectedRoute><DynamicPageRenderer /></ProtectedRoute>} />
       {/* Legal Routes (Public) */}
       <Route path="/privacy" element={<DynamicLegalPage />} />
       <Route path="/privacidade" element={<DynamicLegalPage />} />
