@@ -1,4 +1,4 @@
-import { Outlet, Link, useNavigate } from "react-router-dom";
+import { Outlet, Link, useNavigate, useLocation } from "react-router-dom";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { useAuth } from "@/contexts/AuthContext";
@@ -24,8 +24,12 @@ export default function MainLayout() {
   const { profile } = useProfile();
   const { hasConsented, loading: consentLoading, acceptConsent } = useLegalConsent();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const showConsentModal = !consentLoading && hasConsented === false;
+  // No Site Builder o Concierge é o ConciergeWizard embebido — esconder o widget global
+  // para evitar dois assistentes a competir pela atenção do utilizador.
+  const hideGlobalConcierge = location.pathname.startsWith("/site-builder");
 
   return (
     <SidebarProvider>
@@ -112,7 +116,7 @@ export default function MainLayout() {
             <p>Nexus Machine © 2026 | Powered by <a href="https://web-business.pt" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Web Business</a> – Um produto Astrolábio Mágico Investimentos LDA.</p>
           </footer>
         </main>
-        <NexusConcierge />
+        {!hideGlobalConcierge && <NexusConcierge />}
         <DynamicSEOHead />
         <GoogleAnalytics />
         <LegalConsentModal open={showConsentModal} onAccept={acceptConsent} />
