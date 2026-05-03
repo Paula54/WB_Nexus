@@ -104,12 +104,13 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (project) {
+      const encryptedToken = await encryptToken(longLivedToken);
       const { error: updateError } = await adminClient
         .from("project_credentials")
         .upsert({
           project_id: project.id,
           user_id: user.id,
-          meta_access_token: longLivedToken,
+          meta_access_token: encryptedToken,
           meta_ads_account_id: adAccountId,
         }, { onConflict: "project_id" });
 
