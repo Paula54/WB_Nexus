@@ -290,11 +290,13 @@ export function TemplateGallery({ projectId, pageId, onApplied }: Props) {
     <div className="space-y-5">
       <div className="text-center">
         <h2 className="text-2xl font-display font-bold flex items-center justify-center gap-2">
-          <Sparkles className="h-6 w-6 text-primary" />
-          Modelos Inteligentes
+          <LayoutTemplate className="h-6 w-6 text-primary" />
+          Galeria de Modelos
         </h2>
         <p className="text-muted-foreground text-sm mt-1">
-          Mostro apenas modelos compatíveis com o setor do teu Perfil da Empresa.
+          {businessSector
+            ? "A mostrar modelos compatíveis com o setor do teu negócio."
+            : "Escolhe um modelo para começar — podes personalizar tudo a seguir."}
         </p>
       </div>
 
