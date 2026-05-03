@@ -16,31 +16,21 @@ function getErrorMessage(error: unknown) {
 }
 
 async function upsertSubscriptionRecord(supabase: any, payload: Record<string, unknown>, plan: string) {
-  // Manual upsert: the `subscriptions` table has no UNIQUE constraint on
-  // `stripe_subscription_id`, so a Postgres ON CONFLICT upsert silently fails.
-  // We always use `plan_type` (the actual column in production).
+  // With the UNIQUE constraint on stripe_subscription_id (subscriptions_stripe_sub_unique),
+  // we can use Postgres ON CONFLICT upsert safely.
   const fullPayload = { ...payload, plan_type: plan };
   const stripeSubscriptionId = payload.stripe_subscription_id as string | null;
   const userId = payload.user_id as string;
 
-  // 1) Try to find an existing row for this Stripe subscription
   if (stripeSubscriptionId) {
-    const { data: existing, error: lookupErr } = await supabase
+    const { error } = await supabase
       .from('subscriptions')
-      .select('id')
-      .eq('stripe_subscription_id', stripeSubscriptionId)
-      .maybeSingle();
-
-    if (lookupErr) {
-      console.error('[stripe-webhook] Lookup error:', lookupErr);
-    }
-
-    if (existing?.id) {
-      return await supabase.from('subscriptions').update(fullPayload).eq('id', existing.id);
-    }
+      .upsert(fullPayload, { onConflict: 'stripe_subscription_id' });
+    if (error) console.error('[stripe-webhook] Upsert error:', error);
+    return { error };
   }
 
-  // 2) Otherwise, look for the user's most recent subscription row to update
+  // Fallback when no Stripe sub id (shouldn't happen for subscription checkouts)
   const { data: userSub } = await supabase
     .from('subscriptions')
     .select('id')
@@ -52,8 +42,6 @@ async function upsertSubscriptionRecord(supabase: any, payload: Record<string, u
   if (userSub?.id) {
     return await supabase.from('subscriptions').update(fullPayload).eq('id', userSub.id);
   }
-
-  // 3) No existing row — insert a fresh one
   return await supabase.from('subscriptions').insert(fullPayload);
 }
 
