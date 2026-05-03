@@ -138,7 +138,8 @@ serve(async (req) => {
     let sentCount = 0;
 
     // Send one-by-one so each gets a unique unsubscribe link
-    for (const sub of toSend) {
+    // Includes retry on 429 (rate limit) with exponential backoff
+    const sendOne = async (sub: { email: string; name?: string | null }) => {
       const unsubUrl = `${projectUrl}/functions/v1/unsubscribe?token=${unsubToken(user.id, sub.email)}`;
       const renderedHtml = renderEmailTemplate({
         subject: campaign.subject,
@@ -147,26 +148,47 @@ serve(async (req) => {
         unsubscribeUrl: unsubUrl,
       });
 
-      try {
-        const r = await fetch("https://api.resend.com/emails", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
-          body: JSON.stringify({
-            from: FROM_ADDR,
-            to: [sub.email],
-            subject: campaign.subject,
-            html: renderedHtml,
-            headers: {
-              "List-Unsubscribe": `<${unsubUrl}>`,
-              "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
-            },
-          }),
-        });
-        if (r.ok) sentCount++;
-        else console.error(`Send to ${sub.email} failed:`, await r.text());
-      } catch (e) {
-        console.error(`Send to ${sub.email} threw:`, e);
+      const payload = JSON.stringify({
+        from: FROM_ADDR,
+        to: [sub.email],
+        subject: campaign.subject,
+        html: renderedHtml,
+        headers: {
+          "List-Unsubscribe": `<${unsubUrl}>`,
+          "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+        },
+      });
+
+      // Up to 3 attempts on 429/5xx
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          const r = await fetch("https://api.resend.com/emails", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
+            body: payload,
+          });
+          if (r.ok) return true;
+          if (r.status === 429 || r.status >= 500) {
+            const wait = Number(r.headers.get("retry-after")) * 1000 || (500 * attempt);
+            console.warn(`[send-newsletter] ${sub.email} status=${r.status} attempt=${attempt}, waiting ${wait}ms`);
+            await new Promise((res) => setTimeout(res, wait));
+            continue;
+          }
+          console.error(`Send to ${sub.email} failed (${r.status}):`, await r.text());
+          return false;
+        } catch (e) {
+          console.error(`Send to ${sub.email} attempt ${attempt} threw:`, e);
+          await new Promise((res) => setTimeout(res, 500 * attempt));
+        }
       }
+      return false;
+    };
+
+    // Throttle: small delay between sends to smooth bursts
+    for (const sub of toSend) {
+      const ok = await sendOne(sub);
+      if (ok) sentCount++;
+      await new Promise((res) => setTimeout(res, 100));
     }
 
     await supabase
