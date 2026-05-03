@@ -580,7 +580,7 @@ export function NexusConcierge() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${supabaseAnonKey}`,
         },
         body: JSON.stringify({
           messages: chatMessages,
@@ -747,7 +747,7 @@ export function NexusConcierge() {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
-                Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+                Authorization: `Bearer ${supabaseAnonKey}`,
               },
               body: JSON.stringify({
                 messages: followUpMessages,
