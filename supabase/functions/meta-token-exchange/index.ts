@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { encryptToken } from "../_shared/crypto.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -103,12 +104,13 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (project) {
+      const encryptedToken = await encryptToken(longLivedToken);
       const { error: updateError } = await adminClient
         .from("project_credentials")
         .upsert({
           project_id: project.id,
           user_id: user.id,
-          meta_access_token: longLivedToken,
+          meta_access_token: encryptedToken,
           meta_ads_account_id: adAccountId,
         }, { onConflict: "project_id" });
 
