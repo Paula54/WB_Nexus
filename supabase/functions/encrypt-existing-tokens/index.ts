@@ -26,7 +26,28 @@ Deno.serve(async (req) => {
     }
 
     const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-    const results = { google_ads: 0, google_analytics: 0, meta_projects: 0, errors: [] as string[] };
+    const results = { google_ads: 0, google_analytics: 0, meta_projects: 0, meta_connections: 0, errors: [] as string[] };
+
+    // 0. Encrypt meta_connections.page_access_token
+    const { data: metaConns } = await adminClient
+      .from("meta_connections")
+      .select("id, page_access_token")
+      .eq("is_active", true);
+
+    for (const mc of metaConns || []) {
+      if (mc.page_access_token && !isEncrypted(mc.page_access_token)) {
+        try {
+          const encrypted = await encryptToken(mc.page_access_token);
+          await adminClient
+            .from("meta_connections")
+            .update({ page_access_token: encrypted })
+            .eq("id", mc.id);
+          results.meta_connections++;
+        } catch (e) {
+          results.errors.push(`meta_connection ${mc.id}: ${(e as Error).message}`);
+        }
+      }
+    }
 
     // 1. Encrypt google_ads_accounts.google_refresh_token
     const { data: gadsAccounts } = await adminClient
