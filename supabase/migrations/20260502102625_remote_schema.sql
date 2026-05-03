@@ -1,6 +1,4 @@
 
-
-
 SET statement_timeout = 0;
 SET lock_timeout = 0;
 SET idle_in_transaction_session_timeout = 0;
@@ -14,9 +12,6 @@ SET row_security = off;
 
 
 CREATE EXTENSION IF NOT EXISTS "pg_net" WITH SCHEMA "extensions";
-
-
-
 
 
 
@@ -2847,8 +2842,6 @@ CREATE TRIGGER on_auth_user_created AFTER INSERT ON auth.users FOR EACH ROW EXEC
 CREATE TRIGGER on_auth_user_created_credits AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION public.handle_new_user_credits();
 
 CREATE TRIGGER on_auth_user_created_role AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION public.handle_new_user_role();
-
-CREATE TRIGGER send_whatsapp_reply AFTER INSERT ON realtime.messages_2026_04_05 FOR EACH ROW EXECUTE FUNCTION supabase_functions.http_request('https://google.pt', 'POST', '{"Content-type":"application/json"}', '{}', '5000');
 
 
   create policy "Enable insert for authenticated users only"
