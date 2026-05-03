@@ -209,10 +209,16 @@ export function TemplateGallery({ projectId, pageId, onApplied }: Props) {
     [templates]
   );
 
+  const [showAllSectors, setShowAllSectors] = useState(false);
+
   const filteredTemplates = useMemo(() => {
-    const enforcedSector = businessSector || (sectorFilter === "all" ? null : sectorFilter);
-    return templates.filter((t) => !enforcedSector || normalizeBusinessSector(t.template_sector) === enforcedSector);
-  }, [templates, sectorFilter, businessSector]);
+    const enforcedSector = showAllSectors
+      ? null
+      : businessSector || (sectorFilter === "all" ? null : sectorFilter);
+    return templates.filter(
+      (t) => !enforcedSector || normalizeBusinessSector(t.template_sector) === enforcedSector,
+    );
+  }, [templates, sectorFilter, businessSector, showAllSectors]);
 
   const applyTemplate = async (templateId: string) => {
     setApplyingId(templateId);
