@@ -3,14 +3,16 @@ import { MessageCircle, X, Send, Sparkles, Loader2, CheckCircle2, AlertCircle, Z
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { supabase } from "@/lib/supabaseCustom";
+import { supabase, supabaseUrl, supabaseAnonKey } from "@/lib/supabaseCustom";
 import { useAuth } from "@/contexts/AuthContext";
 import ReactMarkdown from "react-markdown";
 import { toast } from "sonner";
 import { useNavigate, useLocation } from "react-router-dom";
 
-// Lovable Cloud edge function URL (auto-deployed on Publish)
-const CONCIERGE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/nexus-concierge`;
+// Always invoke the production edge function (deployed on hqyu...).
+// The sandbox project does NOT have nexus-concierge deployed, which would
+// cause an HTML 404 and the "Unexpected token '<'" JSON parse error.
+const CONCIERGE_URL = `${supabaseUrl}/functions/v1/nexus-concierge`;
 const OPEN_CONCIERGE_EVENT = "nexus-concierge:open";
 
 interface Message {
@@ -578,7 +580,7 @@ export function NexusConcierge() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${supabaseAnonKey}`,
         },
         body: JSON.stringify({
           messages: chatMessages,
@@ -745,7 +747,7 @@ export function NexusConcierge() {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
-                Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+                Authorization: `Bearer ${supabaseAnonKey}`,
               },
               body: JSON.stringify({
                 messages: followUpMessages,
