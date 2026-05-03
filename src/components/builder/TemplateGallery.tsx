@@ -340,8 +340,21 @@ export function TemplateGallery({ projectId, pageId, onApplied }: Props) {
 
       {filteredTemplates.length === 0 ? (
         <Card className="glass">
-          <CardContent className="py-12 text-center text-muted-foreground text-sm">
-            Sem modelos compatíveis com o setor definido no Perfil da Empresa.
+          <CardContent className="py-10 text-center space-y-4">
+            <p className="text-muted-foreground text-sm">
+              Sem modelos compatíveis com o setor do teu Perfil da Empresa.
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              {!showAllSectors && (
+                <Button variant="outline" size="sm" onClick={() => setShowAllSectors(true)}>
+                  Ver todos os modelos
+                </Button>
+              )}
+              <Button variant="ghost" size="sm" onClick={seedTemplates}>
+                <Sparkles className="h-4 w-4 mr-2" />
+                Atualizar galeria
+              </Button>
+            </div>
           </CardContent>
         </Card>
       ) : (
