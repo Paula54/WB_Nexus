@@ -209,10 +209,16 @@ export function TemplateGallery({ projectId, pageId, onApplied }: Props) {
     [templates]
   );
 
+  const [showAllSectors, setShowAllSectors] = useState(false);
+
   const filteredTemplates = useMemo(() => {
-    const enforcedSector = businessSector || (sectorFilter === "all" ? null : sectorFilter);
-    return templates.filter((t) => !enforcedSector || normalizeBusinessSector(t.template_sector) === enforcedSector);
-  }, [templates, sectorFilter, businessSector]);
+    const enforcedSector = showAllSectors
+      ? null
+      : businessSector || (sectorFilter === "all" ? null : sectorFilter);
+    return templates.filter(
+      (t) => !enforcedSector || normalizeBusinessSector(t.template_sector) === enforcedSector,
+    );
+  }, [templates, sectorFilter, businessSector, showAllSectors]);
 
   const applyTemplate = async (templateId: string) => {
     setApplyingId(templateId);
@@ -284,11 +290,13 @@ export function TemplateGallery({ projectId, pageId, onApplied }: Props) {
     <div className="space-y-5">
       <div className="text-center">
         <h2 className="text-2xl font-display font-bold flex items-center justify-center gap-2">
-          <Sparkles className="h-6 w-6 text-primary" />
-          Modelos Inteligentes
+          <LayoutTemplate className="h-6 w-6 text-primary" />
+          Galeria de Modelos
         </h2>
         <p className="text-muted-foreground text-sm mt-1">
-          Mostro apenas modelos compatíveis com o setor do teu Perfil da Empresa.
+          {businessSector
+            ? "A mostrar modelos compatíveis com o setor do teu negócio."
+            : "Escolhe um modelo para começar — podes personalizar tudo a seguir."}
         </p>
       </div>
 
@@ -332,8 +340,21 @@ export function TemplateGallery({ projectId, pageId, onApplied }: Props) {
 
       {filteredTemplates.length === 0 ? (
         <Card className="glass">
-          <CardContent className="py-12 text-center text-muted-foreground text-sm">
-            Sem modelos compatíveis com o setor definido no Perfil da Empresa.
+          <CardContent className="py-10 text-center space-y-4">
+            <p className="text-muted-foreground text-sm">
+              Sem modelos compatíveis com o setor do teu Perfil da Empresa.
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              {!showAllSectors && (
+                <Button variant="outline" size="sm" onClick={() => setShowAllSectors(true)}>
+                  Ver todos os modelos
+                </Button>
+              )}
+              <Button variant="ghost" size="sm" onClick={seedTemplates}>
+                <Sparkles className="h-4 w-4 mr-2" />
+                Atualizar galeria
+              </Button>
+            </div>
           </CardContent>
         </Card>
       ) : (
